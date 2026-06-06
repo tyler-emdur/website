@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-serif: Georgia, 'Times New Roman', serif;
+  --font-sans:  system-ui, -apple-system, sans-serif;
+  --font-mono:  'Courier New', Courier, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  cursor: none;
+  background: #070710;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #070710;
+  color: #F0EDE8;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Area backgrounds */
+.bg-area-run     { background: #0d0806; }
+.bg-area-build   { background: #070a14; }
+.bg-area-archive { background: #0d0a07; }
+.bg-area-explore { background: #070f0a; }
+.bg-area-lab     { background: #0a0710; }
+
+/* Grain texture */
+.grain::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  mix-blend-mode: screen;
+}
+
+.grain-warm::after { opacity: 0.07; }
+
+/* Cursor hiding on mobile */
+@media (hover: none) {
+  html { cursor: auto; }
+  #cursor-dot, #cursor-ring { display: none; }
+}
+
+/* Selection */
+::selection { background: rgba(202, 255, 0, 0.3); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 0; }
+
+/* Blueprint grid for Build area */
+.blueprint-grid {
+  background-image:
+    linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Topographic lines for Explore */
+.topo-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cellipse cx='200' cy='200' rx='180' ry='120' fill='none' stroke='%2322C55E' stroke-width='0.5' opacity='0.08'/%3E%3Cellipse cx='200' cy='200' rx='140' ry='90' fill='none' stroke='%2322C55E' stroke-width='0.5' opacity='0.08'/%3E%3Cellipse cx='200' cy='200' rx='100' ry='60' fill='none' stroke='%2322C55E' stroke-width='0.5' opacity='0.08'/%3E%3Cellipse cx='200' cy='200' rx='60' ry='35' fill='none' stroke='%2322C55E' stroke-width='0.5' opacity='0.08'/%3E%3Cellipse cx='200' cy='200' rx='25' ry='15' fill='none' stroke='%2322C55E' stroke-width='0.5' opacity='0.08'/%3E%3C/svg%3E");
+  background-size: 400px 400px;
+}
+
+/* Lab scanlines */
+.scanlines::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(168, 85, 247, 0.015) 3px,
+    rgba(168, 85, 247, 0.015) 4px
+  );
+}
+
+/* Transitions */
+.area-enter { animation: areaEnter 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+@keyframes areaEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
