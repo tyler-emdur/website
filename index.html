@@ -5,828 +5,1041 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tyler Emdur</title>
   <style>
-    /* ============================================
-       CSS CUSTOM PROPERTIES — edit these 5 lines
-       to retheme the entire site
-    ============================================ */
     :root {
-      --bg:       #F5F2EB;
-      --ink:      #1A1A1A;
-      --accent:   #CAFF00;
-      --serif:    'Georgia', 'Times New Roman', serif;
-      --sans:     system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-
-      --cursor-size:        8px;
-      --cursor-expand:      32px;
-      --marquee-duration:   28s;
+      --bg:    #080808;
+      --fg:    #f0ede8;
+      --a1:    #CAFF00;
+      --a2:    #FF2D78;
+      --a3:    #00FFEA;
+      --serif: 'Georgia','Times New Roman',serif;
+      --sans:  system-ui,-apple-system,sans-serif;
+      --mono:  'Courier New',Courier,monospace;
     }
 
-    /* ============================================
-       RESET & BASE
-    ============================================ */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
 
-    html { cursor: none; scroll-behavior: smooth; }
+    html { cursor:none; overflow-x:hidden; scroll-behavior:smooth; }
 
     body {
-      background: var(--bg);
-      color: var(--ink);
-      font-family: var(--sans);
-      font-size: 16px;
-      line-height: 1.5;
-      overflow-x: hidden;
+      background:var(--bg);
+      color:var(--fg);
+      font-family:var(--sans);
+      overflow-x:hidden;
     }
 
-    a { color: inherit; text-decoration: none; cursor: none; }
-
-    /* ============================================
-       CUSTOM CURSOR
-    ============================================ */
-    #cursor-dot {
-      position: fixed;
-      top: 0; left: 0;
-      width: var(--cursor-size);
-      height: var(--cursor-size);
-      background: var(--accent);
-      border-radius: 50%;
-      pointer-events: none;
-      z-index: 9999;
-      transform: translate(-50%, -50%);
-      transition: width 0.2s ease, height 0.2s ease, background 0.2s ease, border 0.15s ease;
-      will-change: transform;
+    /* Fixed bg canvas — behind everything */
+    #bg-canvas {
+      position:fixed; inset:0;
+      width:100vw; height:100vh;
+      z-index:0; pointer-events:none;
     }
 
-    #cursor-dot.expanded {
-      width: var(--cursor-expand);
-      height: var(--cursor-expand);
-      background: transparent;
-      border: 2px solid var(--accent);
+    /* Noise grain overlay */
+    body::after {
+      content:'';
+      position:fixed; inset:0;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      opacity:0.028; pointer-events:none;
+      z-index:1; mix-blend-mode:screen;
     }
 
-    /* ============================================
-       SECTION: HERO
-    ============================================ */
+    section,div[id],footer,header {
+      position:relative; z-index:2;
+    }
+
+    /* ── CURSOR TRAIL ── */
+    .trail {
+      position:fixed; border-radius:50%;
+      pointer-events:none; z-index:9999;
+      transform:translate(-50%,-50%);
+      will-change:transform;
+    }
+
+    /* ── HERO ── */
     #hero {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: auto auto auto;
-      grid-template-areas:
-        "name    name"
-        "sub     year"
-        "scroll  scroll";
-      min-height: 100svh;
-      padding: 6vw 6vw 4vw;
-      position: relative;
-      border-bottom: 1px solid var(--ink);
+      width:100vw; height:100svh;
+      display:flex; flex-direction:column;
+      justify-content:flex-end;
+      padding:6vw;
+      overflow:hidden;
+      border-bottom:1px solid rgba(240,237,232,0.07);
+    }
+
+    #hero-year {
+      position:absolute; top:5vw; right:5vw;
+      font-family:var(--mono); font-size:9px;
+      letter-spacing:0.22em; text-transform:uppercase;
+      opacity:0.18;
     }
 
     #hero-name {
-      grid-area: name;
-      font-family: var(--serif);
-      font-size: clamp(3.5rem, 17vw, 22vw);
-      font-weight: normal;
-      line-height: 0.88;
-      letter-spacing: -0.03em;
-      margin-bottom: 0.25em;
-      overflow: hidden;
+      font-family:var(--serif);
+      font-size:clamp(3.5rem,15vw,19vw);
+      font-weight:normal;
+      line-height:0.87;
+      letter-spacing:-0.025em;
+      display:flex; flex-wrap:wrap;
+      gap:0 0.3em;
+      margin-bottom:2rem;
+      user-select:none;
     }
 
-    .name-letter {
-      display: inline-block;
-      opacity: 0;
-      transform: translateY(110%);
-      animation: letterDrop 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    .h-word { display:flex; overflow:hidden; }
+
+    .h-let {
+      display:inline-block;
+      will-change:transform;
+      opacity:0;
+      transform:translateY(90px) rotate(var(--r,0deg));
+      transition:opacity 0.7s var(--d,0s) ease,
+                 transform 0.7s var(--d,0s) cubic-bezier(0.16,1,0.3,1),
+                 color 0.25s;
     }
 
-    .name-space { display: inline-block; width: 0.35em; }
-
-    @keyframes letterDrop {
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .h-let.in { opacity:1; transform:translateY(0) rotate(0deg); }
 
     #hero-sub {
-      grid-area: sub;
-      align-self: end;
-      font-size: 0.875rem;
-      letter-spacing: 0.01em;
-      color: var(--ink);
-      opacity: 0.75;
-      min-height: 1.5em;
-      padding-bottom: 1rem;
+      font-family:var(--mono);
+      font-size:clamp(0.75rem,1.4vw,0.95rem);
+      opacity:0.45; letter-spacing:0.06em;
+      margin-bottom:3.5rem;
+      min-height:1.5em;
+      display:flex; align-items:center; gap:0.1em;
     }
 
-    #hero-sub span { transition: opacity 0.5s ease; }
-
-    #hero-year {
-      grid-area: year;
-      align-self: end;
-      text-align: right;
-      font-size: 10px;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      opacity: 0.4;
-      padding-bottom: 1rem;
-    }
+    #hero-sub-text { transition:opacity 0.45s; }
+    #hero-cursor { color:var(--a1); animation:blink 1s step-end infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
     #hero-scroll {
-      grid-area: scroll;
-      font-size: 10px;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      opacity: 0.35;
-      padding-top: 2rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
+      font-size:9px; letter-spacing:0.22em;
+      text-transform:uppercase; opacity:0.25;
+      display:flex; align-items:center; gap:1rem;
     }
-
     #hero-scroll::before {
-      content: '';
-      display: block;
-      width: 32px;
-      height: 1px;
-      background: var(--ink);
-      animation: scrollPulse 2s ease-in-out infinite;
+      content:''; width:36px; height:1px;
+      background:var(--fg);
+      animation:scrollline 2.2s ease-in-out infinite;
+    }
+    @keyframes scrollline {
+      0%,100%{width:36px;opacity:0.25} 50%{width:60px;opacity:0.5}
     }
 
-    @keyframes scrollPulse {
-      0%, 100% { width: 32px; opacity: 0.35; }
-      50%       { width: 56px; opacity: 0.6; }
+    /* ── MARQUEES ── */
+    #mq-zone {
+      overflow:hidden;
+      border-bottom:1px solid rgba(240,237,232,0.07);
+      position:relative; z-index:2;
     }
 
-    /* Rotated label on right edge */
-    #hero::after {
-      content: 'EST. 2026';
-      position: absolute;
-      right: -3.5rem;
-      top: 50%;
-      transform: rotate(90deg) translateX(-50%);
-      font-size: 9px;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      opacity: 0.3;
+    .mq-row {
+      padding:0.45rem 0;
+      border-top:1px solid rgba(240,237,232,0.05);
+      overflow:hidden; white-space:nowrap;
+    }
+    .mq-row:first-child { border-top:none; }
+
+    .mq-track {
+      display:inline-block;
+      animation:mqleft var(--dur,30s) linear infinite;
+      will-change:transform;
+    }
+    .mq-row.rev .mq-track { animation-direction:reverse; }
+
+    .mq-track span {
+      font-size:var(--sz,0.72rem);
+      letter-spacing:0.14em;
+      text-transform:uppercase;
+      color:var(--col,var(--fg));
+      opacity:var(--op,0.35);
     }
 
-    /* ============================================
-       SECTION: MARQUEE / TICKER
-    ============================================ */
-    #ticker {
-      background: var(--ink);
-      color: var(--bg);
-      padding: 0.75rem 0;
-      overflow: hidden;
-      white-space: nowrap;
-      border-bottom: 1px solid var(--ink);
-      position: relative;
+    @keyframes mqleft {
+      from{transform:translateX(0)} to{transform:translateX(-50%)}
     }
 
-    #ticker-track {
-      display: inline-flex;
-      animation: marquee var(--marquee-duration) linear infinite;
-      will-change: transform;
-    }
-
-    /* ✏️ EDIT: Change the marquee text below */
-    #ticker-track span {
-      font-size: 0.8rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      padding-right: 0.1em;
-    }
-
-    @keyframes marquee {
-      from { transform: translateX(0); }
-      to   { transform: translateX(-50%); }
-    }
-
-    /* ============================================
-       SECTION: ABOUT / INDEX
-    ============================================ */
+    /* ── ABOUT ── */
     #about {
-      display: grid;
-      grid-template-columns: 1fr 2fr;
-      gap: 0;
-      border-bottom: 1px solid var(--ink);
+      display:grid;
+      grid-template-columns:1fr 1.9fr;
+      border-bottom:1px solid rgba(240,237,232,0.07);
     }
 
-    #about-sidebar {
-      padding: 5vw 4vw;
-      border-right: 1px solid var(--ink);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
+    #about-left {
+      padding:5vw 4vw;
+      border-right:1px solid rgba(240,237,232,0.07);
+      display:flex; flex-direction:column;
+      justify-content:space-between; gap:3rem;
     }
 
-    #about-sidebar-label {
-      font-size: 9px;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      opacity: 0.45;
-      writing-mode: vertical-lr;
-      text-orientation: mixed;
-      transform: rotate(180deg);
-      align-self: flex-end;
+    #about-left h2 {
+      font-family:var(--serif);
+      font-size:clamp(1.8rem,4.5vw,4rem);
+      font-weight:normal; line-height:1.02;
+      letter-spacing:-0.02em;
     }
 
-    #about-sidebar-num {
-      font-family: var(--serif);
-      font-size: clamp(3rem, 8vw, 7rem);
-      font-weight: normal;
-      line-height: 1;
-      opacity: 0.07;
+    #live-clock {
+      font-family:var(--mono);
+      font-size:clamp(1rem,2.5vw,1.8rem);
+      color:var(--a1); letter-spacing:0.06em;
     }
 
-    #about-content {
-      padding: 5vw 6vw;
+    #about-right { padding:5vw 6vw; }
+
+    .idx { width:100%; border-collapse:collapse; }
+    .idx tr { border-top:1px solid rgba(240,237,232,0.06); }
+    .idx tr { transition:background 0.2s; }
+    .idx tr:hover { background:rgba(202,255,0,0.04); }
+    .idx td { padding:1.15rem 0; vertical-align:top; }
+
+    .ik {
+      font-family:var(--mono); font-size:9px;
+      letter-spacing:0.22em; text-transform:uppercase;
+      opacity:0.3; padding-right:2rem;
+      white-space:nowrap; padding-top:1.4rem;
     }
 
-    #about-content h2 {
-      font-family: var(--serif);
-      font-size: clamp(1.5rem, 3.5vw, 2.5rem);
-      font-weight: normal;
-      margin-bottom: 3rem;
-      line-height: 1.1;
+    .iv {
+      font-size:0.92rem; line-height:1.6;
+      transition:color 0.2s, padding-left 0.2s;
+    }
+    .idx tr:hover .iv { color:var(--a1); padding-left:0.4rem; }
+    .iv a { color:var(--a3); text-decoration:none; border-bottom:1px solid rgba(0,255,234,0.3); }
+    .iv a:hover { color:var(--fg); }
+
+    /* ── PLAYGROUND ── */
+    #playground {
+      position:relative; height:68vh; min-height:400px;
+      border-bottom:1px solid rgba(240,237,232,0.07);
+      overflow:hidden;
     }
 
-    .index-table {
-      width: 100%;
-      border-collapse: collapse;
+    #pg-label, #pg-hint {
+      position:absolute;
+      font-family:var(--mono); font-size:9px;
+      letter-spacing:0.2em; text-transform:uppercase;
+      opacity:0.22; z-index:10;
+    }
+    #pg-label { top:1.8rem; left:4vw; }
+    #pg-hint  { bottom:1.8rem; right:4vw; }
+
+    #play-canvas {
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      z-index:1; pointer-events:none;
     }
 
-    .index-table tr {
-      border-top: 1px solid rgba(26,26,26,0.12);
-      transition: background 0.2s ease;
+    .fobj {
+      position:absolute; z-index:5;
+      padding:0.55rem 1.1rem;
+      border:1px solid;
+      font-family:var(--mono); font-size:0.72rem;
+      letter-spacing:0.18em; text-transform:uppercase;
+      cursor:none; user-select:none;
+      transition:box-shadow 0.3s, transform 0.15s;
+      will-change:transform, left, top;
     }
 
-    .index-table tr:hover { background: rgba(202,255,0,0.08); }
+    .fobj[data-c="1"] { color:var(--a1); border-color:rgba(202,255,0,0.3); }
+    .fobj[data-c="2"] { color:var(--a2); border-color:rgba(255,45,120,0.3); }
+    .fobj[data-c="3"] { color:var(--a3); border-color:rgba(0,255,234,0.3); }
+    .fobj[data-c="0"] { color:var(--fg); border-color:rgba(240,237,232,0.2); }
 
-    .index-table td {
-      padding: 1.25rem 0;
-      vertical-align: top;
+    .fobj.lit { box-shadow:0 0 18px currentColor; }
+    .fobj.held { transform:scale(1.06) rotate(-1deg); z-index:20; }
+
+    /* ── TERMINAL ── */
+    #term-section {
+      display:grid; grid-template-columns:1fr 1.15fr;
+      border-bottom:1px solid rgba(240,237,232,0.07);
     }
 
-    .index-label {
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      opacity: 0.45;
-      padding-right: 2rem;
-      white-space: nowrap;
-      padding-top: 1.4rem;
+    #term-intro {
+      padding:5vw 4vw;
+      border-right:1px solid rgba(240,237,232,0.07);
+      display:flex; flex-direction:column;
+      justify-content:space-between; gap:3rem;
     }
 
-    .index-value {
-      font-size: 1rem;
-      line-height: 1.55;
+    #term-intro h2 {
+      font-family:var(--serif);
+      font-size:clamp(1.8rem,4vw,3.5rem);
+      font-weight:normal; line-height:1.05;
     }
 
-    /* ✏️ EDIT: Swap out your link targets below */
-    .index-value a {
-      border-bottom: 1px solid var(--accent);
-      transition: color 0.2s ease, padding-left 0.2s ease;
+    #term-intro p {
+      font-family:var(--mono); font-size:0.78rem;
+      opacity:0.38; line-height:1.85;
+    }
+    #term-intro p code { color:var(--a1); opacity:1; }
+
+    #term-outer { padding:4vw; }
+
+    #term-win {
+      background:#0c0c0c;
+      border:1px solid rgba(202,255,0,0.12);
+      border-radius:5px; overflow:hidden;
+      font-family:var(--mono); font-size:0.77rem;
+      line-height:1.65;
+      box-shadow:0 0 40px rgba(202,255,0,0.04), 0 0 1px rgba(202,255,0,0.15);
     }
 
-    .index-value a:hover {
-      color: var(--accent);
-      padding-left: 0.3em;
+    #term-bar {
+      background:#141414;
+      padding:0.55rem 0.9rem;
+      display:flex; align-items:center; gap:0.42rem;
+      border-bottom:1px solid rgba(202,255,0,0.07);
     }
 
-    /* ============================================
-       SECTION: TERMINAL / INTERACTIVE WIDGET
-    ============================================ */
-    #terminal-section {
-      padding: 6vw;
-      border-bottom: 1px solid var(--ink);
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4vw;
-      align-items: start;
+    .tdot { width:10px; height:10px; border-radius:50%; }
+    .tr { background:#FF5F57; } .ty { background:#FEBC2E; } .tg { background:#28C840; }
+    #term-bar-title { margin-left:auto; font-size:9px; color:rgba(240,237,232,0.18); letter-spacing:0.1em; }
+
+    #term-out {
+      padding:1rem 1rem 0.25rem;
+      min-height:230px; max-height:340px; overflow-y:auto;
+    }
+    #term-out::-webkit-scrollbar { width:3px; }
+    #term-out::-webkit-scrollbar-thumb { background:rgba(202,255,0,0.15); border-radius:2px; }
+
+    .tl { margin-bottom:0.04em; }
+    .tp { color:var(--a1); }
+    .to { color:rgba(240,237,232,0.5); padding-left:0.9em; }
+    .to.hi { color:var(--a1); padding-left:0; }
+    .to.cy { color:var(--a3); }
+    .to.pk { color:var(--a2); }
+    .to.er { color:#FF5F57; }
+
+    #term-in-row {
+      display:flex; align-items:center;
+      padding:0.45rem 1rem 0.9rem; gap:0.5rem;
+      border-top:1px solid rgba(202,255,0,0.07);
+    }
+    #term-in {
+      background:transparent; border:none; outline:none;
+      color:rgba(240,237,232,0.88); font-family:inherit;
+      font-size:inherit; flex:1; caret-color:var(--a1); cursor:none;
     }
 
-    #terminal-intro {
-      padding-top: 0.5rem;
-    }
-
-    #terminal-intro h2 {
-      font-family: var(--serif);
-      font-size: clamp(1.5rem, 3vw, 2.25rem);
-      font-weight: normal;
-      margin-bottom: 1rem;
-      line-height: 1.1;
-    }
-
-    #terminal-intro p {
-      font-size: 0.875rem;
-      opacity: 0.6;
-      line-height: 1.7;
-    }
-
-    #terminal-intro p code {
-      background: var(--ink);
-      color: var(--accent);
-      padding: 0.1em 0.35em;
-      border-radius: 2px;
-      font-size: 0.8em;
-    }
-
-    #terminal-window {
-      background: var(--ink);
-      border-radius: 6px;
-      overflow: hidden;
-      font-family: 'Courier New', Courier, monospace;
-      font-size: 0.8rem;
-      line-height: 1.6;
-      box-shadow: 4px 4px 0 rgba(26,26,26,0.15);
-    }
-
-    #terminal-titlebar {
-      background: #2a2a2a;
-      padding: 0.6rem 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .term-dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-    }
-
-    .term-dot-r { background: #FF5F57; }
-    .term-dot-y { background: #FEBC2E; }
-    .term-dot-g { background: #28C840; }
-
-    #terminal-titlebar span {
-      margin-left: auto;
-      font-size: 10px;
-      color: rgba(255,255,255,0.3);
-      letter-spacing: 0.1em;
-    }
-
-    #terminal-body {
-      padding: 1.25rem 1.25rem 0.5rem;
-      min-height: 260px;
-      max-height: 400px;
-      overflow-y: auto;
-      color: #e0e0e0;
-    }
-
-    #terminal-body::-webkit-scrollbar { width: 4px; }
-    #terminal-body::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
-
-    .term-line { margin-bottom: 0.1em; }
-    .term-prompt { color: var(--accent); }
-    .term-output { color: #a0a0a0; padding-left: 1.2em; }
-    .term-output.accent { color: var(--accent); }
-    .term-output.error  { color: #FF5F57; }
-
-    #terminal-input-row {
-      display: flex;
-      align-items: center;
-      padding: 0.5rem 1.25rem 1rem;
-      gap: 0.5rem;
-    }
-
-    #terminal-input-row .term-prompt { flex-shrink: 0; }
-
-    #terminal-input {
-      background: transparent;
-      border: none;
-      outline: none;
-      color: #e0e0e0;
-      font-family: inherit;
-      font-size: inherit;
-      flex: 1;
-      caret-color: var(--accent);
-      cursor: none;
-    }
-
-    /* ============================================
-       SECTION: LINKS / ELSEWHERE
-    ============================================ */
+    /* ── LINKS ── */
     #links-section {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      border-bottom: 1px solid var(--ink);
+      padding:6vw;
+      border-bottom:1px solid rgba(240,237,232,0.07);
     }
 
-    #links-label-col {
-      padding: 5vw 4vw;
-      border-right: 1px solid var(--ink);
-      display: flex;
-      align-items: flex-end;
+    #links-section h2 {
+      font-family:var(--serif);
+      font-size:clamp(1.4rem,3vw,2.2rem);
+      font-weight:normal; opacity:0.3;
+      margin-bottom:2.5rem;
     }
 
-    #links-label-col h2 {
-      font-family: var(--serif);
-      font-size: clamp(2rem, 5vw, 4rem);
-      font-weight: normal;
-      line-height: 1.05;
-      writing-mode: vertical-lr;
-      transform: rotate(180deg);
+    #links-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+      gap:1px; background:rgba(240,237,232,0.06);
+      border:1px solid rgba(240,237,232,0.06);
     }
 
-    #links-list-col {
-      padding: 5vw 6vw;
+    .lcard {
+      background:var(--bg); padding:1.7rem 1.4rem;
+      display:flex; flex-direction:column; gap:0.7rem;
+      text-decoration:none; color:var(--fg); cursor:none;
+      transition:background 0.22s;
     }
+    .lcard:hover { background:rgba(202,255,0,0.04); }
 
-    /* ✏️ EDIT: Replace # with your real URLs */
-    .link-item {
-      display: block;
-      padding: 1.1rem 0;
-      border-top: 1px solid rgba(26,26,26,0.12);
-      font-size: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: gap 0.2s ease, color 0.2s ease;
-    }
+    .lcard-arrow { font-size:1.15rem; color:var(--a1); display:inline-block; transition:transform 0.22s; }
+    .lcard:hover .lcard-arrow { transform:translate(4px,-4px); }
+    .lcard-name { font-size:0.88rem; letter-spacing:0.06em; }
+    .lcard-handle { font-family:var(--mono); font-size:9px; letter-spacing:0.15em; text-transform:uppercase; opacity:0.28; }
 
-    .link-item:last-child { border-bottom: 1px solid rgba(26,26,26,0.12); }
-
-    .link-item:hover { gap: 1rem; }
-
-    .link-arrow {
-      color: var(--accent);
-      font-size: 1.1em;
-      flex-shrink: 0;
-      transition: transform 0.2s ease;
-    }
-
-    .link-item:hover .link-arrow { transform: translate(3px, -3px); }
-
-    /* ============================================
-       SECTION: FOOTER
-    ============================================ */
+    /* ── FOOTER ── */
     #footer {
-      padding: 3vw 6vw;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 10px;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      opacity: 0.4;
+      padding:3.5vw 6vw;
+      display:flex; justify-content:space-between; align-items:center;
+      font-family:var(--mono); font-size:9px;
+      letter-spacing:0.18em; text-transform:uppercase; opacity:0.18;
     }
 
-    /* ============================================
-       MOBILE RESPONSIVE
-    ============================================ */
-    @media (max-width: 768px) {
-      #hero {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-          "name"
-          "sub"
-          "year"
-          "scroll";
-        padding: 8vw 6vw 6vw;
-      }
-      #hero::after { display: none; }
-      #hero-year { text-align: left; }
+    /* ── SCROLL REVEAL ── */
+    .reveal { opacity:0; transform:translateY(28px); transition:opacity 0.75s ease, transform 0.75s ease; }
+    .reveal.in { opacity:1; transform:none; }
 
-      #about { grid-template-columns: 1fr; }
-      #about-sidebar { display: none; }
+    /* ── KONAMI OVERLAY ── */
+    #konami {
+      position:fixed; inset:0; background:#000;
+      z-index:99999; display:flex;
+      flex-direction:column; align-items:center; justify-content:center;
+      opacity:0; pointer-events:none;
+      transition:opacity 0.5s;
+    }
+    #konami.on { opacity:1; pointer-events:all; }
+    #konami h1 {
+      font-family:var(--mono); color:var(--a1);
+      font-size:clamp(0.9rem,3vw,1.6rem);
+      text-align:center; line-height:1.7; letter-spacing:0.08em;
+    }
+    #konami p { margin-top:2rem; font-family:var(--mono); font-size:0.7rem; color:rgba(240,237,232,0.3); letter-spacing:0.18em; cursor:pointer; }
+    #konami p:hover { color:var(--a1); }
 
-      #terminal-section {
-        grid-template-columns: 1fr;
-      }
+    /* ── GLITCH KEYFRAMES ── */
+    @keyframes glitch-clip {
+      0%   { clip-path:inset(8%  0 88% 0); transform:translateX(-5px); }
+      25%  { clip-path:inset(65% 0 5%  0); transform:translateX(5px);  }
+      50%  { clip-path:inset(40% 0 45% 0); transform:translateX(-3px); }
+      75%  { clip-path:inset(82% 0 3%  0); transform:translateX(4px);  }
+      100% { clip-path:inset(8%  0 88% 0); transform:translateX(0);    }
+    }
 
-      #links-section {
-        grid-template-columns: 1fr;
-      }
-
-      #links-label-col {
-        border-right: none;
-        border-bottom: 1px solid var(--ink);
-        padding: 6vw;
-      }
-
-      #links-label-col h2 {
-        writing-mode: horizontal-tb;
-        transform: none;
-      }
-
-      #footer {
-        flex-direction: column;
-        gap: 0.5rem;
-        text-align: center;
-      }
+    /* ── MOBILE ── */
+    @media (max-width:768px) {
+      #about { grid-template-columns:1fr; }
+      #about-left { border-right:none; border-bottom:1px solid rgba(240,237,232,0.07); }
+      #term-section { grid-template-columns:1fr; }
+      #term-intro { border-right:none; border-bottom:1px solid rgba(240,237,232,0.07); }
+      #playground { height:55vh; }
     }
   </style>
 </head>
 <body>
 
-<!-- ============================================
-     CUSTOM CURSOR
-============================================ -->
-<div id="cursor-dot"></div>
+<canvas id="bg-canvas"></canvas>
 
-<!-- ============================================
-     SECTION 1: HERO
-============================================ -->
+<!-- ✏️ KONAMI EASTER EGG — ↑↑↓↓←→←→BA -->
+<div id="konami">
+  <h1>you found it.<br>most people don't look this hard.</h1>
+  <p>[click anywhere to close]</p>
+</div>
+
+<!-- ═══════════════════ HERO ═══════════════════ -->
 <section id="hero">
-  <!-- ✏️ EDIT: Your name is split into individual letters for animation -->
+  <p id="hero-year">Tyler Emdur · 2026</p>
+  <!-- ✏️ EDIT: name injected by JS below -->
   <h1 id="hero-name" aria-label="Tyler Emdur"></h1>
-
   <p id="hero-sub">
-    <span id="rotating-text">a person on the internet.</span>
+    <span id="hero-sub-text">a person on the internet.</span><span id="hero-cursor">_</span>
   </p>
-
-  <p id="hero-year">© 2026</p>
-  <p id="hero-scroll">Scroll</p>
+  <p id="hero-scroll">Scroll to enter</p>
 </section>
 
-<!-- ============================================
-     SECTION 2: MARQUEE TICKER
-============================================ -->
-<div id="ticker" aria-hidden="true">
-  <div id="ticker-track">
-    <!-- ✏️ EDIT: Replace this text with your own descriptors -->
-    <span>TYLER EMDUR &nbsp;·&nbsp; BASED SOMEWHERE INTERESTING &nbsp;·&nbsp; BUILDER OF THINGS &nbsp;·&nbsp; CURIOUS BY DEFAULT &nbsp;·&nbsp; MAKING IT UP AS I GO &nbsp;·&nbsp; PROBABLY OVERTHINKING IT &nbsp;·&nbsp; OPEN TO WHAT'S NEXT &nbsp;·&nbsp;&nbsp;</span>
-    <span>TYLER EMDUR &nbsp;·&nbsp; BASED SOMEWHERE INTERESTING &nbsp;·&nbsp; BUILDER OF THINGS &nbsp;·&nbsp; CURIOUS BY DEFAULT &nbsp;·&nbsp; MAKING IT UP AS I GO &nbsp;·&nbsp; PROBABLY OVERTHINKING IT &nbsp;·&nbsp; OPEN TO WHAT'S NEXT &nbsp;·&nbsp;&nbsp;</span>
+<!-- ═══════════════════ MARQUEES ═══════════════════ -->
+<div id="mq-zone">
+  <div class="mq-row" style="--dur:22s;--sz:0.62rem;--col:var(--a1);--op:0.55;">
+    <div class="mq-track">
+      <span>TYLER EMDUR · BUILDER · THINKER · CURIOUS · MAKER · SYSTEM BREAKER · PATTERN FINDER · PROBABLY OVERTHINKING IT · &nbsp;</span>
+      <span>TYLER EMDUR · BUILDER · THINKER · CURIOUS · MAKER · SYSTEM BREAKER · PATTERN FINDER · PROBABLY OVERTHINKING IT · &nbsp;</span>
+    </div>
+  </div>
+  <div class="mq-row rev" style="--dur:36s;--sz:0.53rem;--op:0.18;">
+    <div class="mq-track">
+      <span>OPEN TO WHAT'S NEXT · MAKING IT UP AS I GO · THE GAP BETWEEN HOW THINGS WORK AND HOW PEOPLE THINK THEY DO · &nbsp;</span>
+      <span>OPEN TO WHAT'S NEXT · MAKING IT UP AS I GO · THE GAP BETWEEN HOW THINGS WORK AND HOW PEOPLE THINK THEY DO · &nbsp;</span>
+    </div>
+  </div>
+  <div class="mq-row" style="--dur:16s;--sz:1.4rem;--op:0.05;">
+    <div class="mq-track">
+      <span>★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ &nbsp;</span>
+      <span>★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ &nbsp;</span>
+    </div>
   </div>
 </div>
 
-<!-- ============================================
-     SECTION 3: ABOUT / INDEX
-============================================ -->
-<section id="about">
-  <div id="about-sidebar">
-    <div id="about-sidebar-num">02</div>
-    <div id="about-sidebar-label">Index</div>
+<!-- ═══════════════════ ABOUT ═══════════════════ -->
+<section id="about" class="reveal">
+  <div id="about-left">
+    <!-- ✏️ EDIT: heading text -->
+    <h2 class="scramble" data-target="An index of the person.">An index of the person.</h2>
+    <div id="live-clock">00:00:00</div>
   </div>
-
-  <div id="about-content">
-    <h2>An index of<br>the person.</h2>
-
-    <!-- ✏️ EDIT: Replace all placeholder text with your real content -->
-    <table class="index-table">
+  <div id="about-right">
+    <!-- ✏️ EDIT: all content in this table -->
+    <table class="idx">
       <tbody>
         <tr>
-          <td class="index-label">Currently</td>
-          <td class="index-value">working on something worth finishing</td>
+          <td class="ik">Currently</td>
+          <td class="iv">working on something worth finishing</td>
         </tr>
         <tr>
-          <td class="index-label">Lately</td>
-          <td class="index-value">thinking about how systems break and why people build them anyway</td>
+          <td class="ik">Lately</td>
+          <td class="iv">thinking about how systems break and why people build them anyway</td>
         </tr>
         <tr>
-          <td class="index-label">Always</td>
-          <td class="index-value">interested in the gap between how things work and how people think they work</td>
+          <td class="ik">Always</td>
+          <td class="iv">interested in the gap between how things work and how people think they work</td>
         </tr>
         <tr>
-          <td class="index-label">Background</td>
-          <td class="index-value">somewhere between the internet and the real world — probably both</td>
+          <td class="ik">Background</td>
+          <td class="iv">somewhere between the internet and the real world</td>
         </tr>
         <tr>
-          <td class="index-label">Contact</td>
-          <!-- ✏️ EDIT: Replace with your real email -->
-          <td class="index-value"><a href="mailto:tyler@tyleremdur.com">tyler@tyleremdur.com</a></td>
+          <td class="ik">Contact</td>
+          <!-- ✏️ EDIT: your email -->
+          <td class="iv"><a href="mailto:tyler@tyleremdur.com">tyler@tyleremdur.com</a></td>
         </tr>
       </tbody>
     </table>
   </div>
 </section>
 
-<!-- ============================================
-     SECTION 4: TERMINAL WIDGET
-============================================ -->
-<section id="terminal-section">
-  <div id="terminal-intro">
-    <h2>Want to<br>know more?</h2>
-    <p>
-      Type <code>help</code> and press Enter.<br><br>
-      Every command does something.<br>
-      Most of them are honest.
-    </p>
-  </div>
+<!-- ═══════════════════ PLAYGROUND ═══════════════════ -->
+<section id="playground" class="reveal">
+  <div id="pg-label">§ — drag everything</div>
+  <canvas id="play-canvas"></canvas>
+  <!-- ✏️ EDIT: words that represent you -->
+  <div class="fobj" data-c="1">BUILDER</div>
+  <div class="fobj" data-c="2">CURIOUS</div>
+  <div class="fobj" data-c="3">SYSTEMS</div>
+  <div class="fobj" data-c="0">PATTERNS</div>
+  <div class="fobj" data-c="1">MAKING</div>
+  <div class="fobj" data-c="2">THINKING</div>
+  <div class="fobj" data-c="3">BREAKING</div>
+  <div class="fobj" data-c="0">FIXING</div>
+  <div id="pg-hint">objects connect when near</div>
+</section>
 
-  <div id="terminal-window" role="application" aria-label="Interactive terminal">
-    <div id="terminal-titlebar">
-      <div class="term-dot term-dot-r"></div>
-      <div class="term-dot term-dot-y"></div>
-      <div class="term-dot term-dot-g"></div>
-      <span>tyler@emdur.com — bash</span>
-    </div>
-    <div id="terminal-body">
-      <div class="term-line"><span class="term-output">Welcome. Type <span style="color:var(--accent)">help</span> to begin.</span></div>
-    </div>
-    <div id="terminal-input-row">
-      <span class="term-prompt">~ $</span>
-      <input id="terminal-input" type="text" autocomplete="off" spellcheck="false" autocorrect="off" aria-label="Terminal input">
+<!-- ═══════════════════ TERMINAL ═══════════════════ -->
+<section id="term-section" class="reveal">
+  <div id="term-intro">
+    <h2>Ask me<br>anything.</h2>
+    <p>Type <code>help</code> and press Enter.<br>Curiosity is rewarded.<br>Some commands are hidden.</p>
+  </div>
+  <div id="term-outer">
+    <div id="term-win" role="application" aria-label="Interactive terminal">
+      <div id="term-bar">
+        <div class="tdot tr"></div><div class="tdot ty"></div><div class="tdot tg"></div>
+        <span id="term-bar-title">tyler@emdur — bash</span>
+      </div>
+      <div id="term-out">
+        <div class="tl"><span class="to hi">system online. type <span style="color:var(--a1)">help</span> to begin.</span></div>
+      </div>
+      <div id="term-in-row">
+        <span class="tp">~ $</span>
+        <input id="term-in" type="text" autocomplete="off" spellcheck="false" autocorrect="off" aria-label="Terminal input">
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ============================================
-     SECTION 5: LINKS / ELSEWHERE
-============================================ -->
-<section id="links-section">
-  <div id="links-label-col">
-    <h2>Else&shy;where</h2>
-  </div>
-
-  <div id="links-list-col">
-    <!-- ✏️ EDIT: Replace # with your real profile URLs -->
-    <a href="#" class="link-item" target="_blank" rel="noopener">
-      <span class="link-arrow">↗</span>
-      <span>Twitter / X</span>
+<!-- ═══════════════════ LINKS ═══════════════════ -->
+<section id="links-section" class="reveal">
+  <h2>Elsewhere —</h2>
+  <div id="links-grid">
+    <!-- ✏️ EDIT: replace # with your real URLs -->
+    <a href="#" class="lcard" target="_blank" rel="noopener">
+      <span class="lcard-arrow">↗</span>
+      <span class="lcard-name">Twitter / X</span>
+      <span class="lcard-handle">@handle</span>
     </a>
-    <a href="#" class="link-item" target="_blank" rel="noopener">
-      <span class="link-arrow">↗</span>
-      <span>Instagram</span>
+    <a href="#" class="lcard" target="_blank" rel="noopener">
+      <span class="lcard-arrow">↗</span>
+      <span class="lcard-name">Instagram</span>
+      <span class="lcard-handle">@handle</span>
     </a>
-    <a href="#" class="link-item" target="_blank" rel="noopener">
-      <span class="link-arrow">↗</span>
-      <span>GitHub</span>
+    <a href="https://github.com/tyler-emdur" class="lcard" target="_blank" rel="noopener">
+      <span class="lcard-arrow">↗</span>
+      <span class="lcard-name">GitHub</span>
+      <span class="lcard-handle">tyler-emdur</span>
     </a>
-    <a href="#" class="link-item" target="_blank" rel="noopener">
-      <span class="link-arrow">↗</span>
-      <span>LinkedIn</span>
+    <a href="#" class="lcard" target="_blank" rel="noopener">
+      <span class="lcard-arrow">↗</span>
+      <span class="lcard-name">LinkedIn</span>
+      <span class="lcard-handle">tyler emdur</span>
     </a>
-    <a href="mailto:tyler@tyleremdur.com" class="link-item">
-      <span class="link-arrow">↗</span>
-      <span>Email</span>
+    <a href="mailto:tyler@tyleremdur.com" class="lcard">
+      <span class="lcard-arrow">↗</span>
+      <span class="lcard-name">Email</span>
+      <span class="lcard-handle">tyler@tyleremdur.com</span>
     </a>
   </div>
 </section>
 
-<!-- ============================================
-     SECTION 6: FOOTER
-============================================ -->
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
 <footer id="footer">
-  <span>Tyler Emdur — tyleremdur.com — 2026</span>
-  <span>built with intention (and claude code)</span>
+  <span>Tyler Emdur — 2026</span>
+  <span>built weird on purpose</span>
 </footer>
 
-<!-- ============================================
-     JAVASCRIPT
-============================================ -->
 <script>
-(function () {
-  'use strict';
+(function(){
+'use strict';
 
-  /* ------------------------------------------
-     CURSOR: spring-lag dot that follows mouse
-  ------------------------------------------ */
-  const dot = document.getElementById('cursor-dot');
-  let mx = window.innerWidth / 2, my = window.innerHeight / 2;
-  let cx = mx, cy = my;
-  const SPRING = 0.12;
+/* ─── UTILS ─── */
+const $  = id => document.getElementById(id);
+const lerp = (a,b,t) => a+(b-a)*t;
+const rand = (a,b) => a+Math.random()*(b-a);
+const ri   = (a,b) => Math.floor(rand(a,b+1));
+const clamp= (v,lo,hi)=>Math.max(lo,Math.min(hi,v));
 
-  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+/* ─── CURSOR TRAIL ─── */
+const TRAIL = 14;
+const trailEls = [];
+const trailPos = [];
+let mx = innerWidth/2, my = innerHeight/2;
+let hovering = false;
 
-  const interactives = 'a, button, input, [role="button"]';
-  document.querySelectorAll(interactives).forEach(el => {
-    el.addEventListener('mouseenter', () => dot.classList.add('expanded'));
-    el.addEventListener('mouseleave', () => dot.classList.remove('expanded'));
+for(let i=0;i<TRAIL;i++){
+  trailPos.push({x:mx,y:my});
+  const d=document.createElement('div');
+  d.className='trail';
+  const t=1-i/TRAIL;
+  const sz=lerp(3,11,t);
+  d.style.cssText=`width:${sz}px;height:${sz}px;`;
+  document.body.appendChild(d);
+  trailEls.push(d);
+}
+
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+
+document.querySelectorAll('a,button,input,.fobj').forEach(el=>{
+  el.addEventListener('mouseenter',()=>hovering=true);
+  el.addEventListener('mouseleave',()=>hovering=false);
+});
+
+function stepTrail(){
+  trailPos[0].x=lerp(trailPos[0].x,mx,0.32);
+  trailPos[0].y=lerp(trailPos[0].y,my,0.32);
+  for(let i=1;i<TRAIL;i++){
+    trailPos[i].x=lerp(trailPos[i].x,trailPos[i-1].x,0.52);
+    trailPos[i].y=lerp(trailPos[i].y,trailPos[i-1].y,0.52);
+  }
+  const cols=['var(--a1)','var(--a3)','var(--a2)'];
+  trailEls.forEach((el,i)=>{
+    const t=1-i/TRAIL;
+    el.style.transform=`translate(calc(${trailPos[i].x}px - 50%),calc(${trailPos[i].y}px - 50%))`;
+    el.style.opacity=t*(hovering?0.7:0.45)+'';
+    el.style.background=cols[Math.floor(i/(TRAIL/3))];
+  });
+}
+
+/* ─── BACKGROUND PARTICLE NETWORK ─── */
+const bgC=document.getElementById('bg-canvas');
+const bgX=bgC.getContext('2d');
+let bW,bH;
+
+function rsz(){bW=bgC.width=innerWidth;bH=bgC.height=innerHeight;}
+rsz(); addEventListener('resize',rsz);
+
+const PCOLS=['#CAFF00','#FF2D78','#00FFEA'];
+const pts=Array.from({length:58},()=>({
+  x:rand(0,innerWidth),y:rand(0,innerHeight),
+  vx:(Math.random()-.5)*0.6,vy:(Math.random()-.5)*0.6,
+  col:PCOLS[ri(0,2)],
+  sz:rand(1.4,2.8),
+  wo:rand(0,Math.PI*2),ws:rand(0.004,0.01),
+}));
+
+function drawBg(){
+  bgX.clearRect(0,0,bW,bH);
+
+  pts.forEach(p=>{
+    p.wo+=p.ws;
+    p.vx+=Math.cos(p.wo)*0.006;
+    p.vy+=Math.sin(p.wo)*0.006;
+    p.vx*=0.985; p.vy*=0.985;
+    const sp=Math.hypot(p.vx,p.vy);
+    if(sp>0.75){p.vx=p.vx/sp*0.75;p.vy=p.vy/sp*0.75;}
+    // mouse push
+    const dx=p.x-mx,dy=p.y-my,d=Math.hypot(dx,dy);
+    if(d<160&&d>0){const f=(160-d)/160*0.35;p.vx+=dx/d*f;p.vy+=dy/d*f;}
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<-8)p.x=bW+8; if(p.x>bW+8)p.x=-8;
+    if(p.y<-8)p.y=bH+8; if(p.y>bH+8)p.y=-8;
   });
 
-  function animateCursor() {
-    cx += (mx - cx) * SPRING;
-    cy += (my - cy) * SPRING;
-    dot.style.transform = `translate(calc(${cx}px - 50%), calc(${cy}px - 50%))`;
-    requestAnimationFrame(animateCursor);
-  }
-  requestAnimationFrame(animateCursor);
-
-  /* ------------------------------------------
-     HERO NAME: letter-by-letter drop animation
-  ------------------------------------------ */
-  const nameEl = document.getElementById('hero-name');
-  // ✏️ EDIT: Change your name here
-  const NAME = 'TYLER EMDUR';
-  const DELAY_PER_LETTER = 55; // ms between each letter
-
-  NAME.split('').forEach((char, i) => {
-    if (char === ' ') {
-      nameEl.appendChild(document.createElement('span')).className = 'name-space';
-      return;
+  // lines
+  for(let i=0;i<pts.length;i++){
+    for(let j=i+1;j<pts.length;j++){
+      const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
+      if(d<135){
+        bgX.beginPath();
+        bgX.strokeStyle=pts[i].col;
+        bgX.globalAlpha=(1-d/135)*0.16;
+        bgX.lineWidth=0.5;
+        bgX.moveTo(pts[i].x,pts[i].y);
+        bgX.lineTo(pts[j].x,pts[j].y);
+        bgX.stroke();
+      }
     }
-    const span = document.createElement('span');
-    span.className = 'name-letter';
-    span.textContent = char;
-    span.style.animationDelay = `${i * DELAY_PER_LETTER}ms`;
-    nameEl.appendChild(span);
+  }
+
+  // dots
+  bgX.globalAlpha=1;
+  pts.forEach(p=>{
+    bgX.beginPath();
+    bgX.arc(p.x,p.y,p.sz,0,Math.PI*2);
+    bgX.fillStyle=p.col;
+    bgX.shadowBlur=10; bgX.shadowColor=p.col;
+    bgX.globalAlpha=0.55;
+    bgX.fill();
+    bgX.shadowBlur=0;
   });
+  bgX.globalAlpha=1;
+}
 
-  /* ------------------------------------------
-     ROTATING SUBTITLE TEXT
-  ------------------------------------------ */
-  // ✏️ EDIT: Change these phrases to whatever feels like you
-  const phrases = [
-    'a person on the internet.',
-    'the owner of this domain.',
-    'probably building something.',
-    'still figuring it out.',
-    'tyler@tyleremdur.com',
-    'you found it.',
-  ];
-  const subEl = document.getElementById('rotating-text');
-  let phraseIdx = 0;
+/* ─── HERO NAME — PHYSICS ─── */
+const heroName=$('hero-name');
+// ✏️ EDIT: change name here
+const HTEXT='TYLER EMDUR';
+const GC='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?#@%';
+const hEls=[],hTgt=[],hPos=[];
 
-  setInterval(() => {
-    subEl.style.opacity = '0';
-    setTimeout(() => {
-      phraseIdx = (phraseIdx + 1) % phrases.length;
-      subEl.textContent = phrases[phraseIdx];
-      subEl.style.opacity = '1';
-    }, 500);
-  }, 3200);
-
-  /* ------------------------------------------
-     TERMINAL: fake shell with commands
-  ------------------------------------------ */
-  const termBody   = document.getElementById('terminal-body');
-  const termInput  = document.getElementById('terminal-input');
-
-  // ✏️ EDIT: Change command responses to match you
-  const COMMANDS = {
-    help: [
-      { text: 'Available commands:', cls: 'accent' },
-      { text: '  about      — who is this person' },
-      { text: '  work        — what I\'ve made or broken' },
-      { text: '  contact     — how to reach me' },
-      { text: '  mission     — what I\'m trying to do' },
-      { text: '  secret      — you asked for it' },
-      { text: '  clear        — wipe the slate' },
-    ],
-    about: [
-      { text: 'Tyler Emdur.', cls: 'accent' },
-      { text: 'Builder, thinker, occasional over-engineer.' },
-      { text: 'Interested in systems that actually work,' },
-      { text: 'and people who care why they don\'t.' },
-    ],
-    work: [
-      { text: 'Selected output:', cls: 'accent' },
-      { text: '  → this website (you\'re soaking in it)' },
-      { text: '  → things that shipped quietly' },
-      { text: '  → a few things I\'m not ready to talk about yet' },
-      { text: '  → probably more soon' },
-    ],
-    contact: [
-      { text: 'Best way: email.', cls: 'accent' },
-      { text: '  tyler@tyleremdur.com' },
-      { text: 'Also findable on the links below.' },
-    ],
-    mission: [
-      { text: 'Make things that matter to someone.', cls: 'accent' },
-      { text: 'Not for virality. Not for the CV.' },
-      { text: 'Because the internet can still be interesting' },
-      { text: 'if you want it to be.' },
-    ],
-    secret: [
-      { text: '...', cls: 'accent' },
-      { text: 'ok fine.' },
-      { text: 'I\'ve restarted this website more times than I can count.' },
-      { text: 'This one might actually stick.' },
-    ],
-  };
-
-  function printLine(text, cls) {
-    const line = document.createElement('div');
-    line.className = 'term-line';
-    const out = document.createElement('span');
-    out.className = `term-output${cls ? ' ' + cls : ''}`;
-    out.textContent = text;
-    line.appendChild(out);
-    termBody.appendChild(line);
-    termBody.scrollTop = termBody.scrollHeight;
+HTEXT.split('').forEach((ch,i)=>{
+  if(ch===' '){
+    const s=document.createElement('span');
+    s.style.cssText='display:inline-block;width:0.32em;';
+    heroName.appendChild(s);
+    return;
   }
+  const s=document.createElement('span');
+  s.className='h-let';
+  s.textContent=ch;
+  s.dataset.ch=ch;
+  const rDeg=(Math.random()-.5)*18;
+  s.style.setProperty('--d',`${i*0.058}s`);
+  s.style.setProperty('--r',`${rDeg}deg`);
+  heroName.appendChild(s);
+  hEls.push(s);
+  hPos.push({x:0,y:0,vx:0,vy:0});
+  hTgt.push({x:0,y:0});
+});
 
-  function runCommand(raw) {
-    const cmd = raw.trim().toLowerCase();
+// Trigger entrance
+requestAnimationFrame(()=>{
+  hEls.forEach(el=>el.classList.add('in'));
+  setTimeout(initPhysics,950);
+});
 
-    // Echo the typed command
-    const echo = document.createElement('div');
-    echo.className = 'term-line';
-    echo.innerHTML = `<span class="term-prompt">~ $</span> <span>${raw}</span>`;
-    termBody.appendChild(echo);
+function initPhysics(){
+  const nr=heroName.getBoundingClientRect();
+  hEls.forEach((el,i)=>{
+    const r=el.getBoundingClientRect();
+    hTgt[i]={x:r.left-nr.left+r.width/2, y:r.top-nr.top+r.height/2};
+    hPos[i].x=hTgt[i].x; hPos[i].y=hTgt[i].y;
+    el.style.transition='color 0.3s';
+    el.style.position='relative';
+  });
+}
 
-    if (cmd === '') {
-      // do nothing
-    } else if (cmd === 'clear') {
-      termBody.innerHTML = '';
-    } else if (COMMANDS[cmd]) {
-      COMMANDS[cmd].forEach(({ text, cls }) => printLine(text, cls));
-    } else {
-      printLine(`command not found: ${cmd}`, 'error');
-      printLine('type help for available commands.');
+window.addEventListener('resize',()=>{setTimeout(initPhysics,100);});
+
+const RRAD=130,RST=7,SPR=0.09,DMP=0.74;
+
+function stepLetters(){
+  if(!hTgt.length)return;
+  const nr=heroName.getBoundingClientRect();
+  const lmx=mx-nr.left, lmy=my-nr.top;
+  hEls.forEach((el,i)=>{
+    const tx=hTgt[i].x,ty=hTgt[i].y;
+    const dx=hPos[i].x-lmx,dy=hPos[i].y-lmy;
+    const d=Math.hypot(dx,dy);
+    let fx=(tx-hPos[i].x)*SPR, fy=(ty-hPos[i].y)*SPR;
+    if(d<RRAD&&d>0){const f=(RRAD-d)/RRAD;fx+=(dx/d)*f*RST;fy+=(dy/d)*f*RST;}
+    hPos[i].vx=(hPos[i].vx+fx)*DMP;
+    hPos[i].vy=(hPos[i].vy+fy)*DMP;
+    hPos[i].x+=hPos[i].vx; hPos[i].y+=hPos[i].vy;
+    el.style.transform=`translate(${(hPos[i].x-tx).toFixed(2)}px,${(hPos[i].y-ty).toFixed(2)}px)`;
+  });
+}
+
+// Occasional glitch on a random letter
+function glitchOne(){
+  if(!hEls.length)return;
+  const el=hEls[ri(0,hEls.length-1)];
+  const orig=el.dataset.ch;
+  let n=0,max=ri(4,9);
+  const iv=setInterval(()=>{
+    el.textContent=GC[ri(0,GC.length-1)];
+    el.style.color=['var(--a1)','var(--a2)','var(--a3)'][ri(0,2)];
+    if(++n>=max){clearInterval(iv);el.textContent=orig;el.style.color='';}
+  },55);
+}
+
+setInterval(()=>setTimeout(glitchOne,rand(0,600)),rand(1600,2800));
+
+/* ─── ROTATING SUBTITLE ─── */
+const subEl=$('hero-sub-text');
+// ✏️ EDIT: your phrases
+const PHRASES=[
+  'a person on the internet.',
+  'the owner of this domain.',
+  'probably building something.',
+  'still figuring it out.',
+  'tyler@tyleremdur.com',
+  'somewhere between ideas and execution.',
+  'you found it.',
+];
+let pi=0;
+setInterval(()=>{
+  subEl.style.opacity='0';
+  setTimeout(()=>{
+    pi=(pi+1)%PHRASES.length;
+    subEl.textContent=PHRASES[pi];
+    subEl.style.transition='opacity 0.5s';
+    subEl.style.opacity='1';
+  },440);
+},3400);
+
+/* ─── LIVE CLOCK ─── */
+const clk=$('live-clock');
+const glC='0123456789#!@';
+function tick(){
+  const n=new Date();
+  const h=String(n.getHours()).padStart(2,'0');
+  const m=String(n.getMinutes()).padStart(2,'0');
+  const s=String(n.getSeconds()).padStart(2,'0');
+  if(Math.random()<0.025){
+    const g=()=>glC[ri(0,glC.length-1)];
+    clk.textContent=`${g()}${g()}:${g()}${g()}:${g()}${g()}`;
+    setTimeout(()=>clk.textContent=`${h}:${m}:${s}`,90);
+  } else {
+    clk.textContent=`${h}:${m}:${s}`;
+  }
+}
+setInterval(tick,1000); tick();
+
+/* ─── TEXT SCRAMBLE ─── */
+const SCHAR='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&';
+function scramble(el){
+  const target=el.dataset.target||el.textContent;
+  let frame=0,total=24;
+  const iv=setInterval(()=>{
+    let out='';
+    for(let i=0;i<target.length;i++){
+      const lock=Math.floor((i/target.length)*total*0.65);
+      out+=frame>=lock?target[i]:(target[i]===' '?' ':SCHAR[ri(0,SCHAR.length-1)]);
     }
+    el.textContent=out;
+    if(++frame>total)clearInterval(iv);
+  },42);
+}
 
-    termBody.scrollTop = termBody.scrollHeight;
-  }
-
-  termInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      runCommand(termInput.value);
-      termInput.value = '';
+/* ─── SCROLL REVEAL ─── */
+const revObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('in');
+      e.target.querySelectorAll('.scramble').forEach(h=>scramble(h));
     }
   });
+},{threshold:0.1});
+document.querySelectorAll('.reveal').forEach(el=>revObs.observe(el));
 
-  // Click anywhere in terminal window focuses input
-  document.getElementById('terminal-window').addEventListener('click', () => termInput.focus());
+/* ─── PLAYGROUND ─── */
+const pg=$('playground');
+const pcv=$('play-canvas');
+const pcx=pcv.getContext('2d');
+const fobjs=Array.from(document.querySelectorAll('.fobj'));
+let held=null,hox=0,hoy=0;
+
+function rsPc(){pcv.width=pg.offsetWidth;pcv.height=pg.offsetHeight;}
+rsPc(); addEventListener('resize',rsPc);
+
+function scatterFobjs(){
+  const pw=pg.offsetWidth,ph=pg.offsetHeight;
+  fobjs.forEach(o=>{
+    o.style.left=rand(50,pw-140)+'px';
+    o.style.top=rand(60,ph-60)+'px';
+  });
+}
+scatterFobjs();
+
+fobjs.forEach(o=>{
+  o.addEventListener('mousedown',e=>{
+    held=o;
+    const r=o.getBoundingClientRect(),pr=pg.getBoundingClientRect();
+    hox=e.clientX-r.left; hoy=e.clientY-r.top;
+    o.classList.add('held');
+    e.preventDefault();
+  });
+});
+
+document.addEventListener('mousemove',e=>{
+  if(!held)return;
+  const pr=pg.getBoundingClientRect();
+  held.style.left=clamp(e.clientX-pr.left-hox,0,pr.width-120)+'px';
+  held.style.top =clamp(e.clientY-pr.top -hoy,0,pr.height-45)+'px';
+});
+
+document.addEventListener('mouseup',()=>{
+  if(held){held.classList.remove('held');held=null;}
+});
+
+function ctr(o){
+  const pr=pg.getBoundingClientRect(),r=o.getBoundingClientRect();
+  return {x:r.left-pr.left+r.width/2, y:r.top-pr.top+r.height/2, col:getComputedStyle(o).color};
+}
+
+function drawPlay(){
+  pcx.clearRect(0,0,pcv.width,pcv.height);
+  const lit=new Set();
+  const cs=fobjs.map(ctr);
+  for(let i=0;i<cs.length;i++){
+    for(let j=i+1;j<cs.length;j++){
+      const d=Math.hypot(cs[i].x-cs[j].x,cs[i].y-cs[j].y);
+      if(d<190){
+        const a=(1-d/190)*0.65;
+        pcx.beginPath();
+        pcx.strokeStyle=cs[i].col;
+        pcx.globalAlpha=a;
+        pcx.lineWidth=1;
+        pcx.shadowBlur=7; pcx.shadowColor=cs[i].col;
+        pcx.moveTo(cs[i].x,cs[i].y);
+        pcx.lineTo(cs[j].x,cs[j].y);
+        pcx.stroke();
+        pcx.shadowBlur=0;
+        if(d<95){lit.add(i);lit.add(j);}
+      }
+    }
+  }
+  pcx.globalAlpha=1;
+  fobjs.forEach((o,i)=>{
+    if(lit.has(i))o.classList.add('lit');
+    else o.classList.remove('lit');
+  });
+}
+
+/* ─── TERMINAL ─── */
+const tOut=$('term-out');
+const tIn=$('term-in');
+
+// ✏️ EDIT: terminal responses — make them yours
+const CMDS={
+  help:[
+    {t:'COMMANDS:',c:'hi'},
+    {t:'  about      — who is tyler emdur'},
+    {t:'  work        — things made or broken'},
+    {t:'  contact     — how to reach me'},
+    {t:'  mission     — the point of all this'},
+    {t:'  philosophy  — how I think'},
+    {t:'  status      — current state'},
+    {t:'  secret      — you asked'},
+    {t:'  clear        — wipe the slate'},
+    {t:''},
+    {t:'(some commands aren\'t listed here)',c:'cy'},
+  ],
+  about:[
+    {t:'Tyler Emdur.',c:'hi'},
+    {t:'builder. thinker. occasional over-engineer.'},
+    {t:'interested in systems — how they form,'},
+    {t:'why they fail, and what they reveal.'},
+    {t:'making things worth keeping.'},
+  ],
+  work:[
+    {t:'OUTPUT LOG:',c:'hi'},
+    {t:'  → this website (you are currently inside it)'},
+    {t:'  → things that shipped quietly'},
+    {t:'  → things that didn\'t ship at all'},
+    {t:'  → something I\'m not ready to name yet'},
+    {t:'  → more soon.'},
+  ],
+  contact:[
+    {t:'REACH ME:',c:'hi'},
+    {t:'  email  — tyler@tyleremdur.com'},
+    {t:'  links  — see section below'},
+    {t:'  other  — you\'ll figure it out'},
+  ],
+  mission:[
+    {t:'Make things that matter to someone.',c:'hi'},
+    {t:'not for the algorithm.'},
+    {t:'not for the resume.'},
+    {t:'because the internet can still be interesting'},
+    {t:'if you want it to be.'},
+  ],
+  philosophy:[
+    {t:'ROUGH DRAFT:',c:'hi'},
+    {t:'  1. curiosity over certainty'},
+    {t:'  2. make it, then improve it'},
+    {t:'  3. the gap between map and territory is where things get interesting'},
+    {t:'  4. most complexity is accidental'},
+    {t:'  5. this list is incomplete on purpose'},
+  ],
+  secret:[
+    {t:'...',c:'hi'},
+    {t:'you went looking.'},
+    {t:''},
+    {t:'try the konami code on the keyboard.',c:'cy'},
+    {t:'↑↑↓↓←→←→BA',c:'cy'},
+  ],
+  // hidden commands
+  meow:[
+    {t:'🐈 you found one.',c:'hi'},
+    {t:'this site takes some inspiration from meow wolf.'},
+    {t:'the idea that every surface can be a world.'},
+  ],
+  whoami:[{t:'tyler@emdur.com',c:'cy'},{t:'uid=1 groups=curious,builder,maker'}],
+  ls:[{t:'hero/  about/  playground/  terminal/  links/',c:'cy'},{t:'(you are already inside all of these)'}],
+  pwd:[{t:'/Users/tyler/website',c:'cy'}],
+  sudo:[{t:'tyler is not in the sudoers file.',c:'er'},{t:'this incident will not be reported.',c:'er'},{t:'(it won\'t)'}],
+  exit:[{t:'there is no exit.',c:'er'},{t:'only more website.'}],
+  hack:[{t:'initiating...',c:'hi'},{t:'just kidding.'},{t:'but the konami code does something.'}],
+  hello:[{t:'hello.',c:'hi'},{t:'nice of you to check in.'}],
+  hi:[{t:'hey.',c:'hi'}],
+};
+
+function tprint(text,cls){
+  const d=document.createElement('div');d.className='tl';
+  const s=document.createElement('span');
+  s.className='to'+(cls?' '+cls:'');s.textContent=text;
+  d.appendChild(s);tOut.appendChild(d);
+  tOut.scrollTop=tOut.scrollHeight;
+}
+
+function runCmd(raw){
+  const cmd=raw.trim().toLowerCase();
+  const echo=document.createElement('div');echo.className='tl';
+  echo.innerHTML=`<span class="tp">~ $</span> <span style="color:rgba(240,237,232,0.85)">${raw}</span>`;
+  tOut.appendChild(echo);
+  if(!cmd)return;
+  if(cmd==='clear'){tOut.innerHTML='';return;}
+  if(cmd==='status'){
+    const n=new Date();
+    [{t:'CURRENT STATE:',c:'hi'},
+     {t:`  time   — ${n.toLocaleTimeString()}`},
+     {t:'  mode   — building'},
+     {t:'  energy — sufficient'},
+     {t:'  next   — unknown (that\'s the point)'}
+    ].forEach(({t,c})=>tprint(t,c));
+  } else if(CMDS[cmd]){
+    CMDS[cmd].forEach(({t,c})=>tprint(t,c));
+  } else {
+    tprint(`command not found: ${cmd}`,'er');
+    tprint('type help for available commands.');
+  }
+  tOut.scrollTop=tOut.scrollHeight;
+}
+
+tIn.addEventListener('keydown',e=>{if(e.key==='Enter'){runCmd(tIn.value);tIn.value='';}});
+$('term-win').addEventListener('click',()=>tIn.focus());
+
+/* ─── KONAMI ─── */
+const KSEQ=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','KeyB','KeyA'];
+let ki=0;
+const kov=$('konami');
+
+document.addEventListener('keydown',e=>{
+  if(e.code===KSEQ[ki]){
+    if(++ki===KSEQ.length){
+      kov.classList.add('on');
+      ki=0;
+      document.body.style.transition='filter 0.08s';
+      document.body.style.filter='invert(1)';
+      setTimeout(()=>document.body.style.filter='',130);
+    }
+  } else { ki=0; }
+});
+kov.addEventListener('click',()=>kov.classList.remove('on'));
+
+/* ─── MAIN LOOP ─── */
+function loop(){
+  drawBg();
+  stepTrail();
+  stepLetters();
+  drawPlay();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
 
 })();
 </script>
