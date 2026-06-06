@@ -1,193 +1,104 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import AreaLayout from '@/components/shared/AreaLayout'
+import BackToUniverse from '@/components/shared/BackToUniverse'
 import { runs, formatTime, formatPace } from '@/lib/data/runs'
 import type { Run } from '@/lib/types'
-import { useCursor } from '@/components/cursor/CursorContext'
 
-function ElevationProfile({ run, visible }: { run: Run; visible: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const progress  = useRef(0)
-  const raf       = useRef(0)
-
+function ElevationSpark({ run }: { run: Run }) {
+  const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
-    const c = canvasRef.current; if (!c) return
+    const c = ref.current; if (!c) return
     const ctx = c.getContext('2d')!
-    c.width  = c.offsetWidth
-    c.height = c.offsetHeight
+    c.width = c.offsetWidth; c.height = c.offsetHeight
     const W = c.width, H = c.height
-    const pts = run.route_points
-    const maxY = Math.max(...pts.map(p => p[1]))
-    const minY = Math.min(...pts.map(p => p[1]))
-    const range = maxY - minY || 1
-
-    cancelAnimationFrame(raf.current)
-    if (!visible) { progress.current = 0; ctx.clearRect(0,0,W,H); return }
-
-    function draw() {
-      ctx.clearRect(0, 0, W, H)
-      const target = visible ? 1 : 0
-      progress.current += (target - progress.current) * 0.025
-
-      const pad = 40
-      const drawLen = Math.floor(pts.length * progress.current)
-      if (drawLen < 2) { raf.current = requestAnimationFrame(draw); return }
-
-      // Fill area
-      ctx.beginPath()
-      ctx.moveTo(pad, H - pad)
-      for (let i = 0; i < drawLen; i++) {
-        const x = pad + (pts[i][0] / pts[pts.length-1][0]) * (W - pad*2)
-        const y = (H - pad) - ((pts[i][1] - minY) / range) * (H - pad * 2.5)
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
-      }
-      const lastX = pad + (pts[drawLen-1][0] / pts[pts.length-1][0]) * (W - pad*2)
-      ctx.lineTo(lastX, H - pad)
-      ctx.closePath()
-      const grad = ctx.createLinearGradient(0, 0, 0, H)
-      grad.addColorStop(0, 'rgba(255,68,34,0.4)')
-      grad.addColorStop(1, 'rgba(255,68,34,0.02)')
-      ctx.fillStyle = grad; ctx.fill()
-
-      // Line
-      ctx.beginPath()
-      for (let i = 0; i < drawLen; i++) {
-        const x = pad + (pts[i][0] / pts[pts.length-1][0]) * (W - pad*2)
-        const y = (H - pad) - ((pts[i][1] - minY) / range) * (H - pad * 2.5)
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
-      }
-      ctx.strokeStyle = '#FF4422'; ctx.lineWidth = 2
-      ctx.shadowBlur = 8; ctx.shadowColor = '#FF4422'
-      ctx.stroke(); ctx.shadowBlur = 0
-
-      // Baseline
-      ctx.beginPath(); ctx.moveTo(pad, H-pad); ctx.lineTo(W-pad, H-pad)
-      ctx.strokeStyle = 'rgba(255,68,34,0.15)'; ctx.lineWidth = 1
-      ctx.shadowBlur = 0; ctx.stroke()
-
-      if (progress.current < 0.99) raf.current = requestAnimationFrame(draw)
-    }
-
-    raf.current = requestAnimationFrame(draw)
-    return () => cancelAnimationFrame(raf.current)
-  }, [run, visible])
-
-  return <canvas ref={canvasRef} className="w-full h-full" />
-}
-
-function SplitBars({ splits }: { splits: number[] }) {
-  const min = Math.min(...splits), max = Math.max(...splits)
-  return (
-    <div className="flex items-end gap-[2px] h-12 mt-2">
-      {splits.map((s, i) => {
-        const h = 100 - ((s - min) / (max - min + 0.01)) * 70
-        return (
-          <div key={i} title={`Mile ${i+1}: ${formatPace(s)}/mi`}
-            className="flex-1 rounded-sm transition-all duration-300"
-            style={{ height: `${h}%`, background: `rgba(255,68,34,${0.3 + ((s-min)/(max-min+0.01))*0.5})` }}
-          />
-        )
-      })}
-    </div>
-  )
-}
-
-function RunCard({ run, onClick, active }: { run: Run; onClick: () => void; active: boolean }) {
-  const { setMode } = useCursor()
-  const mi = run.distance_mi, hrs = Math.floor(run.time_s/3600), mins = Math.floor((run.time_s%3600)/60)
-  return (
-    <button onClick={onClick}
-      onMouseEnter={() => setMode('hover')} onMouseLeave={() => setMode('default')}
-      className={`text-left border-l-2 pl-6 py-4 transition-all duration-300 cursor-none w-full ${active ? 'border-[#FF4422] opacity-100' : 'border-[rgba(255,68,34,0.2)] opacity-50 hover:opacity-80'}`}
-    >
-      <div className="font-mono text-[10px] tracking-[0.2em] text-[#FF4422] uppercase mb-1">{run.date}</div>
-      <div className="font-serif text-xl leading-tight">{run.name}</div>
-      <div className="font-mono text-xs text-white/40 mt-1">{mi.toFixed(1)} mi · {hrs > 0 ? `${hrs}h ` : ''}{mins}m · {run.location}</div>
-    </button>
-  )
+    const pts = run.splits?.length
+      ? run.splits
+      : Array.from({ length: 12 }, (_, i) => run.pace_min_mi * (0.9 + Math.sin(i * 0.7) * 0.13))
+    const mn = Math.min(...pts), mx = Math.max(...pts)
+    ctx.beginPath()
+    pts.forEach((p, i) => {
+      const x = (i / (pts.length - 1)) * W
+      const y = H - ((p - mn) / (mx - mn + 0.01)) * H * 0.8 - H * 0.1
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+    })
+    const grad = ctx.createLinearGradient(0, 0, W, 0)
+    grad.addColorStop(0, '#F97316'); grad.addColorStop(1, '#DC2626')
+    ctx.strokeStyle = grad; ctx.lineWidth = 1.5; ctx.stroke()
+  }, [run])
+  return <canvas ref={ref} style={{ width: '100%', height: 48, display: 'block' }} />
 }
 
 export default function RunPage() {
-  const [selected, setSelected] = useState<Run>(runs[0])
-  const [showElevation, setShowElevation] = useState(false)
-  const { setMode } = useCursor()
-
-  useEffect(() => { setTimeout(() => setShowElevation(true), 300) }, [selected])
-
-  const handleSelect = (run: Run) => {
-    setShowElevation(false)
-    setTimeout(() => { setSelected(run); setShowElevation(true) }, 150)
-  }
+  const [active, setActive] = useState<Run>(runs[0])
+  const maxDist = Math.max(...runs.map(r => r.distance_mi))
+  const maxElev = Math.max(...runs.map(r => r.elevation_ft))
 
   return (
-    <AreaLayout area="run" className="bg-area-run min-h-screen">
-      {/* Header */}
-      <div className="px-8 pt-20 pb-8 border-b border-[rgba(255,68,34,0.12)]">
-        <div className="font-mono text-[10px] tracking-[0.25em] text-[#FF4422] uppercase mb-3">Area 01</div>
-        <h1 className="font-serif text-[clamp(3rem,10vw,8rem)] leading-[0.88] tracking-tight text-white">
-          RUN
-        </h1>
-        <div className="font-mono text-xs text-white/25 mt-4 tracking-[0.15em]">
-          {runs.length} races · {runs.reduce((a,r) => a + r.distance_mi, 0).toFixed(0)} total miles · Colorado
+    <div className="area-page" style={{ background: '#080500' }}>
+      <BackToUniverse />
+
+      <div style={{ padding: '88px 32px 24px', borderBottom: '1px solid rgba(249,115,22,0.08)' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.25em', color: 'rgba(249,115,22,0.6)', marginBottom: 8 }}>SECTOR 02-B · RUNNING</div>
+        <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 'clamp(3rem,10vw,7rem)', fontWeight: 300, lineHeight: 0.9, color: '#fff' }}>RUNNING</h1>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'rgba(255,255,255,0.18)', marginTop: 16, letterSpacing: '0.12em' }}>
+          {runs.length} EVENTS · {runs.reduce((a,r)=>a+r.distance_mi,0).toFixed(0)} MI · {runs.reduce((a,r)=>a+r.elevation_ft,0).toLocaleString()} FT GAINED
         </div>
       </div>
 
-      {/* Main layout */}
-      <div className="flex flex-col lg:flex-row min-h-[calc(100vh-12rem)]">
-
-        {/* Race list */}
-        <div className="lg:w-80 xl:w-96 border-r border-[rgba(255,68,34,0.08)] p-6 flex flex-col gap-1 overflow-y-auto">
-          {runs.map(r => (
-            <RunCard key={r.id} run={r} onClick={() => handleSelect(r)} active={selected.id === r.id} />
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 200px)' }}>
+        <div style={{ width: 300, borderRight: '1px solid rgba(249,115,22,0.06)', overflowY: 'auto', flexShrink: 0 }}>
+          {runs.map(run => (
+            <button key={run.id} onClick={() => setActive(run)} style={{ width: '100%', textAlign: 'left', padding: '16px 20px', borderBottom: '1px solid rgba(249,115,22,0.04)', background: active.id === run.id ? 'rgba(249,115,22,0.05)' : 'transparent', cursor: 'none', transition: 'background 0.2s', display: 'block' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.18em', color: 'rgba(249,115,22,0.5)', marginBottom: 3 }}>{run.date}</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 300, color: active.id === run.id ? '#F97316' : 'rgba(255,255,255,0.7)', marginBottom: 2 }}>{run.name}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'rgba(255,255,255,0.25)' }}>{run.distance_mi.toFixed(1)} mi · {formatTime(run.time_s)}</div>
+            </button>
           ))}
         </div>
 
-        {/* Detail panel */}
-        <div className="flex-1 p-8 flex flex-col gap-8">
+        <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.2em', color: 'rgba(249,115,22,0.5)', marginBottom: 10 }}>{active.date} · {active.location}</div>
+          <h2 style={{ fontFamily: 'var(--font-sans)', fontSize: 'clamp(1.6rem,3vw,2.8rem)', fontWeight: 300, color: '#fff', marginBottom: 32, letterSpacing: '-0.01em' }}>{active.name}</h2>
 
-          {/* Race hero stats */}
-          <div className="border-b border-[rgba(255,68,34,0.1)] pb-8">
-            <div className="font-mono text-[10px] tracking-[0.2em] text-[#FF4422] uppercase mb-2">{selected.date}</div>
-            <h2 className="font-serif text-[clamp(2rem,5vw,4rem)] leading-tight">{selected.name}</h2>
-            <div className="font-mono text-xs text-white/30 tracking-[0.1em] mt-1">{selected.location}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 20, marginBottom: 40, paddingBottom: 32, borderBottom: '1px solid rgba(249,115,22,0.06)' }}>
+            {[
+              { l: 'DISTANCE', v: `${active.distance_mi.toFixed(1)} mi` },
+              { l: 'FINISH TIME', v: formatTime(active.time_s) },
+              { l: 'AVG PACE', v: formatPace(active.pace_min_mi) },
+              { l: 'ELEVATION', v: `+${active.elevation_ft.toLocaleString()} ft` },
+            ].map(s => (
+              <div key={s.l}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.18em', color: 'rgba(249,115,22,0.45)', marginBottom: 4 }}>{s.l}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, color: '#fff' }}>{s.v}</div>
+              </div>
+            ))}
+          </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-8">
-              {[
-                { label: 'Distance', value: `${selected.distance_mi.toFixed(1)}`, unit: 'mi' },
-                { label: 'Time',     value: formatTime(selected.time_s),          unit: '' },
-                { label: 'Pace',     value: formatPace(selected.pace_min_mi),     unit: '/mi' },
-                { label: 'Elev.',    value: `${selected.elevation_ft.toLocaleString()}`, unit: 'ft' },
-              ].map(({ label, value, unit }) => (
-                <div key={label}>
-                  <div className="font-mono text-[9px] tracking-[0.22em] uppercase text-white/30 mb-1">{label}</div>
-                  <div className="font-serif text-3xl text-[#FF4422]">{value}<span className="text-sm text-white/40 ml-1">{unit}</span></div>
-                </div>
-              ))}
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.2)', marginBottom: 8 }}>PACE PROFILE</div>
+            <ElevationSpark key={active.id} run={active} />
+          </div>
+
+          {[
+            { l: 'DISTANCE RELATIVE', v: active.distance_mi, max: maxDist, c: '#F97316' },
+            { l: 'ELEVATION RELATIVE', v: active.elevation_ft, max: maxElev, c: '#DC2626' },
+          ].map(s => (
+            <div key={s.l} style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.15em', color: 'rgba(255,255,255,0.25)' }}>{s.l}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>{s.v.toFixed(0)}</span>
+              </div>
+              <div style={{ height: 2, background: 'rgba(255,255,255,0.05)' }}>
+                <div style={{ height: '100%', width: `${(s.v/s.max)*100}%`, background: s.c, transition: 'width 1s cubic-bezier(0.16,1,0.3,1)' }} />
+              </div>
             </div>
-          </div>
+          ))}
 
-          {/* Elevation profile */}
-          <div>
-            <div className="font-mono text-[9px] tracking-[0.22em] uppercase text-white/25 mb-3">Elevation Profile</div>
-            <div className="h-40 w-full">
-              <ElevationProfile run={selected} visible={showElevation} />
-            </div>
-          </div>
-
-          {/* Splits */}
-          <div>
-            <div className="font-mono text-[9px] tracking-[0.22em] uppercase text-white/25 mb-3">
-              Mile Splits — avg {formatPace(selected.pace_min_mi)}/mi
-            </div>
-            <SplitBars splits={selected.splits} />
-          </div>
-
-          {/* Footer note */}
-          <div className="mt-auto font-mono text-[10px] text-white/15 tracking-[0.1em]">
-            ✏️ Connect Strava: add STRAVA_CLIENT_ID + STRAVA_CLIENT_SECRET to env vars
-          </div>
+          {active.notes && (
+            <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid rgba(249,115,22,0.05)', fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.75, color: 'rgba(255,255,255,0.35)', fontWeight: 300 }}>{active.notes}</div>
+          )}
         </div>
       </div>
-    </AreaLayout>
+    </div>
   )
 }

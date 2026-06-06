@@ -5,18 +5,18 @@ import { CursorProvider } from '@/components/cursor/CursorContext'
 
 export const metadata: Metadata = {
   title: 'Tyler Emdur',
-  description: 'A digital world.',
-  openGraph: {
-    title: 'Tyler Emdur',
-    description: 'A digital world.',
-    type: 'website',
-  },
+  description: 'A digital universe.',
+  openGraph: { title: 'Tyler Emdur', description: 'A digital universe.', type: 'website' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="grain">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
+      <body>
         <CursorProvider>
           <CustomCursor />
           {children}
