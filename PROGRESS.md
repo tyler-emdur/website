@@ -2,7 +2,17 @@
 
 ## What This Is
 
-A portfolio that refuses to be one. Structured as an ARG (alternate reality game) where the work, bio, and contact information are distributed across nine distinct "worlds" — each with its own visual language, physics, and way of moving between them. The site is navigable without a map, but a map would help.
+A portfolio that refuses to be one. Structured as an ARG (alternate reality game) where the work, bio, and contact information are distributed across 17 distinct "worlds" — each with its own visual language, physics, and way of moving between them. Each world should feel like a different application, game, machine, or reality — not a themed webpage. The goal is that a visitor forgets they are on a website.
+
+---
+
+## Design Philosophy
+
+**Places, not pages.** Each world is an environment you occupy, not a layout you look at.
+
+- Forbidden: cards, dashboards, section layouts, button grids, menus disguised as worlds
+- Required: interaction language unique to each world (not just a different color palette)
+- Connection system: worlds share recurring anomalies — frequency **88.7**, coordinates **40.0150°N 105.2705°W**, organization names — not shared visual style
 
 ---
 
@@ -17,7 +27,7 @@ A portfolio that refuses to be one. Structured as an ARG (alternate reality game
 ```
 lib/
   world-store.ts          Global world state, portal triggers, session log
-  universe-store.ts       Three.js universe state (legacy v1 entry, still live at /build etc.)
+  universe-store.ts       Three.js universe state (v1 entry, still live at /build etc.)
   types.ts                Shared TypeScript interfaces
   data/
     projects.ts           4 projects with tech stack, links, status
@@ -29,8 +39,9 @@ components/
   worlds/
     WorldManager.tsx      Renders current world + portal overlay; sets data-world on <html>
     PortalTransition.tsx  8 unique portal animations keyed by PortalType
+    HomeButton.tsx        Persistent back-to-home in each world
     World0Surface.tsx     The Surface
-    World1Apartment.tsx   The Apartment
+    World1Apartment.tsx   The Apartment (Universe entry — Three.js)
     World2Depth.tsx       The Depth
     World3Broadcast.tsx   The Broadcast
     World4Corridor.tsx    The Corridor
@@ -39,13 +50,20 @@ components/
     World7Mall.tsx        The Mall
     World8Signal.tsx      The Signal
     World9Contact.tsx     The Contact Page
+    World10Loop.tsx       The Loop
+    World11Flicker.tsx    The Flicker (Arcade)
+    World12Terminal.tsx   The Terminal
+    World13Spiral.tsx     The Spiral
+    World14Pixel.tsx      The Pixel
+    World15Dial.tsx       The Dial
+    World16Index.tsx      The Index
   universe/               Three.js universe (v1 — accessible at sub-routes)
-  cursor/                 Custom cursor system (hidden on W6, W9)
+  cursor/                 Custom cursor system
   hud/                    Universe HUD (v1 only)
 
 app/
   page.tsx                Home → WorldManager
-  layout.tsx              Loads all 9 world fonts; sets initial title to "[untitled document]"
+  layout.tsx              Loads world fonts; initial title "[untitled document]"
   globals.css             World-scoped CSS via html[data-world="N"] selectors
   build/                  /build — Projects page (v1)
   run/                    /run — Running page (v1)
@@ -56,117 +74,7 @@ app/
 
 ---
 
-## The Nine Worlds
-
-Each world has one font, one color palette, and one way out (minimum).
-
-### World 0 — The Surface
-**Font:** IM Fell English · **Background:** #fafaf8
-
-A blank white page with a blinking cursor. No nav, no labels. Four different things happen depending on how you interact:
-
-| Action | Destination | Portal |
-|--------|-------------|--------|
-| Wait 47 seconds (idle) | W1 | Fold |
-| Click the cursor | W3 | White circle expand |
-| Scroll | W7 | Cursor flood (brown) |
-| Right-click | W5 | Viewport rotation |
-| Type any key | W6 | Letter expands to fill screen |
-
-Hidden: counter in bottom-right corner counts down slowly, never reaches zero. Clicking it resets to 1247. `window.__counter = 0` in console triggers a message. HTML source contains email in a comment.
-
-### World 1 — The Apartment
-**Font:** VT323 · **Background:** #1a1210
-
-A flat CSS dollhouse cutaway. Interactive objects:
-- **Bookshelf** — 4 books, each opens a modal with real content (bio, running notes, tech stack, Colorado)
-- **TV** — Clicks on; shows static for 8 seconds, then a YouTube embed
-- **Window** — Cycles through 4 scenes (morning, overcast, night, sunset) on click
-- **Door** (right wall) → W4 · Slide-right portal
-- **Rug/hatch** (center floor) → W2 · Scatter portal
-- **Phone** — Pulses after 45 seconds and every 3 minutes; click to dismiss
-
-### World 2 — The Depth
-**Font:** Special Elite · **Background:** #000000
-
-A black void with objects drifting in on random vectors. 5 types: polaroids, cassette tapes, floating doors, GPS coordinates, ransom-note text. All move independently on sinusoidal drift paths. Background breathes (radial gradient, 0→0.2 opacity) every 12 seconds.
-
-Clickable doors:
-- *Before the Decision* → W1
-- *What You Were Looking For* → W9 (expand-white)
-- *Room 47* → W6 (cursor flood)
-
-### World 3 — The Broadcast
-**Font:** Libre Baskerville · **Background:** #0d0d0d
-
-A 4:3 CRT TV set. 6 channels + a knob. Turn knob past CH13 → W8.
-
-| CH | Content |
-|----|---------|
-| 2 | Tyler bio, rotating sentences (TTS-style) |
-| 4 | Project slideshow (auto-advances every 4s) |
-| 7 | Dead air + fake phone number (email as digits) |
-| 9 | Live news ticker with fake headlines about Tyler |
-| 11 | YouTube embed (lofi/found video) |
-| 13 | Full site iframed — loads after 90s |
-
-### World 4 — The Corridor
-**Font:** Oxanium · **Background:** #0a0806
-
-A 3000px-wide perspective hallway. Drag to traverse. Five doors spaced along the length, scaling by distance from center. Floor text resolves letter-by-letter to "TYLER EMDUR" over 3 minutes.
-
-| Door | Destination | Portal |
-|------|-------------|--------|
-| BEFORE THE DECISION | W1 | Fold |
-| AFTER THE SOUND | W5 | Rotation |
-| THE SECOND TUESDAY | W7 | Cursor flood |
-| WHAT YOU WERE LOOKING FOR | W9 | Expand-white |
-| DO NOT | Locked — 3 tries → W0 | Fold |
-
-### World 5 — The Field Station
-**Font:** Playfair Display · **Background:** #020a04
-
-Scientific monitoring interface. Three panels:
-- **Signal Analysis** — Signal strength meter fluctuates, flatlines after 30s, displays: *"BUILDER OF THINGS. RUNNER OF TRAILS. INTERESTED IN INTERESTING PROBLEMS."*
-- **Location Matrix** — SVG world map with pulsing dot on Boulder, CO (40.0150°N, 105.2705°W)
-- **Systems** — Antenna (2 clicks → W3), Maintenance Hatch (7 clicks → W6)
-
-Real-time clock and session uptime counter.
-
-### World 6 — The Document
-**Font:** Unna · **Background:** #fafaf7
-
-A 52-page document. White background, serif font, almost-English prose about "the individual in question" (written in the third person, as if by a committee reviewing Tyler's work and life). Most pages are blank — content appears on pages 1, 4, 7, 13, 19, 27, 33, 40, 47, 52.
-
-Email address appears on a randomly selected page each visit. Social links appear as archival citations on page 40. Page 52 has a "continue reading →" button → W8 (slide-right).
-
-### World 7 — The Mall
-**Font:** Pirata One · **Background:** #1a1410
-
-A dead 1993 mall with PA announcements every 4 minutes (7 total, cycling). Four enterable stores:
-
-| Store | Contents |
-|-------|---------|
-| SYSTEM LOGIC | Software boxes styled like 90s shareware packaging — Digger, this site, Trail Logger, Signal Noise |
-| THE GAP BETWEEN | Mannequins facing the wrong way. No other content. |
-| CURIOUS BY DEFAULT RECORDS | Tyler's timeline as an album tracklist — 9 tracks, click to "play" |
-| BUILDER OF THINGS | Products described in hardware-store language; CHECKOUT button generates a bio receipt |
-
-### World 8 — The Signal
-**Font:** Space Mono · **Background:** #050505
-
-The actual portfolio — bio, 4 projects, 3 runs, contact info — but rendered with corruption/glitch overlays that clear over 4 minutes via a progress bar. A partially-legible button reads `[ __ __ EDIATE AC__ SS ]`. Click it or type IMMEDIATEACCESS to clear instantly. Continue → W9.
-
-### World 9 — The Contact Page
-**Font:** System (Apple/OS default sans-serif) · **Background:** #ffffff
-
-Completely normal. Clean white page. Name, email, GitHub, LinkedIn, a contact form (collects nothing, submits to void). Footer in 9px text at barely-visible opacity: `you found it.`
-
----
-
 ## Portal System
-
-Each portal transition is unique — no two world connections share a type. Defined in `PortalTransition.tsx`.
 
 | Type | Effect |
 |------|--------|
@@ -174,75 +82,257 @@ Each portal transition is unique — no two world connections share a type. Defi
 | `expand-white` | White circle expands from click origin |
 | `rotate` | Black overlay rotates 90° over content |
 | `scatter` | All body elements fly to random positions |
-| `letter-expand` | Typed letter grows to fill viewport |
+| `vortex` | Spiral vortex |
+| `chromatic` | Chromatic aberration burst |
 | `cursor-flood` | 80 particles expand from random positions, flooding the screen |
-| `slide-right` | New world slides in from right over 4 seconds |
-| `nothing` | Immediate swap — subtle change discoverable after 30s |
+| `slide-right` | New world slides in from right |
+| `nothing` | Immediate swap |
 
 ---
 
-## ARG / Hidden Layer
+## The 17 Worlds
 
-- `localStorage('visited_worlds')` — array of visited world IDs, persists across sessions
-- `window.__worldLog()` — prints visited worlds to console (available from any world)
-- `window.__counter = 0` — resets the counter on W0, triggers a console message
-- Console on load: `>> SIGNAL ACTIVE` with usage hints
-- HTML source of layout.tsx: `<!-- hello: healthreinvented@gmail.com -->`
-- Counter on W0: counts down to 1, never reaches zero
-- Page `<title>` changes per world (see `WORLD_TITLES` in `world-store.ts`)
-- W9 footer: `you found it.` at ~2% above background color
+### World 0 — The Surface
+**Identity:** waiting room / threshold
+**Interaction:** time and stillness
 
----
+A blank white page with a blinking cursor. No nav, no labels. Behavior depends on input type.
 
-## Typography
+| Action | Destination | Portal |
+|--------|-------------|--------|
+| Wait 47s (idle) | W1 | Fold |
+| Click the cursor | W3 | White circle expand |
+| Scroll | W7 | Cursor flood |
+| Right-click | W5 | Viewport rotation |
+| Type any key | W6 | Letter expands to fill screen |
 
-One font per world, loaded in `app/layout.tsx` via Google Fonts:
-
-| World | Font |
-|-------|------|
-| 0 | IM Fell English |
-| 1 | VT323 |
-| 2 | Special Elite |
-| 3 | Libre Baskerville |
-| 4 | Oxanium |
-| 5 | Playfair Display |
-| 6 | Unna |
-| 7 | Pirata One |
-| 8 | Space Mono |
-| 9 | System default |
+Hidden: counter in bottom-right counts down slowly, never reaches zero. `window.__counter = 0` in console triggers a message.
 
 ---
 
-## V1 Universe (Still Live)
+### World 1 — The Apartment (Universe Entry)
+**Identity:** Three.js immersive space — navigation hub
+**Interaction:** spatial exploration, portals scattered as objects in 3D space
 
-The Three.js universe (v1) is accessible via direct routes. The main `app/page.tsx` now loads WorldManager (v2), but sub-pages remain functional and are linked from the universe:
-
-- `/build` — Projects with detail panel
-- `/run` — Running log with pace profiles and elevation charts
-- `/archive` — Memory archive with CRT photo placeholders, glitch text, integrity bars
-- `/explore` — Adventure log with elevation canvas and topo visualization
-- `/lab` — 11 interactive canvas experiments
-
-The v1 universe is no longer the homepage entry point but its components and data are still shared (projects, runs, adventures, memories).
+The Three.js universe. The main entry into the rest of the project's older sub-pages. Portals appear as floating objects. Still functional as a nav hub for `/build`, `/run`, `/archive`, `/explore`, `/lab`.
 
 ---
 
-## Commit History (This Project)
+### World 2 — The Depth
+**Identity:** underwater descent
+**Interaction:** vertical scrolling/drifting into darkness, bioluminescent objects floating up
+
+Dark ocean environment. Canvas-rendered bubble particles float upward with sinusoidal drift. Items appear at different depths with parallax. Caustic light patches render as SVG ellipses near the surface.
+
+- Depth counter auto-increments in corner
+- Boulder coordinates (`40.0150°N 105.2705°W`) displayed lower left
+- `FREQUENCY: 88.7` appears in item text (connection system)
+- Clickable floating doors lead to W1, W9, W6
+
+---
+
+### World 3 — The Broadcast
+**Identity:** physical CRT television in a dark room
+**Interaction:** click the channel knob to cycle channels; room glows react to on-screen content
+
+A large CRT TV housing sits in a dark room (`#060402`). Ambient room glow changes color based on what's on screen (`CHANNEL_GLOW` record). Physical components: antenna (two arms), speaker grille (7 bars), brand nameplate "S I G N A L", LED channel display (VT323 font, orange glow). Static burst (320ms canvas noise) transitions between channels.
+
+**No button grid.** Only the physical knob navigates channels.
+
+| CH | Content |
+|----|---------|
+| 2 | Tyler bio, rotating sentences |
+| 4 | Project slideshow (quiz show format) |
+| 7 | Shopping channel / dead air |
+| 9 | Live news ticker with fake headlines |
+| 11 | YouTube embed |
+| 13 | Static / glitch |
+
+"CLICK TO CHANGE" hint fades after 4 seconds.
+
+---
+
+### World 4 — The Corridor
+**Identity:** brutalist concrete hallway, impossible geometry
+**Interaction:** drag to traverse; doors shift position every ~4 seconds
+
+A 3000px-wide perspective hallway (`#1e1c1c` concrete gray). Doors are numbered room plates (`B-01`, `B-04`, `B-12`, `B-??`, `DO NOT`). Floor uses radial-gradient dot texture + expansion joints. Ceiling has fluorescent strip lights every 300px. Wall stamps include load ratings, fire ratings, drawing refs, and anomalies (`88.7`, `40.0150°N`). The DO NOT door has welded X-bars.
+
+`doorShifts` state causes random doors to shift position by up to ±40px every ~4 seconds (30% probability per interval).
+
+| Door | Destination | Portal |
+|------|-------------|--------|
+| B-01 | W1 | Fold |
+| B-04 | W5 | Rotation |
+| B-12 | W7 | Cursor flood |
+| B-?? | W9 | Expand-white |
+| DO NOT | 3 tries → W0 | Fold |
+
+---
+
+### World 5 — The Field Station
+**Identity:** remote outpost you physically occupy
+**Interaction:** observation (not dashboard-reading)
+
+Scientific monitoring interface. The feeling of being inside a remote station — not looking at a monitoring panel. Three live panels: signal analysis (strength meter flatlines after 30s), location matrix (SVG map with Boulder pulsing dot), systems (antenna + maintenance hatch). Real-time clock and session uptime. Coordinates `40.0150°N 105.2705°W` visible.
+
+---
+
+### World 6 — The Document
+**Identity:** classified archive investigation
+**Interaction:** reading a dossier, not a PDF viewer
+
+52-page document. Serif text, white background, prose in the third person ("the individual in question"). Content appears on scattered pages; most are blank. Email appears on a random page each visit. Social links on page 40 as archival citations. Page 52 → W8 (slide-right).
+
+---
+
+### World 7 — The Mall
+**Identity:** 1993 mall corridor you physically walk through
+**Interaction:** drag left/right to walk the perspective corridor; click stores to enter
+
+Canvas-rendered perspective corridor with proper vanishing-point projection. Stores are drawn on-canvas with depth-correct scaling — they recede as you walk forward. Checkerboard tile floor (perspective-projected quads), fluorescent ceiling strips with radial glow, store signage with colored sign bands.
+
+**Drag to walk.** Clicking a hovered store opens its interior overlay.
+
+| Store | Interior |
+|-------|---------|
+| MACHINES | 6 vending machines (CERTAINTY · SLEEP · PURPOSE · REASONS · STATIC · THE ORIGINAL IDEA). Each selection returns a random failure/absurdist response. Buy 6 → glitch portal to Spiral. |
+| FOOD COURT | Menu board: TIME SOUP · YESTERDAY · STATIC LG · DECISION. CASHIER button → W9. |
+| GALLERY | 4 mannequins whose heads rotate to track cursor. Click one → it speaks. |
+| ESCALATOR | Click 3×: first two warn, third warps to a random world. |
+
+PA announcements slide up from below every 24 seconds. Includes: `Frequency 88.7 is currently unavailable in this location.`
+
+---
+
+### World 8 — The Signal
+**Identity:** degraded transmission clearing over time
+**Interaction:** wait or type passphrase to decode
+
+The actual portfolio — bio, 4 projects, 3 runs, contact — rendered with corruption/glitch overlays that clear over 4 minutes via progress bar. Type `IMMEDIATEACCESS` to clear instantly. Continue → W9.
+
+---
+
+### World 9 — The Contact Page
+**Identity:** completely normal
+**Interaction:** a regular webpage (intentional contrast)
+
+Clean white page. Name, email, GitHub, LinkedIn, contact form (submits to void). Footer at barely-visible opacity: `you found it.`
+
+---
+
+### World 10 — The Loop
+**Identity:** puzzle memory game
+**Interaction:** pick doors; the room keeps changing; discoveries accumulate in a log
+
+Repeating room with 3–4 doors. Each door taken through a loop adds an observation to a discovery log (tally marks scratched on the floor track loop count). After 8+ loops, an EXIT door appears. Log entries include `the hum has a frequency: 88.7`.
+
+Room shrinks slightly on each loop. After loop 5, status changes to UNSTABLE.
+
+---
+
+### World 11 — The Flicker (Arcade)
+**Identity:** game show arcade
+**Interaction:** memory card matching game with timer, combos, and leaderboard
+
+Title screen with fake leaderboard (ACE/REX/ZAP/MAX). PRESS START gates gameplay. 90-second countdown, score system with combo multiplier (combo × 100). 6×3 grid of neon-colored cards. Game Over / Win overlay with RETRY and CORRIDOR buttons. Scanlines overlay throughout.
+
+---
+
+### World 12 — The Terminal
+**Identity:** command-line interface
+**Interaction:** type commands
+
+A terminal. Commands explore fragments of Tyler's information.
+
+---
+
+### World 13 — The Spiral
+**Identity:** disorienting descent
+**Interaction:** passive visual spiral
+
+A spiral world. Reached from World 7's vending machine glitch or World 10.
+
+---
+
+### World 14 — The Pixel
+**Identity:** indie RPG / adventure game
+**Interaction:** mastery, game mechanics
+
+Pixel art adventure game world.
+
+---
+
+### World 15 — The Dial
+**Identity:** radio receiver
+**Interaction:** audio-first, turning a dial through frequencies
+
+Tune through frequencies. `88.7` is significant. Reached from World 7 (escalator), World 10 (loop log).
+
+---
+
+### World 16 — The Index
+**Identity:** incomplete list
+**Interaction:** reading, following references
+
+An index that refers to other worlds.
+
+---
+
+## Connection System (Cross-World Anomalies)
+
+These recurring elements create continuity between worlds without shared visual style:
+
+| Anomaly | Appears in |
+|---------|-----------|
+| Frequency **88.7** | W2 (item text), W4 (wall stamp), W7 (PA announcement), W10 (loop log), W15 (dial) |
+| Coordinates **40.0150°N 105.2705°W** | W2 (depth readout), W4 (wall stamp), W5 (map) |
+
+---
+
+## Recent Commit History
 
 | Hash | Description |
 |------|-------------|
-| `703a616` | Build v2: 9-world ARG anti-portfolio experience |
-| `108ce2e` | Massively expand portfolio — 11 lab experiments, comet system, full object rendering, rich terminal |
-| earlier | Initial Next.js + Three.js universe, HUD, region system, sub-pages |
+| `c8dc695` | Rebuild World 3 and World 7 as physical environments |
+| `a4cdca4` | (prior session work) |
+| `a8e5c0d` | Fix game and portals |
+| `087aaad` | Strip HUD to bare text, surface portals, fix start screen |
+| `fb1f191` | Restore Three.js universe as entry |
+| `3e3dc4e` | Rebuild World 1 as a real hub — all worlds reachable |
+
+---
+
+## In Progress / Remaining Redesigns
+
+Worlds that still need environmental redesign (from pages → places):
+
+| World | Current State | Target |
+|-------|--------------|--------|
+| W5 Field Station | Monitoring dashboard panels | Remote outpost interior you physically occupy — observation not data-reading |
+| W2 Depth | Objects floating on a dark plane | True vertical descent — parallax canvas, deeper = darker, pressure builds |
+| W6 Document | PDF viewer aesthetic | Investigation desk — scattered papers, evidence board, redacted files |
 
 ---
 
 ## Known Behaviors (Not Bugs)
 
-- World 4 corridor perspective is approximate — not ray-traced, just scaled divs
-- World 2 items spawn off-screen and drift; density caps at 18 concurrent items
-- World 6 email page is determined randomly at module load time — it's the same page for the whole session
-- World 8 progress bar takes exactly 4 minutes; typing `IMMEDIATEACCESS` clears it instantly
-- World 9 form submits nothing — intentional
+- W4 corridor perspective is CSS-scaled divs, not ray-traced
+- W2 items spawn off-screen and drift; density caps at 18 concurrent items
+- W6 email page is determined randomly at module load — same page per session
+- W7 escalator destination is random each ride
+- W9 form submits nothing — intentional
 - The counter on W0 never reaches zero — intentional
-- Back button in W4 may behave unexpectedly — intentional (browser history is not wired to the world stack)
+- Back button may behave unexpectedly across worlds — intentional (browser history not wired to world stack)
+
+---
+
+## V1 Universe (Still Live)
+
+The Three.js universe is accessible via direct routes:
+
+- `/build` — Projects with detail panel
+- `/run` — Running log with pace profiles and elevation charts
+- `/archive` — Memory archive with CRT photo placeholders, glitch text
+- `/explore` — Adventure log with elevation canvas and topo visualization
+- `/lab` — 11 interactive canvas experiments
