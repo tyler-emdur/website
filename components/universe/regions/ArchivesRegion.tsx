@@ -3,9 +3,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 import { REGIONS } from '@/lib/universe-store'
-import Station from '../objects/Station'
-import Wormhole from '../objects/Wormhole'
-import Anomaly from '../objects/Anomaly'
+import { renderObject } from '../objects/UniverseObjectRenderer'
 import NebulaCloud, { NebulaHalo } from '../scene/NebulaCloud'
 
 const region = REGIONS.find(r => r.id === 'archives')!
@@ -51,12 +49,7 @@ export default function ArchivesRegion() {
 
       <DebrisField />
 
-      {region.objects.map(obj => {
-        if (obj.type === 'station') return <Station key={obj.id} obj={obj} />
-        if (obj.type === 'wormhole') return <Wormhole key={obj.id} obj={obj} />
-        if (obj.type === 'fragment') return <Anomaly key={obj.id} obj={{ ...obj, type: 'anomaly' }} />
-        return null
-      })}
+      {region.objects.map(renderObject)}
     </group>
   )
 }

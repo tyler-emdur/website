@@ -1,13 +1,18 @@
 import type { Memory } from '@/lib/types'
 
-// ✏️ Replace with real memories
 export const memories: Memory[] = [
-  { id: 'm1', year: 2024, type: 'note', title: 'Jan 3', content: 'Start over is different from starting over.', x: 8, y: 10, rotation: -3, width: 200 },
-  { id: 'm2', year: 2023, type: 'photo', title: 'Summit', content: '', x: 28, y: 6, rotation: 2, width: 240 },
-  { id: 'm3', year: 2022, type: 'note', title: 'Somewhere in Colorado', content: 'The elevation changes everything. The air is different. You think differently up here.', x: 60, y: 14, rotation: 1, width: 220 },
-  { id: 'm4', year: 2024, type: 'photo', title: 'Race morning', content: '', x: 5, y: 45, rotation: -1.5, width: 280 },
-  { id: 'm5', year: 2023, type: 'object', title: 'Race bib #2847', content: 'Boulder Marathon 2023. PR by 4 minutes.', x: 40, y: 50, rotation: 3, width: 180 },
-  { id: 'm6', year: 2021, type: 'note', title: 'First trail run', content: 'Wasn\'t supposed to be 12 miles. Turned around twice. Kept going.', x: 68, y: 46, rotation: -2, width: 210 },
-  { id: 'm7', year: 2024, type: 'photo', title: 'Maroon Bells', content: '', x: 18, y: 72, rotation: 1.5, width: 260 },
-  { id: 'm8', year: 2022, type: 'note', title: 'Untitled', content: '—', x: 55, y: 75, rotation: -1, width: 160 },
+  { id: 'm1',  year: 2024, type: 'note',   title: 'Jan 3, 2024',              content: 'Start over is different from starting over. One is failure. The other is a choice. This year I stopped confusing the two.', x: 8,  y: 10, rotation: -3,   width: 200 },
+  { id: 'm2',  year: 2024, type: 'photo',  title: 'Pikes Peak Summit',         content: "America's Mountain. 14,115 ft. August. The view doesn't look like a view — it looks like the end of something.", x: 28, y: 6,  rotation: 2,    width: 240 },
+  { id: 'm3',  year: 2023, type: 'note',   title: 'Somewhere in Colorado',     content: 'The elevation changes everything. The air is different. You think differently up here. Problems feel smaller when you\'re above 12,000 feet.', x: 60, y: 14, rotation: 1,    width: 220 },
+  { id: 'm4',  year: 2024, type: 'photo',  title: 'Boulder Marathon, Mile 18', content: 'October 2024. The point at which you\'ve come too far to stop and you\'re not close enough to see the finish. This is where races actually happen.', x: 5,  y: 45, rotation: -1.5, width: 280 },
+  { id: 'm5',  year: 2023, type: 'object', title: 'Race Bib #2847',            content: 'Boulder Marathon 2023. Finished 4 minutes faster than expected. Kept the bib. Threw away the plan.', x: 40, y: 50, rotation: 3,    width: 180 },
+  { id: 'm6',  year: 2021, type: 'note',   title: 'First Trail Run',           content: "Wasn't supposed to be 12 miles. Turned around twice. Kept going both times. Ended up somewhere I hadn't planned to be, which turned out to be fine.", x: 68, y: 46, rotation: -2,   width: 210 },
+  { id: 'm7',  year: 2023, type: 'photo',  title: 'Maroon Bells',              content: 'Maroon Bells, September 2023. Most photographed peaks in Colorado. The photo never gets it right. You have to be there.', x: 18, y: 72, rotation: 1.5,  width: 260 },
+  { id: 'm8',  year: 2022, type: 'note',   title: 'Untitled',                  content: "Stayed up until 3am making something nobody asked for. Showed it to one person. They said 'wait, how did you do that?' That was enough.", x: 55, y: 75, rotation: -1,   width: 180 },
+  { id: 'm9',  year: 2025, type: 'note',   title: 'On Building Things',        content: "A project is real the moment you can't explain it to someone who isn't interested. Before that, it's just an idea. Most ideas die in transit.", x: 72, y: 32, rotation: 2.5,  width: 230 },
+  { id: 'm10', year: 2024, type: 'object', title: 'Digger v1.0 Deploy Log',    content: '2024-11-09 23:47 · git push origin main · deploy complete · 47 objects in universe · 3 users online · one of them was me', x: 30, y: 28, rotation: -0.8, width: 260 },
+  { id: 'm11', year: 2023, type: 'note',   title: 'Black Canyon Rim',          content: "Looked down into the canyon for a long time. The depth doesn't register correctly. Your brain insists it's smaller than it is. It's not.", x: 82, y: 60, rotation: 1.2,  width: 200 },
+  { id: 'm12', year: 2025, type: 'photo',  title: 'Golden Gate 25K',           content: 'September 25K. The worst mile was mile 8. The best mile was mile 15, when I stopped thinking about miles entirely.', x: 10, y: 80, rotation: -2.5, width: 250 },
+  { id: 'm13', year: 2024, type: 'note',   title: 'Note to Self',              content: "You learn more from the project that almost worked than from the one that did. Almost-working teaches you where the edge is. That's information.", x: 50, y: 88, rotation: 1.8,  width: 220 },
+  { id: 'm14', year: 2022, type: 'object', title: 'First Keyboard Shortcut',   content: 'The day I learned you could split panes in the terminal. Still remember it. Everything before that was slower than it needed to be.', x: 78, y: 78, rotation: -1.5, width: 190 },
 ]

@@ -1,7 +1,6 @@
 'use client'
 import { REGIONS } from '@/lib/universe-store'
-import Planet from '../objects/Planet'
-import Station from '../objects/Station'
+import { renderObject } from '../objects/UniverseObjectRenderer'
 import NebulaCloud, { NebulaHalo } from '../scene/NebulaCloud'
 
 const region = REGIONS.find(r => r.id === 'projects')!
@@ -14,12 +13,7 @@ export default function ProjectsRegion() {
       <NebulaHalo color={COLOR} position={POS} />
       <NebulaCloud color={COLOR} count={2500} spread={420} opacity={0.28} position={POS} />
       <NebulaCloud color="#1D4ED8" count={1000} spread={200} opacity={0.18} position={POS} />
-
-      {region.objects.map(obj => {
-        if (obj.type === 'planet') return <Planet key={obj.id} obj={obj} />
-        if (obj.type === 'station') return <Station key={obj.id} obj={obj} />
-        return null
-      })}
+      {region.objects.map(renderObject)}
     </group>
   )
 }

@@ -17,6 +17,7 @@ import ArchivesRegion from './regions/ArchivesRegion'
 import ExploreRegion from './regions/ExploreRegion'
 import LabRegion from './regions/LabRegion'
 import OriginAnomaly from './objects/OriginAnomaly'
+import CometSystem from './scene/CometSystem'
 
 export default function UniverseScene() {
   return (
@@ -35,6 +36,9 @@ export default function UniverseScene() {
 
       {/* Origin */}
       <OriginAnomaly />
+
+      {/* Comet system */}
+      <CometSystem />
 
       {/* Galaxy regions */}
       <ProjectsRegion />
