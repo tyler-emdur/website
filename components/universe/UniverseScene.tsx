@@ -20,6 +20,7 @@ import OriginAnomaly from './objects/OriginAnomaly'
 import CometSystem from './scene/CometSystem'
 import VoidObjects from './scene/VoidObjects'
 import PortalConcourse from './scene/PortalConcourse'
+import GiantStructures from './scene/GiantStructures'
 
 export default function UniverseScene() {
   return (
@@ -44,6 +45,9 @@ export default function UniverseScene() {
 
       {/* Defined portal lanes */}
       <PortalConcourse />
+
+      {/* Giant background structures — scale + mystery */}
+      <GiantStructures />
 
       {/* Void objects — scattered between regions */}
       <VoidObjects />

@@ -4,10 +4,10 @@ import { useEffect, useRef } from 'react'
 import { Vector3 } from 'three'
 import { useUniverseStore } from '@/lib/universe-store'
 
-const PAN_SPEED = 1.2
-const ZOOM_MIN = 80
-const ZOOM_MAX = 1400
-const LERP = 0.055
+const PAN_SPEED = 1.4
+const ZOOM_MIN = 55
+const ZOOM_MAX = 2600
+const LERP = 0.065
 const IDLE_BOB_AMPLITUDE = 8
 const IDLE_BOB_SPEED = 0.15
 
@@ -15,7 +15,7 @@ export default function CameraRig() {
   const { camera, gl } = useThree()
   const { cameraTarget, lookTarget, mode } = useUniverseStore()
 
-  const targetPos = useRef(new Vector3(0, 0, 1200))
+  const targetPos = useRef(new Vector3(120, -80, 1640))
   const targetLook = useRef(new Vector3(0, 0, 0))
   const currentLook = useRef(new Vector3(0, 0, 0))
 
@@ -69,7 +69,9 @@ export default function CameraRig() {
     const onWheel = (e: WheelEvent) => {
       if (mode !== 'exploring') return
       e.preventDefault()
-      const delta = e.deltaY * 0.8
+      // exponential zoom feel — faster when far out, finer when close in
+      const zoomFactor = targetPos.current.z / 600
+      const delta = e.deltaY * 1.6 * zoomFactor
       targetPos.current.z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, targetPos.current.z + delta))
     }
 
