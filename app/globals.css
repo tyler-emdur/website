@@ -519,4 +519,16 @@ html[data-world="2"],
 html[data-world="3"],
 html[data-world="5"],
 html[data-world="7"],
-html[data-world="8"] { overflow: hidden; }
+html[data-world="8"],
+html[data-world="10"],
+html[data-world="11"],
+html[data-world="12"],
+html[data-world="13"],
+html[data-world="14"],
+html[data-world="15"],
+html[data-world="16"] { overflow: hidden; }
+
+html[data-world="16"] { overflow: auto; }
+
+html[data-world="14"] #cur-dot,
+html[data-world="14"] #cur-ring { display: none; }

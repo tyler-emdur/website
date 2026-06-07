@@ -12,6 +12,13 @@ import World6Document from './World6Document'
 import World7Mall from './World7Mall'
 import World8Signal from './World8Signal'
 import World9Contact from './World9Contact'
+import World10Loop from './World10Loop'
+import World11Flicker from './World11Flicker'
+import World12Terminal from './World12Terminal'
+import World13Spiral from './World13Spiral'
+import World14Pixel from './World14Pixel'
+import World15Dial from './World15Dial'
+import World16Index from './World16Index'
 
 const WORLD_COMPONENTS = [
   World0Surface,
@@ -24,6 +31,13 @@ const WORLD_COMPONENTS = [
   World7Mall,
   World8Signal,
   World9Contact,
+  World10Loop,
+  World11Flicker,
+  World12Terminal,
+  World13Spiral,
+  World14Pixel,
+  World15Dial,
+  World16Index,
 ]
 
 function WorldConsoleSetup() {
@@ -46,6 +60,7 @@ function WorldConsoleSetup() {
     console.log('%c>> SIGNAL ACTIVE', 'color: #22C55E; font-family: monospace; font-size: 12px; font-weight: bold')
     console.log('%c>> type __worldLog() to see visited worlds', 'color: rgba(255,255,255,0.3); font-family: monospace; font-size: 10px')
     console.log('%c>> set __counter = 0 to reset', 'color: rgba(255,255,255,0.3); font-family: monospace; font-size: 10px')
+    console.log('%c>> secrets persist. nothing else does.', 'color: rgba(244,114,182,0.4); font-family: monospace; font-size: 10px')
   }, [])
   return null
 }

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useWorldStore } from '@/lib/world-store'
+import HomeButton from './HomeButton'
 
 interface DriftItem {
   id: number
@@ -22,7 +23,7 @@ const TEXTS = [
   'BORN: SOMEWHERE IN THE MIDWEST',
   'RELOCATED: BOULDER, CO · 2022',
   'OCCUPATION: BUILDER OF THINGS',
-  '47 OBJECTS IN THE UNIVERSE',
+  '47 OBJECTS IN THE UNIVERSE · 14 WORLDS',
   'CURRENTLY RUNNING',
   'DIGGER · MUSIC DISCOVERY · DEPLOYED',
   'NEXT.JS + THREE.JS + ZUSTAND',
@@ -42,7 +43,7 @@ const COORDS = [
 ]
 
 const CASSETTES = ['SIGNAL MIX 001', 'DIGGER SESSIONS', 'TRAIL MILES', 'LATE NIGHTS', 'BUILDING THINGS']
-const DOOR_LABELS = ['BEFORE THE DECISION', 'WHAT YOU WERE LOOKING FOR', 'ROOM 47']
+const DOOR_LABELS = ['BEFORE THE DECISION', 'WHAT YOU WERE LOOKING FOR', 'ROOM 47', 'THE LOOP', 'TERMINAL', '★ PIXEL ★', 'THE DIAL']
 
 export default function World2Depth() {
   const navigateTo = useWorldStore(s => s.navigateTo)
@@ -147,6 +148,14 @@ export default function World2Depth() {
       navigateTo(6, { type: 'cursor-flood', color: '#f5f0e8' })
     } else if (label === 'BEFORE THE DECISION') {
       navigateTo(1, { type: 'fold' })
+    } else if (label === 'THE LOOP') {
+      navigateTo(10, { type: 'vortex', origin: { x: e.clientX, y: e.clientY } })
+    } else if (label === 'TERMINAL') {
+      navigateTo(12, { type: 'nothing' })
+    } else if (label === '★ PIXEL ★') {
+      navigateTo(14, { type: 'chromatic', origin: { x: e.clientX, y: e.clientY } })
+    } else if (label === 'THE DIAL') {
+      navigateTo(15, { type: 'chromatic' })
     }
   }, [navigateTo])
 
@@ -257,6 +266,7 @@ export default function World2Depth() {
       }}>
         DEPTH ·  — M
       </div>
+      <HomeButton />
     </div>
   )
 }

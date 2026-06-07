@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useWorldStore } from '@/lib/world-store'
+import HomeButton from './HomeButton'
 
 const PA_ANNOUNCEMENTS = [
   'Attention shoppers: the mall closes in thirty minutes. Or an hour. Time moves differently here.',
@@ -17,6 +18,7 @@ const SOFTWARE_BOXES = [
   { name: 'TRAIL LOGGER', desc: 'Personal Running Analytics', req: 'Requires: legs, elevation', year: '2024', color: '#0a2a1a' },
   { name: 'THIS SITE', desc: 'Anti-Portfolio System', req: 'Requires: lost time, 9 worlds', year: '2025', color: '#2a1a0a' },
   { name: 'SIGNAL NOISE', desc: 'Audio Synthesis Lab', req: 'Requires: headphones, patience', year: '2025', color: '#1a0a2a' },
+  { name: 'PIXEL QUEST', desc: 'Wrong dimension. Too many colors.', req: 'Requires: arrow keys, denial', year: '2025', color: '#ff006e' },
 ]
 
 const TIMELINE_TRACKS = [
@@ -39,6 +41,79 @@ const BUILDER_PRODUCTS = [
 ]
 
 type Store = 'none' | 'system_logic' | 'gap_between' | 'records' | 'builder'
+
+function GapBetweenStore({ onBack, navigateTo }: { onBack: () => void; navigateTo: ReturnType<typeof useWorldStore.getState>['navigateTo'] }) {
+  const [clicks, setClicks] = useState(0)
+  return (
+    <div style={{ position: 'absolute', inset: '70px 0 60px', background: '#080808', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 40 }}>
+      <button onClick={onBack} style={{ position: 'absolute', top: 16, right: 24, background: 'none', border: '1px solid rgba(200,180,100,0.2)', color: 'rgba(200,180,100,0.5)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer', letterSpacing: '0.1em' }}>← BACK</button>
+      <div style={{ display: 'flex', gap: 60, alignItems: 'flex-end' }}>
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: i % 2 === 0 ? 'scaleX(-1)' : 'scaleX(1)' }}>
+            <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(200,180,100,0.15)', border: '1px solid rgba(200,180,100,0.1)' }} />
+            <div style={{ width: 3, height: 12, background: 'rgba(200,180,100,0.1)' }} />
+            <div style={{ width: 30, height: 50, background: 'rgba(200,180,100,0.08)', border: '1px solid rgba(200,180,100,0.06)' }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ width: 10, height: 35, background: 'rgba(200,180,100,0.07)' }} />
+              <div style={{ width: 10, height: 35, background: 'rgba(200,180,100,0.07)' }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div
+        onClick={() => {
+          const next = clicks + 1
+          setClicks(next)
+          if (next >= 3) navigateTo(13, { type: 'vortex' })
+        }}
+        style={{ fontFamily: '"Pirata One", serif', fontSize: 11, color: clicks > 0 ? 'rgba(200,180,100,0.35)' : 'rgba(200,180,100,0.2)', letterSpacing: '0.2em', textAlign: 'center', cursor: 'pointer', maxWidth: 360, lineHeight: 1.8 }}
+      >
+        THEY ARE LOOKING AT SOMETHING YOU CAN&apos;T SEE FROM HERE
+        {clicks > 0 && clicks < 3 && (
+          <div style={{ fontFamily: 'monospace', fontSize: 8, marginTop: 8, opacity: 0.5 }}>{3 - clicks} more</div>
+        )}
+      </div>
+      <button
+        onClick={() => navigateTo(14, { type: 'chromatic' })}
+        style={{
+          position: 'absolute',
+          bottom: 56,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'linear-gradient(90deg, #FF006E, #FFBE0B, #06FFA5)',
+          border: '2px solid rgba(0,0,0,0.5)',
+          color: '#000',
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: 6,
+          letterSpacing: '0.1em',
+          padding: '8px 12px',
+          cursor: 'pointer',
+        }}
+      >
+        PIXEL QUEST
+      </button>
+      <button
+        onClick={() => navigateTo(11, { type: 'scatter' })}
+        style={{
+          position: 'absolute',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(255,0,100,0.06)',
+          border: '1px solid rgba(255,0,100,0.15)',
+          color: 'rgba(255,100,150,0.35)',
+          fontFamily: 'monospace',
+          fontSize: 8,
+          letterSpacing: '0.2em',
+          padding: '6px 12px',
+          cursor: 'pointer',
+        }}
+      >
+        ARCADE · OUT OF ORDER (click anyway)
+      </button>
+    </div>
+  )
+}
 
 function Receipt({ onClose }: { onClose: () => void }) {
   const now = new Date()
@@ -207,26 +282,7 @@ export default function World7Mall() {
       )}
 
       {activeStore === 'gap_between' && (
-        <div style={{ position: 'absolute', inset: '70px 0 60px', background: '#080808', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 40 }}>
-          <button onClick={() => setActiveStore('none')} style={{ position: 'absolute', top: 16, right: 24, background: 'none', border: '1px solid rgba(200,180,100,0.2)', color: 'rgba(200,180,100,0.5)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer', letterSpacing: '0.1em' }}>← BACK</button>
-          {/* Mannequins facing wrong way */}
-          <div style={{ display: 'flex', gap: 60, alignItems: 'flex-end' }}>
-            {[0, 1, 2, 3].map(i => (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: i % 2 === 0 ? 'scaleX(-1)' : 'scaleX(1)' }}>
-                <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(200,180,100,0.15)', border: '1px solid rgba(200,180,100,0.1)' }} />
-                <div style={{ width: 3, height: 12, background: 'rgba(200,180,100,0.1)' }} />
-                <div style={{ width: 30, height: 50, background: 'rgba(200,180,100,0.08)', border: '1px solid rgba(200,180,100,0.06)' }} />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <div style={{ width: 10, height: 35, background: 'rgba(200,180,100,0.07)' }} />
-                  <div style={{ width: 10, height: 35, background: 'rgba(200,180,100,0.07)' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ fontFamily: '"Pirata One", serif', fontSize: 11, color: 'rgba(200,180,100,0.2)', letterSpacing: '0.2em', textAlign: 'center' }}>
-            THEY ARE LOOKING AT SOMETHING YOU CAN'T SEE FROM HERE
-          </div>
-        </div>
+        <GapBetweenStore onBack={() => setActiveStore('none')} navigateTo={navigateTo} />
       )}
 
       {activeStore === 'records' && (
@@ -322,6 +378,7 @@ export default function World7Mall() {
       <style>{`
         @keyframes paFade { 0% { opacity: 0 } 10% { opacity: 1 } 80% { opacity: 1 } 100% { opacity: 0 } }
       `}</style>
+      <HomeButton />
     </div>
   )
 }

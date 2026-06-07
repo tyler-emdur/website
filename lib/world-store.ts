@@ -1,19 +1,21 @@
 'use client'
 import { create } from 'zustand'
 
-export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16
 
 export type PortalType =
-  | 'door'          // page rotates open like a physical door
-  | 'fold'          // CSS 3D fold reveals next world
-  | 'expand-white'  // white circle expands from click point
-  | 'rotate'        // viewport rotates 90deg
-  | 'scatter'       // elements scatter, black, new world
-  | 'newspaper'     // page becomes newspaper, click headline
-  | 'letter-expand' // one letter expands to fill screen
-  | 'nothing'       // nothing appears to happen (subtle)
-  | 'cursor-flood'  // cursor trail floods screen
-  | 'slide-right'   // page slides in from right (4s)
+  | 'door'
+  | 'fold'
+  | 'expand-white'
+  | 'rotate'
+  | 'scatter'
+  | 'newspaper'
+  | 'letter-expand'
+  | 'nothing'
+  | 'cursor-flood'
+  | 'slide-right'
+  | 'vortex'
+  | 'chromatic'
 
 export interface PortalConfig {
   type: PortalType
@@ -33,6 +35,13 @@ const WORLD_TITLES: Record<WorldId, string> = {
   7: 'this tab has been open too long',
   8: 'good evening',
   9: 'Tyler Emdur — tyleremdur.com',
+  10: 'room 10 · room 10 · room 10',
+  11: 'match the pairs · or dont',
+  12: 'root@wormhole:~#',
+  13: 'falling · falling · falling',
+  14: '★ PIXEL QUEST ★ press start',
+  15: '··· tuning · · · static · · ·',
+  16: 'index of worlds [incomplete]',
 }
 
 interface WorldState {
@@ -44,9 +53,12 @@ interface WorldState {
   interactionCount: number
   sessionStart: number
   counter: number
+  secretsFound: string[]
   navigateTo: (world: WorldId, portal: PortalConfig) => void
   completePortal: () => void
   recordInteraction: () => void
+  findSecret: (id: string) => void
+  hasSecret: (id: string) => boolean
   resetCounter: () => void
   _pendingWorld: WorldId | null
 }
@@ -64,6 +76,19 @@ function saveVisited(worlds: WorldId[]) {
   try { localStorage.setItem('visited_worlds', JSON.stringify(worlds)) } catch {}
 }
 
+function loadSecrets(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem('world_secrets')
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveSecrets(secrets: string[]) {
+  if (typeof window === 'undefined') return
+  try { localStorage.setItem('world_secrets', JSON.stringify(secrets)) } catch {}
+}
+
 export const useWorldStore = create<WorldState>((set, get) => ({
   current: 0,
   previous: null,
@@ -73,6 +98,7 @@ export const useWorldStore = create<WorldState>((set, get) => ({
   interactionCount: 0,
   sessionStart: Date.now(),
   counter: 1247,
+  secretsFound: typeof window !== 'undefined' ? loadSecrets() : [],
   _pendingWorld: null,
 
   navigateTo: (world, portal) => {
@@ -106,6 +132,19 @@ export const useWorldStore = create<WorldState>((set, get) => ({
 
   recordInteraction: () => set(s => ({ interactionCount: s.interactionCount + 1 })),
 
+  findSecret: (id) => {
+    const state = get()
+    if (state.secretsFound.includes(id)) return
+    const next = [...state.secretsFound, id]
+    saveSecrets(next)
+    set({ secretsFound: next })
+    if (typeof console !== 'undefined') {
+      console.log(`%c>> secret found: ${id} (${next.length} total)`, 'color: #F472B6; font-family: monospace; font-size: 11px')
+    }
+  },
+
+  hasSecret: (id) => get().secretsFound.includes(id),
+
   resetCounter: () => {
     if (typeof console !== 'undefined') {
       console.log('%c>> counter reset. you found something.', 'color: #22C55E; font-family: monospace; font-size: 12px')
@@ -129,7 +168,21 @@ export function getWorldLog(): string {
     7: 'THE MALL',
     8: 'THE SIGNAL',
     9: 'THE CONTACT PAGE',
+    10: 'THE LOOP',
+    11: 'THE FLICKER',
+    12: 'THE TERMINAL',
+    13: 'THE SPIRAL',
+    14: 'THE PIXEL',
+    15: 'THE DIAL',
+    16: 'THE INDEX',
   }
-  const lines = ['WORLDS VISITED:', ...visited.map(w => `  [${w}] ${names[w as WorldId] ?? '???'}`)]
+  const secrets = loadSecrets()
+  const lines = [
+    'WORLDS VISITED:',
+    ...visited.map(w => `  [${w}] ${names[w as WorldId] ?? '???'}`),
+    '',
+    `SECRETS: ${secrets.length}`,
+    ...secrets.map(s => `  · ${s}`),
+  ]
   return lines.join('\n')
 }

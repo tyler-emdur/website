@@ -1,11 +1,16 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useWorldStore } from '@/lib/world-store'
+import HomeButton from './HomeButton'
 
 export default function World9Contact() {
+  const navigateTo = useWorldStore(s => s.navigateTo)
+  const findSecret = useWorldStore(s => s.findSecret)
   const [submitted, setSubmitted] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
+  const [footerClicks, setFooterClicks] = useState(0)
 
   useEffect(() => {
     // Update title for World 9
@@ -125,15 +130,24 @@ export default function World9Contact() {
       </div>
 
       {/* The found-it footer — almost invisible */}
-      <div style={{
+      <div
+        onClick={() => {
+          const c = footerClicks + 1
+          setFooterClicks(c)
+          if (c === 3) findSecret('contact-footer')
+          if (c >= 5) navigateTo(16, { type: 'expand-white', origin: { x: window.innerWidth / 2, y: window.innerHeight - 20 } })
+        }}
+        style={{
         position: 'fixed', bottom: 8, left: 0, right: 0,
         textAlign: 'center',
         fontFamily: 'monospace', fontSize: 9,
-        color: 'rgba(200,200,200,0.18)',
+        color: footerClicks > 0 ? 'rgba(200,200,200,0.35)' : 'rgba(200,200,200,0.18)',
         userSelect: 'none',
+        cursor: 'default',
       }}>
-        you found it.
+        you found it.{footerClicks > 0 && footerClicks < 5 ? ' keep going.' : ''}
       </div>
+      <HomeButton />
     </div>
   )
 }

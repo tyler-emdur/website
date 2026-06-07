@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useWorldStore } from '@/lib/world-store'
+import HomeButton from './HomeButton'
 
 function SignalMeter({ value, label, unit = '', flatline = false }: { value: number; label: string; unit?: string; flatline?: boolean }) {
   return (
@@ -69,6 +70,7 @@ export default function World5FieldStation() {
   const [flatlineMsg, setFlatlineMsg] = useState('')
   const [hatchClicks, setHatchClicks] = useState(0)
   const [antennaClicks, setAntennaClicks] = useState(0)
+  const [spectrumClicks, setSpectrumClicks] = useState(0)
   const [uptime, setUptime] = useState(0)
   const sessionStart = useWorldStore(s => s.sessionStart)
 
@@ -104,6 +106,12 @@ export default function World5FieldStation() {
     setHatchClicks(c)
     if (c >= 7) navigateTo(6, { type: 'nothing' })
   }, [hatchClicks, navigateTo])
+
+  const handleSpectrumClick = useCallback(() => {
+    const c = spectrumClicks + 1
+    setSpectrumClicks(c)
+    if (c >= 3) navigateTo(15, { type: 'chromatic' })
+  }, [spectrumClicks, navigateTo])
 
   const formatUptime = (s: number) => {
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
@@ -150,6 +158,29 @@ export default function World5FieldStation() {
             <SignalMeter value={72} label="Uplink Quality" unit="%" />
             <SignalMeter value={interactionCount * 4 % 100} label="Interaction Index" unit="%" />
             <SignalMeter value={uptime % 100} label="Session Uptime" unit="s" />
+            <div
+              onClick={handleSpectrumClick}
+              style={{ marginTop: 12, cursor: 'pointer', padding: '8px 0' }}
+            >
+              <div style={{ fontSize: 8, letterSpacing: '0.2em', color: 'rgba(100,200,120,0.3)', marginBottom: 6 }}>SPECTRUM · CLICK</div>
+              <div style={{ display: 'flex', gap: 2, height: 24, alignItems: 'flex-end' }}>
+                {Array.from({ length: 24 }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      flex: 1,
+                      height: `${20 + Math.sin(i * 0.8 + spectrumClicks) * 15 + (spectrumClicks * 3)}%`,
+                      background: `hsl(${(i * 18 + spectrumClicks * 40) % 360}, 70%, 55%)`,
+                      opacity: 0.4 + spectrumClicks * 0.15,
+                      transition: 'height 0.2s',
+                    }}
+                  />
+                ))}
+              </div>
+              {spectrumClicks > 0 && spectrumClicks < 3 && (
+                <div style={{ fontFamily: 'monospace', fontSize: 7, color: 'rgba(100,200,120,0.3)', marginTop: 4 }}>{3 - spectrumClicks} to tune</div>
+              )}
+            </div>
             {flatline && (
               <div style={{ marginTop: 16, padding: '12px', background: 'rgba(255,100,100,0.05)', border: '1px solid rgba(255,100,100,0.15)', fontFamily: '"Playfair Display", serif', fontSize: 11, color: 'rgba(255,200,150,0.7)', lineHeight: 1.7, letterSpacing: '0.05em', fontStyle: 'italic' }}>
                 "{flatlineMsg}"
@@ -236,6 +267,7 @@ export default function World5FieldStation() {
           50% { opacity: 0.5; transform: translate(-50%,-50%) scale(1.4); }
         }
       `}</style>
+      <HomeButton />
     </div>
   )
 }

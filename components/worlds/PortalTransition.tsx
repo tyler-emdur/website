@@ -162,6 +162,63 @@ function SlideRightPortal({ onDone }: { onDone: () => void }) {
   )
 }
 
+function VortexPortal({ config, onDone }: { config: PortalConfig; onDone: () => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const W = window.innerWidth
+    const H = window.innerHeight
+    canvas.width = W
+    canvas.height = H
+    const ctx = canvas.getContext('2d')!
+    const cx = config.origin?.x ?? W / 2
+    const cy = config.origin?.y ?? H / 2
+    const color = config.color ?? '#6366f1'
+    let frame = 0
+    let raf = 0
+    const maxFrames = 55
+
+    function draw() {
+      ctx.fillStyle = 'rgba(0,0,0,0.12)'
+      ctx.fillRect(0, 0, W, H)
+      const t = frame / maxFrames
+      const rings = 12
+      for (let i = 0; i < rings; i++) {
+        const r = (t * Math.max(W, H) * 1.4) + i * 28
+        const rot = frame * 0.08 + i * 0.5
+        ctx.save()
+        ctx.translate(cx, cy)
+        ctx.rotate(rot)
+        ctx.strokeStyle = color + Math.floor(Math.max(0, 200 - r * 0.15)).toString(16).padStart(2, '0')
+        ctx.lineWidth = 2 + i * 0.3
+        ctx.beginPath()
+        for (let a = 0; a <= Math.PI * 2; a += 0.15) {
+          const wobble = Math.sin(a * 5 + frame * 0.1) * (8 + i * 2)
+          const px = Math.cos(a) * (r + wobble)
+          const py = Math.sin(a) * (r + wobble)
+          if (a === 0) ctx.moveTo(px, py)
+          else ctx.lineTo(px, py)
+        }
+        ctx.closePath()
+        ctx.stroke()
+        ctx.restore()
+      }
+      frame++
+      if (frame < maxFrames) raf = requestAnimationFrame(draw)
+      else onDone()
+    }
+    raf = requestAnimationFrame(draw)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none', background: '#000' }}
+    />
+  )
+}
+
 function NothingPortal({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     const t = setTimeout(onDone, 100)
@@ -199,6 +256,24 @@ function DoorPortal({ config, onDone }: { config: PortalConfig; onDone: () => vo
   )
 }
 
+function ChromaticPortal({ onDone }: { onDone: () => void }) {
+  const [phase, setPhase] = useState(0)
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase(1), 40)
+    const t2 = setTimeout(() => setPhase(2), 400)
+    const t3 = setTimeout(onDone, 850)
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+  }, [onDone])
+  const offset = phase === 0 ? 0 : phase === 1 ? 18 : 40
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none', overflow: 'hidden', background: '#000' }}>
+      <div style={{ position: 'absolute', inset: 0, background: '#ff0066', mixBlendMode: 'screen', transform: `translateX(${-offset}px)`, opacity: phase > 0 ? 0.85 : 0, transition: 'transform 0.35s, opacity 0.2s' }} />
+      <div style={{ position: 'absolute', inset: 0, background: '#00ff88', mixBlendMode: 'screen', transform: `translateX(${offset}px)`, opacity: phase > 0 ? 0.85 : 0, transition: 'transform 0.35s, opacity 0.2s' }} />
+      <div style={{ position: 'absolute', inset: 0, background: '#4488ff', mixBlendMode: 'screen', opacity: phase > 1 ? 1 : 0, transition: 'opacity 0.3s' }} />
+    </div>
+  )
+}
+
 export default function PortalTransition({ config }: { config: PortalConfig }) {
   const completePortal = useWorldStore(s => s.completePortal)
 
@@ -215,6 +290,8 @@ export default function PortalTransition({ config }: { config: PortalConfig }) {
     case 'slide-right':  return <SlideRightPortal onDone={completePortal} />
     case 'newspaper':    return <FoldPortal onDone={completePortal} />
     case 'nothing':      return <NothingPortal onDone={completePortal} />
+    case 'vortex':       return <VortexPortal {...props} />
+    case 'chromatic':    return <ChromaticPortal onDone={completePortal} />
     default:             return <FoldPortal onDone={completePortal} />
   }
 }

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useWorldStore } from '@/lib/world-store'
+import HomeButton from './HomeButton'
 import { projects } from '@/lib/data/projects'
 import { runs } from '@/lib/data/runs'
 
@@ -227,6 +228,7 @@ export default function World8Signal() {
           to { background-position: 0 6px; }
         }
       `}</style>
+      <HomeButton />
     </div>
   )
 }

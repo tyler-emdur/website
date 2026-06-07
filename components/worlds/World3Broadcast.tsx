@@ -1,11 +1,12 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useWorldStore } from '@/lib/world-store'
+import HomeButton from './HomeButton'
 
-const CHANNELS = [2, 4, 7, 9, 11, 13, 99]
+const CHANNELS = [2, 4, 7, 9, 11, 13, 14, 88, 99]
 const PROJECT_SLIDES = [
   { name: 'DIGGER', desc: 'Spotify music discovery engine. 47 objects in the universe.', year: '2024', stack: 'Next.js · Spotify API · Zustand' },
-  { name: 'THIS SITE', desc: 'An anti-portfolio. 9 worlds. You\'re in one now.', year: '2025', stack: 'Next.js · Three.js · React Three Fiber' },
+  { name: 'THIS SITE', desc: 'An anti-portfolio. 17 worlds. You\'re in one now.', year: '2025', stack: 'Next.js · Three.js · React Three Fiber' },
   { name: 'RUNNING LOG', desc: 'Personal trail running tracker and analytics.', year: '2024', stack: 'Python · Strava API · SQLite' },
 ]
 
@@ -126,6 +127,10 @@ export default function World3Broadcast() {
     const nextIdx = (idx + 1) % CHANNELS.length
     if (CHANNELS[nextIdx] === 99) {
       navigateTo(8, { type: 'slide-right' })
+    } else if (CHANNELS[nextIdx] === 14) {
+      navigateTo(14, { type: 'chromatic' })
+    } else if (CHANNELS[nextIdx] === 88) {
+      navigateTo(15, { type: 'chromatic' })
     } else {
       setChannel(CHANNELS[nextIdx])
     }
@@ -200,6 +205,37 @@ export default function World3Broadcast() {
             </div>
             <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.2em' }}>PLEASE HOLD</div>
             <style>{`@keyframes tvLoad { to { width: 100% } }`}</style>
+          </div>
+        )
+      case 14:
+        return (
+          <div
+            onClick={() => navigateTo(14, { type: 'chromatic' })}
+            style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #FF006E, #FFBE0B, #06FFA5, #8338EC)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, imageRendering: 'pixelated' }}
+          >
+            <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 14, color: '#fff', textShadow: '3px 3px 0 #000', letterSpacing: '0.1em', animation: 'pixelBounce 0.5s infinite alternate' }}>★ PIXEL QUEST ★</div>
+            <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 8, color: 'rgba(0,0,0,0.6)' }}>CLICK TO PLAY</div>
+            <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+              {['#FF006E', '#FB5607', '#FFBE0B', '#8338EC', '#3A86FF', '#06FFA5'].map(c => (
+                <div key={c} style={{ width: 16, height: 16, background: c, border: '2px solid #000' }} />
+              ))}
+            </div>
+            <style>{`@keyframes pixelBounce { from { transform: translateY(0) } to { transform: translateY(-6px) } }`}</style>
+          </div>
+        )
+      case 88:
+        return (
+          <div style={{ width: '100%', height: '100%', background: '#0a1a0a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 }}>
+            <StaticScreen />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, background: 'rgba(0,0,0,0.5)' }}>
+              <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'rgba(34,197,94,0.6)', letterSpacing: '0.2em' }}>FM 88.0 — 108.0 · THE DIAL</div>
+              <button
+                onClick={() => navigateTo(15, { type: 'chromatic' })}
+                style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.4)', color: '#4ade80', fontFamily: 'monospace', fontSize: 10, padding: '8px 16px', cursor: 'pointer', letterSpacing: '0.15em' }}
+              >
+                TUNE IN →
+              </button>
+            </div>
           </div>
         )
       default:
@@ -302,8 +338,9 @@ export default function World3Broadcast() {
       </div>
 
       <div style={{ position: 'absolute', bottom: 20, fontFamily: '"Libre Baskerville", serif', fontSize: 10, color: 'rgba(255,255,255,0.1)', letterSpacing: '0.2em' }}>
-        TURN THE DIAL PAST CH13
+        CH14 · CH88 · PAST CH13
       </div>
+      <HomeButton />
     </div>
   )
 }

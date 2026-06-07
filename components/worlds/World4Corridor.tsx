@@ -1,13 +1,18 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useWorldStore } from '@/lib/world-store'
+import { useWorldStore, type PortalType, type WorldId } from '@/lib/world-store'
+import HomeButton from './HomeButton'
 
-const DOORS = [
-  { label: 'BEFORE THE DECISION', sublabel: 'you know which one', world: 1 as const, portal: 'fold' as const, x: 15 },
-  { label: 'AFTER THE SOUND',     sublabel: 'nothing was the same', world: 5 as const, portal: 'rotate' as const, x: 35 },
-  { label: 'THE SECOND TUESDAY',  sublabel: 'of a month you\'d rather not name', world: 7 as const, portal: 'cursor-flood' as const, x: 55 },
-  { label: 'WHAT YOU WERE LOOKING FOR', sublabel: 'exactly that', world: 9 as const, portal: 'expand-white' as const, x: 75 },
-  { label: 'DO NOT',              sublabel: '← locked', world: 0 as const, portal: 'fold' as const, x: 90 },
+const DOORS: { label: string; sublabel: string; world: WorldId; portal: PortalType; x: number }[] = [
+  { label: 'BEFORE THE DECISION', sublabel: 'you know which one', world: 1, portal: 'fold', x: 15 },
+  { label: 'AFTER THE SOUND', sublabel: 'nothing was the same', world: 5, portal: 'rotate', x: 35 },
+  { label: 'THE SECOND TUESDAY', sublabel: 'of a month you\'d rather not name', world: 7, portal: 'cursor-flood', x: 55 },
+  { label: 'WHAT YOU WERE LOOKING FOR', sublabel: 'exactly that', world: 9, portal: 'expand-white', x: 75 },
+  { label: 'THE LOOP', sublabel: 'room 10 · room 10 · room 10', world: 10, portal: 'vortex', x: 92 },
+  { label: 'THE DIAL', sublabel: 'static between worlds', world: 15, portal: 'chromatic', x: 98 },
+  { label: 'INDEX', sublabel: 'incomplete · shuffled', world: 16, portal: 'fold', x: 108 },
+  { label: '★ PIXEL ★', sublabel: 'insert coin', world: 14, portal: 'chromatic', x: 118 },
+  { label: 'DO NOT', sublabel: '← locked', world: 0, portal: 'fold', x: 128 },
 ]
 
 export default function World4Corridor() {
@@ -21,7 +26,7 @@ export default function World4Corridor() {
   const [lockedShake, setLockedShake] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const targetName = 'TYLER EMDUR'
-  const totalWidth = 3000
+  const totalWidth = 3800
   const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1200
 
   // Floor text gradually resolves to Tyler's name over 3 mins
@@ -240,6 +245,7 @@ export default function World4Corridor() {
           75% { transform: translateX(3px); }
         }
       `}</style>
+      <HomeButton />
     </div>
   )
 }

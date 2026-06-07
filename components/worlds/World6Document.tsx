@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useWorldStore } from '@/lib/world-store'
+import HomeButton from './HomeButton'
 
 const EMAIL_PAGE = Math.floor(Math.random() * 52) + 1
 
@@ -135,6 +136,7 @@ export default function World6Document() {
   const navigateTo = useWorldStore(s => s.navigateTo)
   const [page, setPage] = useState(1)
   const [inputPage, setInputPage] = useState('1')
+  const [blankClicks, setBlankClicks] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
 
   const content = CONTENT_PAGES[page]
@@ -242,8 +244,15 @@ export default function World6Document() {
               )}
             </>
           ) : (
-            <div style={{ fontSize: 13, color: 'rgba(0,0,0,0.15)', fontStyle: 'italic', lineHeight: 2 }}>
-              [This page is intentionally left blank.]
+            <div
+              onClick={() => {
+                const c = blankClicks + 1
+                setBlankClicks(c)
+                if (c >= 7) navigateTo(16, { type: 'fold' })
+              }}
+              style={{ fontSize: 13, color: blankClicks > 0 ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.15)', fontStyle: 'italic', lineHeight: 2, cursor: 'default' }}
+            >
+              [This page is intentionally left blank.{blankClicks > 2 ? ` (${7 - blankClicks})` : ''}]
             </div>
           )}
         </div>
@@ -274,6 +283,7 @@ export default function World6Document() {
           </button>
         ))}
       </div>
+      <HomeButton />
     </div>
   )
 }

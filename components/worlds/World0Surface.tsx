@@ -4,8 +4,10 @@ import { useWorldStore } from '@/lib/world-store'
 
 export default function World0Surface() {
   const navigateTo = useWorldStore(s => s.navigateTo)
+  const findSecret = useWorldStore(s => s.findSecret)
   const [visible, setVisible] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const [pixelClicks, setPixelClicks] = useState(0)
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 120)
@@ -14,6 +16,16 @@ export default function World0Surface() {
 
   const enter = (e: React.MouseEvent) => {
     navigateTo(1, { type: 'door', color: '#f4f1ec', origin: { x: e.clientX, y: e.clientY } })
+  }
+
+  const handlePixel = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const next = pixelClicks + 1
+    setPixelClicks(next)
+    if (next >= 5) {
+      findSecret('surface-pixel')
+      navigateTo(14, { type: 'chromatic', origin: { x: e.clientX, y: e.clientY } })
+    }
   }
 
   return (
@@ -59,6 +71,26 @@ export default function World0Surface() {
           click to enter
         </div>
       </div>
+
+      {/* Hidden rainbow pixel — wrong dimension leaking through */}
+      <div
+        onClick={handlePixel}
+        style={{
+          position: 'fixed',
+          bottom: 12,
+          right: 12,
+          width: 8,
+          height: 8,
+          background: pixelClicks > 0
+            ? `linear-gradient(135deg, #FF006E, #FFBE0B, #06FFA5)`
+            : 'rgba(28,26,23,0.08)',
+          cursor: 'crosshair',
+          imageRendering: 'pixelated',
+          boxShadow: pixelClicks > 2 ? '0 0 12px rgba(255,0,110,0.5)' : 'none',
+          transition: 'background 0.2s, box-shadow 0.3s',
+        }}
+        title=""
+      />
     </div>
   )
 }
