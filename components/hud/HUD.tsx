@@ -7,34 +7,46 @@ function pad(n: number, w = 5) { return String(Math.abs(Math.round(n))).padStart
 
 function CoordinateDisplay() {
   const [coords, setCoords] = useState({ x: 0, y: 0, z: 1200 })
-  const [tick, setTick] = useState(0)
-
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t + 1), 100)
-    return () => clearInterval(id)
-  }, [])
+  const [glitching, setGlitching] = useState(false)
+  const [glitchCoords, setGlitchCoords] = useState({ x: 0, y: 0, z: 0 })
 
   useEffect(() => {
     const id = setInterval(() => {
-      // Read camera position from DOM (we'll sync via a global)
       const cam = (window as any).__universeCamera
       if (cam) setCoords({ x: cam.x, y: cam.y, z: cam.z })
     }, 80)
     return () => clearInterval(id)
   }, [])
 
+  // Randomly corrupt the display for 200–800ms
+  useEffect(() => {
+    const schedule = () => {
+      const delay = 8000 + Math.random() * 22000
+      return setTimeout(() => {
+        setGlitchCoords({ x: (Math.random() - 0.5) * 9999, y: (Math.random() - 0.5) * 9999, z: Math.random() * 1400 })
+        setGlitching(true)
+        setTimeout(() => setGlitching(false), 200 + Math.random() * 600)
+        schedule()
+      }, delay)
+    }
+    const t = schedule()
+    return () => clearTimeout(t)
+  }, [])
+
+  const display = glitching ? glitchCoords : coords
   const zone = coords.z > 800 ? 'UNIVERSE' : coords.z > 300 ? 'APPROACH' : coords.z > 100 ? 'SYSTEM' : 'SURFACE'
+  const glitchZones = ['ERR_0', 'NULL', '???', 'LOST']
 
   return (
-    <div className="hud-coords">
+    <div className="hud-coords" style={{ opacity: glitching ? 0.7 : 1 }}>
       <div className="hud-label">COORDINATES</div>
-      <div className="hud-value">
-        X:{coords.x > 0 ? '+' : '-'}{pad(coords.x)} &nbsp;
-        Y:{coords.y > 0 ? '+' : '-'}{pad(coords.y)} &nbsp;
-        Z:{pad(coords.z, 4)}
+      <div className="hud-value" style={{ color: glitching ? 'rgba(168,85,247,0.9)' : undefined }}>
+        X:{display.x > 0 ? '+' : '-'}{pad(display.x)} &nbsp;
+        Y:{display.y > 0 ? '+' : '-'}{pad(display.y)} &nbsp;
+        Z:{pad(display.z, 4)}
       </div>
       <div className="hud-label mt-1">ZONE</div>
-      <div className="hud-accent">{zone}</div>
+      <div className="hud-accent">{glitching ? glitchZones[Math.floor(Math.random() * glitchZones.length)] : zone}</div>
     </div>
   )
 }
