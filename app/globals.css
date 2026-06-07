@@ -523,6 +523,36 @@ body {
 
 /* ─── WORLD OVERRIDES ─────────────────────────────────────────────────── */
 
+/* World 0: Home — pointer cursor (whole page is clickable) */
+html[data-world="0"] {
+  cursor: pointer;
+  overflow: hidden;
+}
+html[data-world="0"] #cur-dot,
+html[data-world="0"] #cur-ring { display: none; }
+
+/* World 1: Calm entry — real cursor, allow scroll */
+html[data-world="1"] {
+  cursor: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+html[data-world="1"] body {
+  overflow-y: auto;
+  cursor: auto;
+  background: #0f0e0c;
+}
+html[data-world="1"] #cur-dot,
+html[data-world="1"] #cur-ring { display: none; }
+
+/* World 6: Document — allow scrolling, normal cursor for text */
+html[data-world="6"] {
+  cursor: auto;
+  overflow: hidden;
+}
+html[data-world="6"] #cur-dot,
+html[data-world="6"] #cur-ring { display: none; }
+
 /* World 9: Normal — show system cursor, allow scrolling */
 html[data-world="9"] {
   cursor: auto;
@@ -538,20 +568,10 @@ html[data-world="9"] body {
 html[data-world="9"] #cur-dot,
 html[data-world="9"] #cur-ring { display: none; }
 
-/* World 6: Document — allow scrolling, normal cursor for text */
-html[data-world="6"] {
-  cursor: auto;
-  overflow: hidden;
-}
-html[data-world="6"] #cur-dot,
-html[data-world="6"] #cur-ring { display: none; }
-
 /* World 4: Corridor — grab cursor */
 html[data-world="4"] { cursor: grab; }
 
-/* Worlds 0-8 default: keep hidden cursor */
-html[data-world="0"],
-html[data-world="1"],
+/* Worlds 2, 3, 5, 7, 8 — custom cursor, no overflow */
 html[data-world="2"],
 html[data-world="3"],
 html[data-world="5"],

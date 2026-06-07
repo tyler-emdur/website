@@ -4,6 +4,7 @@ import { create } from 'zustand'
 export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
 export type PortalType =
+  | 'door'          // page rotates open like a physical door
   | 'fold'          // CSS 3D fold reveals next world
   | 'expand-white'  // white circle expands from click point
   | 'rotate'        // viewport rotates 90deg
@@ -22,8 +23,8 @@ export interface PortalConfig {
 }
 
 const WORLD_TITLES: Record<WorldId, string> = {
-  0: '[untitled document]',
-  1: 'error 404: location not found',
+  0: 'Tyler Emdur',
+  1: 'Tyler Emdur',
   2: 'please hold',
   3: '(1) New Message — Mail',
   4: '█████ ████ ████',

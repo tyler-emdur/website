@@ -4,7 +4,7 @@ import CustomCursor from '@/components/cursor/CustomCursor'
 import { CursorProvider } from '@/components/cursor/CursorContext'
 
 export const metadata: Metadata = {
-  title: '[untitled document]',
+  title: 'Tyler Emdur',
   description: 'A digital universe.',
   openGraph: { title: 'Tyler Emdur', description: 'A digital universe.', type: 'website' },
 }

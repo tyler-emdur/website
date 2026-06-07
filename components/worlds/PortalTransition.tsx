@@ -170,12 +170,42 @@ function NothingPortal({ onDone }: { onDone: () => void }) {
   return null
 }
 
+function DoorPortal({ config, onDone }: { config: PortalConfig; onDone: () => void }) {
+  const [open, setOpen] = useState(false)
+  const bg = config.color ?? '#f4f1ec'
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setOpen(true), 40)
+    const t2 = setTimeout(onDone, 960)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [])
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      perspective: '1400px',
+      perspectiveOrigin: '0% 50%',
+      pointerEvents: 'none',
+    }}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: bg,
+        transformOrigin: '0% 50%',
+        transform: open ? 'rotateY(-90deg)' : 'rotateY(0deg)',
+        transition: 'transform 0.88s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: open ? 'none' : '4px 0 40px rgba(0,0,0,0.15)',
+      }} />
+    </div>
+  )
+}
+
 export default function PortalTransition({ config }: { config: PortalConfig }) {
   const completePortal = useWorldStore(s => s.completePortal)
 
   const props = { config, onDone: completePortal }
 
   switch (config.type) {
+    case 'door':         return <DoorPortal {...props} />
     case 'expand-white': return <ExpandWhitePortal {...props} />
     case 'fold':         return <FoldPortal onDone={completePortal} />
     case 'rotate':       return <RotatePortal onDone={completePortal} />
