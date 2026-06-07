@@ -1,382 +1,366 @@
 'use client'
-import { useEffect, useState, useRef, useCallback } from 'react'
-import { useWorldStore } from '@/lib/world-store'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { useWorldStore, type PortalType } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
-const PA_ANNOUNCEMENTS = [
-  'Attention shoppers: the mall closes in thirty minutes. Or an hour. Time moves differently here.',
-  'Could the owner of a white vehicle please return to the food court. Or not. It doesn\'t matter.',
-  'We are experiencing a temporary shortage of certainty in aisle seven. Normal levels expected to resume eventually.',
-  'The record store is currently accepting submissions. All formats welcome.',
-  'Reminder: the checkout experience is entirely optional. The receipt is real regardless.',
-  'Attention: the gap between things has relocated to its permanent home. See directional signage.',
-  'A found object has been turned in to the information desk. It may be yours. It may not.',
+const VEND_ITEMS = [
+  { label: 'CERTAINTY', price: '$4.99', responses: ['out of stock since 2019', 'checking inventory…\nnope', 'found some. it expired.', 'sold to someone else'] },
+  { label: 'SLEEP', price: '$2.11', responses: ['dispensing…\n[mechanism jams]', 'try the stairs', '6-8 hours\n(estimated)', 'already dispensed\ncheck under the bench'] },
+  { label: 'PURPOSE', price: '$∞', responses: ['machine vibrates\nthen goes quiet', 'SELECT COLUMN B\ncolumn B does not exist', 'processing…\nstill processing', 'receipt prints:\n"good question"'] },
+  { label: 'REASONS', price: 'free', responses: ['taking too many', 'dispensing 3\nyou only asked for 1', 'none left\ntry CERTAINTY', 'machine flickers\nand returns your coin'] },
+  { label: 'STATIC', price: '$0.01', responses: ['always in stock', '░░▒▓█\n█▓▒░░', 'fresh batch', 'this one has teeth'] },
+  { label: 'THE ORIGINAL\nIDEA', price: '$???', responses: ['already yours\nsomeone else bought the copy', 'sold 1,200 times\nstill one left', 'machine hums\nthen goes dark', 'receipt: "nice try"'] },
 ]
 
-const SOFTWARE_BOXES = [
-  { name: 'DIGGER v1.0', desc: 'Music Discovery Engine', req: 'Requires: curiosity, music', year: '2024', color: '#1a2a4a' },
-  { name: 'TRAIL LOGGER', desc: 'Personal Running Analytics', req: 'Requires: legs, elevation', year: '2024', color: '#0a2a1a' },
-  { name: 'THIS SITE', desc: 'Anti-Portfolio System', req: 'Requires: lost time, 9 worlds', year: '2025', color: '#2a1a0a' },
-  { name: 'SIGNAL NOISE', desc: 'Audio Synthesis Lab', req: 'Requires: headphones, patience', year: '2025', color: '#1a0a2a' },
-  { name: 'PIXEL QUEST', desc: 'Wrong dimension. Too many colors.', req: 'Requires: arrow keys, denial', year: '2025', color: '#ff006e' },
+const PA_LINES = [
+  (v: number) => v === 0 ? 'Attention shoppers: nothing has happened yet.' : `Attention shoppers: ${v} purchase${v !== 1 ? 's' : ''} recorded. Behavior logged.`,
+  () => 'Could the person standing still please continue standing still. Thank you.',
+  () => 'The food court is open. The food court has never been open.',
+  () => 'Attention: the exit has relocated. New coordinates pending.',
+  () => 'A mannequin in section C has filed a complaint. The complaint is you.',
+  () => 'The escalator is currently traveling sideways. This is normal.',
+  () => 'Lost and found contains: one left shoe, a frequency, and your previous excuse.',
+  () => 'Store closing in 30 minutes. Store closing has been ongoing for 4 years.',
+  () => 'Attention: the mall would like you to know it has noticed you.',
 ]
 
-const TIMELINE_TRACKS = [
-  { title: 'PROLOGUE: THE MIDWEST', duration: '2:47' },
-  { title: 'FIRST COMMIT', duration: '3:12' },
-  { title: 'THE RELOCATION', duration: '4:33' },
-  { title: 'ABOVE TREELINE (FEAT. WIND)', duration: '2:58' },
-  { title: 'DEBUGGING AT 3AM', duration: '5:01' },
-  { title: 'DIGGER LAUNCHES', duration: '3:44' },
-  { title: 'BOULDER MARATHON (REPRISE)', duration: '3:41' },
-  { title: 'WHAT THE CANYON LOOKS LIKE', duration: '6:22' },
-  { title: 'THE CURRENT THING', duration: '∞' },
+const MANNEQUIN_LINES = [
+  'what are you looking at',
+  'i was here first',
+  'i don\'t actually have eyes',
+  'this outfit is from last season\n(of something)',
+  'please stop',
+  'i\'ve been standing here\nsince 1994',
+  'the collar was not my idea',
+  'you look familiar\n(we all say that)',
 ]
 
-const BUILDER_PRODUCTS = [
-  { sku: 'APP-001', name: 'Full-Stack Web Application', desc: 'Complete functional application, customer-facing. Includes frontend, backend, deployment pipeline. Some assembly required.', price: '$contact' },
-  { sku: 'INT-002', name: 'Interactive Experience', desc: 'Unusual digital artifact. May include 3D rendering, audio synthesis, or things that respond to cursor position. Customer unable to predict outcome.', price: '$contact' },
-  { sku: 'SYS-003', name: 'Technical Architecture Review', desc: 'Second opinion on system design. Warning: may result in difficult conversations about scope.', price: '$contact' },
-  { sku: 'COL-004', name: 'Collaboration (Ongoing)', desc: 'Sustained engagement on a problem worth solving. Best results when problem is interesting and customer has strong opinions.', price: '$discuss' },
+const FOOD_ITEMS = [
+  { name: 'TIME SOUP', desc: 'approx. 12 minutes', price: 'in stock' },
+  { name: 'YESTERDAY', desc: 'out of stock', price: '$0.00' },
+  { name: 'STATIC (LG)', desc: 'complimentary', price: 'always' },
+  { name: 'DECISION', desc: 'takes ~3 business days', price: '$contact' },
+  { name: 'THE ORIGINAL\nFEELING', desc: 'limited qty', price: 'ask cashier' },
+  { name: 'CERTAINTY FRIES', desc: 'see vending machine', price: 'N/A' },
 ]
 
-type Store = 'none' | 'system_logic' | 'gap_between' | 'records' | 'builder'
+const WARP_WORLDS: Array<{ world: 2 | 3 | 10 | 11 | 12 | 13 | 15; portal: PortalType; label: string }> = [
+  { world: 10, portal: 'vortex', label: 'LOOP' },
+  { world: 13, portal: 'vortex', label: 'SPIRAL' },
+  { world: 11, portal: 'scatter', label: 'FLICKER' },
+  { world: 3, portal: 'expand-white', label: 'BROADCAST' },
+  { world: 15, portal: 'chromatic', label: 'DIAL' },
+  { world: 12, portal: 'nothing', label: 'TERMINAL' },
+  { world: 2, portal: 'scatter', label: 'DEPTH' },
+]
 
-function GapBetweenStore({ onBack, navigateTo }: { onBack: () => void; navigateTo: ReturnType<typeof useWorldStore.getState>['navigateTo'] }) {
-  const [clicks, setClicks] = useState(0)
-  return (
-    <div style={{ position: 'absolute', inset: '70px 0 60px', background: '#080808', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 40 }}>
-      <button onClick={onBack} style={{ position: 'absolute', top: 16, right: 24, background: 'none', border: '1px solid rgba(200,180,100,0.2)', color: 'rgba(200,180,100,0.5)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer', letterSpacing: '0.1em' }}>← BACK</button>
-      <div style={{ display: 'flex', gap: 60, alignItems: 'flex-end' }}>
-        {[0, 1, 2, 3].map(i => (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: i % 2 === 0 ? 'scaleX(-1)' : 'scaleX(1)' }}>
-            <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(200,180,100,0.15)', border: '1px solid rgba(200,180,100,0.1)' }} />
-            <div style={{ width: 3, height: 12, background: 'rgba(200,180,100,0.1)' }} />
-            <div style={{ width: 30, height: 50, background: 'rgba(200,180,100,0.08)', border: '1px solid rgba(200,180,100,0.06)' }} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ width: 10, height: 35, background: 'rgba(200,180,100,0.07)' }} />
-              <div style={{ width: 10, height: 35, background: 'rgba(200,180,100,0.07)' }} />
-            </div>
-          </div>
-        ))}
-      </div>
-      <div
-        onClick={() => {
-          const next = clicks + 1
-          setClicks(next)
-          if (next >= 3) navigateTo(13, { type: 'vortex' })
-        }}
-        style={{ fontFamily: '"Pirata One", serif', fontSize: 11, color: clicks > 0 ? 'rgba(200,180,100,0.35)' : 'rgba(200,180,100,0.2)', letterSpacing: '0.2em', textAlign: 'center', cursor: 'pointer', maxWidth: 360, lineHeight: 1.8 }}
-      >
-        THEY ARE LOOKING AT SOMETHING YOU CAN&apos;T SEE FROM HERE
-        {clicks > 0 && clicks < 3 && (
-          <div style={{ fontFamily: 'monospace', fontSize: 8, marginTop: 8, opacity: 0.5 }}>{3 - clicks} more</div>
-        )}
-      </div>
-      <button
-        onClick={() => navigateTo(14, { type: 'chromatic' })}
-        style={{
-          position: 'absolute',
-          bottom: 56,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'linear-gradient(90deg, #FF006E, #FFBE0B, #06FFA5)',
-          border: '2px solid rgba(0,0,0,0.5)',
-          color: '#000',
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: 6,
-          letterSpacing: '0.1em',
-          padding: '8px 12px',
-          cursor: 'pointer',
-        }}
-      >
-        PIXEL QUEST
-      </button>
-      <button
-        onClick={() => navigateTo(11, { type: 'scatter' })}
-        style={{
-          position: 'absolute',
-          bottom: 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'rgba(255,0,100,0.06)',
-          border: '1px solid rgba(255,0,100,0.15)',
-          color: 'rgba(255,100,150,0.35)',
-          fontFamily: 'monospace',
-          fontSize: 8,
-          letterSpacing: '0.2em',
-          padding: '6px 12px',
-          cursor: 'pointer',
-        }}
-      >
-        ARCADE · OUT OF ORDER (click anyway)
-      </button>
-    </div>
-  )
-}
-
-function Receipt({ onClose }: { onClose: () => void }) {
-  const now = new Date()
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div
-        style={{ background: '#fafaf5', width: 320, padding: '30px 28px', fontFamily: '"Pirata One", serif', boxShadow: '3px 3px 0 rgba(0,0,0,0.3)', cursor: 'default' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ textAlign: 'center', marginBottom: 16, borderBottom: '1px dashed rgba(0,0,0,0.2)', paddingBottom: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '0.2em' }}>BUILDER OF THINGS</div>
-          <div style={{ fontSize: 9, color: 'rgba(0,0,0,0.4)', letterSpacing: '0.15em', marginTop: 4 }}>Boulder, CO · {now.toLocaleDateString()}</div>
-        </div>
-        <div style={{ fontSize: 12, lineHeight: 2.2, marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Experience</span><span>5+ years</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Location</span><span>Boulder, CO</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Languages</span><span>TS / Python / SQL</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Frameworks</span><span>Next.js / React</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>Miles run</span><span>uncounted</span>
-          </div>
-        </div>
-        <div style={{ borderTop: '1px dashed rgba(0,0,0,0.2)', paddingTop: 16, fontSize: 11, color: 'rgba(0,0,0,0.5)', fontStyle: 'italic', lineHeight: 1.7, textAlign: 'center' }}>
-          Building things that work and feel like something.<br />healthreinvented@gmail.com
-        </div>
-        <button onClick={onClose} style={{ display: 'block', margin: '16px auto 0', background: 'none', border: '1px solid rgba(0,0,0,0.2)', padding: '6px 20px', fontFamily: '"Pirata One", serif', fontSize: 11, cursor: 'pointer', letterSpacing: '0.1em' }}>CLOSE</button>
-      </div>
-    </div>
-  )
-}
+type View = 'main' | 'vending' | 'food' | 'mannequins' | 'escalator'
 
 export default function World7Mall() {
   const navigateTo = useWorldStore(s => s.navigateTo)
-  const [activeStore, setActiveStore] = useState<Store>('none')
-  const [paMsg, setPaMsg] = useState('')
+  const [view, setView] = useState<View>('main')
+  const [paLine, setPaLine] = useState('')
   const [paVisible, setPaVisible] = useState(false)
-  const [showReceipt, setShowReceipt] = useState(false)
-  const [albumPlaying, setAlbumPlaying] = useState<number | null>(null)
+  const [vendIdx, setVendIdx] = useState<number | null>(null)
+  const [vendResponse, setVendResponse] = useState('')
+  const [vendPurchases, setVendPurchases] = useState(0)
+  const [mannResponse, setMannResponse] = useState<string | null>(null)
+  const [mannIdx, setMannIdx] = useState(0)
+  const [escWarning, setEscWarning] = useState('')
+  const [escUsed, setEscUsed] = useState(0)
+  const mouseRef = useRef({ x: 0, y: 0 })
+  const mannRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [mannAngles, setMannAngles] = useState([0, 0, 0, 0])
+  const paIdx = useRef(0)
 
   useEffect(() => {
-    let idx = 0
-    const showPA = () => {
-      const msg = PA_ANNOUNCEMENTS[idx % PA_ANNOUNCEMENTS.length]
-      idx++
-      setPaMsg(msg)
-      setPaVisible(true)
-      setTimeout(() => setPaVisible(false), 8000)
-    }
-    const first = setTimeout(showPA, 3000)
-    const iv = setInterval(showPA, 240000)
-    return () => { clearTimeout(first); clearInterval(iv) }
+    const move = (e: MouseEvent) => { mouseRef.current = { x: e.clientX, y: e.clientY } }
+    window.addEventListener('mousemove', move)
+    return () => window.removeEventListener('mousemove', move)
   }, [])
 
+  // Mannequin head tracking
+  useEffect(() => {
+    if (view !== 'mannequins') return
+    let raf = 0
+    function tick() {
+      const angles = mannRefs.current.map(el => {
+        if (!el) return 0
+        const rect = el.getBoundingClientRect()
+        const cx = rect.left + rect.width / 2
+        const cy = rect.top + rect.height / 2
+        const angle = Math.atan2(mouseRef.current.y - cy, mouseRef.current.x - cx) * (180 / Math.PI)
+        return Math.max(-45, Math.min(45, angle * 0.25))
+      })
+      setMannAngles(angles)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [view])
+
+  // PA system
+  useEffect(() => {
+    const showPA = () => {
+      const fn = PA_LINES[paIdx.current % PA_LINES.length]
+      paIdx.current++
+      setPaLine(typeof fn === 'function' ? fn(vendPurchases) : fn)
+      setPaVisible(true)
+      setTimeout(() => setPaVisible(false), 7000)
+    }
+    const t1 = setTimeout(showPA, 2500)
+    const iv = setInterval(showPA, 22000)
+    return () => { clearTimeout(t1); clearInterval(iv) }
+  }, [vendPurchases])
+
+  const handleVend = useCallback((i: number) => {
+    const item = VEND_ITEMS[i]
+    const r = item.responses[Math.floor(Math.random() * item.responses.length)]
+    setVendIdx(i)
+    setVendResponse(r)
+    setVendPurchases(v => v + 1)
+  }, [])
+
+  const handleMannequin = useCallback((i: number) => {
+    const line = MANNEQUIN_LINES[Math.floor(Math.random() * MANNEQUIN_LINES.length)]
+    setMannIdx(i)
+    setMannResponse(line)
+    setTimeout(() => setMannResponse(null), 3500)
+  }, [])
+
+  const handleEscalator = useCallback(() => {
+    const n = escUsed + 1
+    setEscUsed(n)
+    if (n === 1) { setEscWarning('ESCALATOR CALIBRATING...'); return }
+    if (n === 2) { setEscWarning('WARNING: DESTINATION UNCONFIRMED'); return }
+    const dest = WARP_WORLDS[Math.floor(Math.random() * WARP_WORLDS.length)]
+    setEscWarning(`DEPARTING → ${dest.label}`)
+    setTimeout(() => navigateTo(dest.world, { type: dest.portal }), 800)
+  }, [escUsed, navigateTo])
+
   return (
-    <div data-world="7" style={{ position: 'fixed', inset: 0, background: '#1a1410', fontFamily: '"Pirata One", serif', overflow: 'hidden' }}>
-      {/* Ceiling grid / skylights */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 60, background: 'repeating-linear-gradient(90deg, transparent, transparent 80px, rgba(200,180,100,0.04) 80px, rgba(200,180,100,0.04) 82px)', borderBottom: '1px solid rgba(200,180,100,0.06)' }} />
+    <div data-world="7" style={{ position: 'fixed', inset: 0, background: '#100c08', fontFamily: '"Pirata One", serif', overflow: 'hidden' }}>
+
+      {/* Ceiling grid */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 54, background: 'repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(200,170,80,0.04) 60px, rgba(200,170,80,0.04) 61px)', borderBottom: '1px solid rgba(200,170,80,0.06)' }} />
 
       {/* Mall header */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 40 }}>
-        <div style={{ fontSize: 22, color: 'rgba(200,180,100,0.5)', letterSpacing: '0.3em' }}>SIGNAL RIDGE MALL</div>
-        <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(200,180,100,0.2)', letterSpacing: '0.2em' }}>EST. 1993 · CLOSED SUNDAYS · PERMANENTLY</div>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 54, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 32 }}>
+        <div style={{ fontSize: 18, color: 'rgba(200,170,80,0.45)', letterSpacing: '0.3em' }}>SIGNAL RIDGE MALL</div>
+        <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,170,80,0.18)', letterSpacing: '0.15em' }}>OPEN · EST. 1993 · CLOSED SUNDAYS · PERMANENTLY</div>
       </div>
 
-      {/* PA announcement */}
+      {/* PA */}
       {paVisible && (
-        <div style={{
-          position: 'fixed', top: 60, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(0,0,0,0.85)', border: '1px solid rgba(200,180,100,0.2)',
-          padding: '8px 24px', zIndex: 50,
-          fontFamily: '"Pirata One", serif', fontSize: 12, color: 'rgba(200,180,100,0.7)',
-          letterSpacing: '0.05em', maxWidth: '80vw', textAlign: 'center',
-          animation: 'paFade 8s both',
-        }}>
-          📢 {paMsg}
+        <div style={{ position: 'fixed', top: 54, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.88)', border: '1px solid rgba(200,170,80,0.18)', padding: '8px 20px', zIndex: 50, fontFamily: '"Pirata One", serif', fontSize: 11, color: 'rgba(200,170,80,0.7)', letterSpacing: '0.05em', maxWidth: '80vw', textAlign: 'center', animation: 'paFade 7s both', whiteSpace: 'pre-wrap' }}>
+          📢 {paLine}
         </div>
       )}
 
-      {/* Store fronts */}
-      {activeStore === 'none' && (
-        <div style={{ position: 'absolute', inset: '70px 0 60px', display: 'flex', alignItems: 'stretch', justifyContent: 'center', gap: 0 }}>
-          {[
-            { id: 'system_logic' as Store, name: 'SYSTEM LOGIC', sub: 'Software Est. 2019', color: '#1a2a3a', open: true },
-            { id: 'gap_between' as Store, name: 'THE GAP BETWEEN', sub: '· · ·', color: '#0d0d0d', open: true },
-            { id: 'records' as Store, name: 'CURIOUS BY DEFAULT\nRECORDS', sub: 'Music + Memory', color: '#1a0a2a', open: true },
-            { id: 'builder' as Store, name: 'BUILDER OF THINGS', sub: 'Est. when it was necessary', color: '#1a1a0a', open: true },
-          ].map((store, i) => (
-            <div
-              key={store.id}
-              onClick={() => setActiveStore(store.id)}
-              style={{
-                flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'space-between',
-                background: store.color,
-                border: '2px solid rgba(200,180,100,0.1)',
-                cursor: 'pointer', padding: '40px 20px 20px',
-                transition: 'background 0.2s, border-color 0.2s',
-                position: 'relative', overflow: 'hidden',
-              }}
-            >
-              {/* Store window display */}
-              <div style={{ width: '70%', paddingTop: '45%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(200,180,100,0.08)', position: 'relative', marginBottom: 16 }}>
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 4 }}>
-                  {i === 0 && SOFTWARE_BOXES.slice(0, 2).map(b => (
-                    <div key={b.name} style={{ width: '40%', height: 20, background: b.color, border: '1px solid rgba(200,180,100,0.15)', fontSize: 6, color: 'rgba(200,180,100,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.1em' }}>{b.name.split(' ')[0]}</div>
-                  ))}
-                  {i === 1 && (
-                    <div style={{ width: '80%', display: 'flex', gap: 8, justifyContent: 'space-around' }}>
-                      {[0, 1, 2].map(j => (
-                        <div key={j} style={{ width: 8, height: 32, background: 'rgba(200,180,100,0.08)', transform: `rotate(${[15, -10, 5][j]}deg)` }} />
-                      ))}
-                    </div>
-                  )}
-                  {i === 2 && (
-                    <div style={{ fontSize: 7, color: 'rgba(200,180,100,0.3)', textAlign: 'center', lineHeight: 1.8 }}>
-                      {TIMELINE_TRACKS.slice(0, 2).map(t => <div key={t.title}>{t.title.slice(0, 20)}</div>)}
-                    </div>
-                  )}
-                  {i === 3 && BUILDER_PRODUCTS.slice(0, 2).map(p => (
-                    <div key={p.sku} style={{ fontSize: 7, color: 'rgba(200,180,100,0.3)', letterSpacing: '0.1em' }}>{p.name.slice(0, 16)}</div>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 16, color: 'rgba(200,180,100,0.8)', letterSpacing: '0.15em', lineHeight: 1.2, whiteSpace: 'pre-wrap', marginBottom: 6 }}>{store.name}</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,180,100,0.25)', letterSpacing: '0.15em' }}>{store.sub}</div>
-              </div>
-
-              <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: '50%', background: 'rgba(100,200,120,0.5)', boxShadow: '0 0 8px rgba(100,200,120,0.4)' }} />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Store interiors */}
-      {activeStore === 'system_logic' && (
-        <div style={{ position: 'absolute', inset: '70px 0 60px', background: '#0d1a2a', padding: 32, overflowY: 'auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-            <div style={{ fontSize: 18, color: 'rgba(100,150,255,0.8)', letterSpacing: '0.2em' }}>SYSTEM LOGIC · SOFTWARE SHELF</div>
-            <button onClick={() => setActiveStore('none')} style={{ background: 'none', border: '1px solid rgba(200,180,100,0.2)', color: 'rgba(200,180,100,0.5)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer', letterSpacing: '0.1em' }}>← BACK</button>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
-            {SOFTWARE_BOXES.map(box => (
-              <div key={box.name} style={{ background: box.color, border: '2px solid rgba(100,150,255,0.15)', padding: 16, position: 'relative', cursor: 'default' }}>
-                <div style={{ position: 'absolute', top: 0, right: 0, left: 0, height: 80, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ fontSize: 8, letterSpacing: '0.15em', color: 'rgba(100,150,255,0.4)' }}>≡≡≡ {box.year} ≡≡≡</div>
-                </div>
-                <div style={{ marginTop: 88 }}>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 6, lineHeight: 1.2 }}>{box.name}</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,255,255,0.35)', marginBottom: 8 }}>{box.desc}</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(100,150,255,0.4)', letterSpacing: '0.08em' }}>{box.req}</div>
-                </div>
+      {/* MAIN VIEW */}
+      {view === 'main' && (
+        <div style={{ position: 'absolute', inset: '60px 0 56px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18, padding: '0 40px' }}>
+          <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,170,80,0.2)', letterSpacing: '0.25em', marginBottom: 8 }}>YOU ARE HERE · LEVEL 1 · MAP ACCURACY: 14%</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, width: '100%', maxWidth: 640 }}>
+            {[
+              { id: 'vending', label: '🏧 VENDING MACHINES', sub: 'certainty · sleep · the original idea', color: '#1a1208' },
+              { id: 'food', label: '🍽 FOOD COURT', sub: 'time soup · yesterday · static (lg)', color: '#0a1208' },
+              { id: 'mannequins', label: '🕴 MANNEQUIN GALLERY', sub: 'they have been watching', color: '#0d0d18' },
+              { id: 'escalator', label: '⬆ ESCALATOR', sub: 'destination unconfirmed', color: '#120a18' },
+            ].map(s => (
+              <div
+                key={s.id}
+                onClick={() => setView(s.id as View)}
+                style={{ background: s.color, border: '1px solid rgba(200,170,80,0.1)', padding: '24px 20px', cursor: 'pointer', transition: 'border-color 0.2s, background 0.2s', position: 'relative' }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(200,170,80,0.3)')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(200,170,80,0.1)')}
+              >
+                <div style={{ fontSize: 14, color: 'rgba(200,170,80,0.75)', letterSpacing: '0.1em', marginBottom: 8 }}>{s.label}</div>
+                <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,170,80,0.25)', letterSpacing: '0.08em', lineHeight: 1.7 }}>{s.sub}</div>
+                <div style={{ position: 'absolute', top: 8, right: 8, width: 6, height: 6, borderRadius: '50%', background: 'rgba(100,200,120,0.5)', boxShadow: '0 0 6px rgba(100,200,120,0.4)' }} />
               </div>
             ))}
           </div>
+          <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,170,80,0.12)', letterSpacing: '0.15em', marginTop: 8 }}>LOST AND FOUND: LEVEL 2 · LEVEL 2 DOES NOT EXIST</div>
         </div>
       )}
 
-      {activeStore === 'gap_between' && (
-        <GapBetweenStore onBack={() => setActiveStore('none')} navigateTo={navigateTo} />
-      )}
-
-      {activeStore === 'records' && (
-        <div style={{ position: 'absolute', inset: '70px 0 60px', background: '#0d0814', padding: 32, overflowY: 'auto' }}>
+      {/* VENDING MACHINES */}
+      {view === 'vending' && (
+        <div style={{ position: 'absolute', inset: '60px 0 56px', display: 'flex', flexDirection: 'column', padding: '24px 32px', overflowY: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
             <div>
-              <div style={{ fontSize: 18, color: 'rgba(180,100,255,0.8)', letterSpacing: '0.2em' }}>CURIOUS BY DEFAULT RECORDS</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(180,100,255,0.3)', marginTop: 4, letterSpacing: '0.15em' }}>A TYLER EMDUR TIMELINE — FULL LENGTH LP</div>
+              <div style={{ fontSize: 16, color: 'rgba(200,170,80,0.7)', letterSpacing: '0.15em' }}>VENDING MACHINES · ROW C</div>
+              <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,170,80,0.2)', marginTop: 4, letterSpacing: '0.1em' }}>PURCHASES: {vendPurchases} · SATISFACTION: UNKNOWN</div>
             </div>
-            <button onClick={() => setActiveStore('none')} style={{ background: 'none', border: '1px solid rgba(200,180,100,0.2)', color: 'rgba(200,180,100,0.5)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer', letterSpacing: '0.1em' }}>← BACK</button>
+            <button onClick={() => { setView('main'); setVendIdx(null); setVendResponse('') }} style={{ background: 'none', border: '1px solid rgba(200,170,80,0.2)', color: 'rgba(200,170,80,0.5)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer', letterSpacing: '0.1em' }}>← MALL</button>
           </div>
-
-          {/* Album cover */}
-          <div style={{ display: 'flex', gap: 32, marginBottom: 32 }}>
-            <div style={{ width: 160, height: 160, background: 'linear-gradient(135deg, #1a0a2a, #0a1a2a)', border: '1px solid rgba(180,100,255,0.2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', inset: 0, background: 'repeating-conic-gradient(rgba(180,100,255,0.05) 0deg, transparent 1deg, transparent 9deg, rgba(180,100,255,0.05) 10deg)', borderRadius: '50%', width: '70%', height: '70%', top: '15%', left: '15%' }} />
-              <div style={{ fontSize: 10, color: 'rgba(180,100,255,0.6)', letterSpacing: '0.2em', textAlign: 'center', lineHeight: 1.6 }}>
-                CURIOUS<br />BY DEFAULT
-              </div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', marginBottom: 8, lineHeight: 1.3 }}>A TYLER EMDUR TIMELINE</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(180,100,255,0.4)', letterSpacing: '0.1em', marginBottom: 8 }}>{TIMELINE_TRACKS.length} TRACKS · BOULDER, CO · 2025</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', lineHeight: 1.7, fontStyle: 'italic', maxWidth: 300 }}>
-                From the midwest to the mountains. Software, trails, and the space between deployments.
-              </div>
-            </div>
-          </div>
-
-          {/* Track listing */}
-          <div style={{ border: '1px solid rgba(180,100,255,0.1)' }}>
-            {TIMELINE_TRACKS.map((track, i) => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, flex: 1 }}>
+            {VEND_ITEMS.map((item, i) => (
               <div
                 key={i}
-                onClick={() => setAlbumPlaying(albumPlaying === i ? null : i)}
-                style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '12px 16px',
-                  borderBottom: i < TIMELINE_TRACKS.length - 1 ? '1px solid rgba(180,100,255,0.06)' : 'none',
-                  background: albumPlaying === i ? 'rgba(180,100,255,0.06)' : 'transparent',
-                  cursor: 'pointer', transition: 'background 0.1s',
-                }}
+                style={{ background: vendIdx === i ? 'rgba(200,170,80,0.06)' : '#0a0806', border: `1px solid ${vendIdx === i ? 'rgba(200,170,80,0.3)' : 'rgba(200,170,80,0.08)'}`, padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 10, transition: 'all 0.15s' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(180,100,255,0.3)', width: 20 }}>{(i + 1).toString().padStart(2, '0')}</div>
-                  <div style={{ fontSize: 13, color: albumPlaying === i ? 'rgba(180,100,255,0.9)' : 'rgba(255,255,255,0.6)', letterSpacing: '0.05em' }}>{track.title}</div>
+                <div style={{ flex: 1 }}>
+                  {/* Machine display */}
+                  <div style={{ background: '#020201', border: '1px solid rgba(200,170,80,0.1)', padding: '10px 8px', marginBottom: 10, minHeight: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: 9, color: vendIdx === i ? 'rgba(200,200,100,0.9)' : 'rgba(200,170,80,0.35)', textAlign: 'center', letterSpacing: '0.08em', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                      {vendIdx === i ? vendResponse : item.label}
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,170,80,0.3)', letterSpacing: '0.1em' }}>{item.price}</div>
                 </div>
-                <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'rgba(180,100,255,0.4)' }}>{track.duration}</div>
+                <button
+                  onClick={() => handleVend(i)}
+                  style={{ background: 'rgba(200,170,80,0.08)', border: '1px solid rgba(200,170,80,0.2)', color: 'rgba(200,170,80,0.6)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '6px 0', cursor: 'pointer', letterSpacing: '0.08em', transition: 'background 0.1s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(200,170,80,0.14)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(200,170,80,0.08)')}
+                >
+                  SELECT
+                </button>
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {activeStore === 'builder' && (
-        <div style={{ position: 'absolute', inset: '70px 0 60px', background: '#100f05', padding: 32, overflowY: 'auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-            <div style={{ fontSize: 18, color: 'rgba(200,180,80,0.8)', letterSpacing: '0.2em' }}>BUILDER OF THINGS</div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setShowReceipt(true)} style={{ background: 'rgba(200,180,80,0.1)', border: '1px solid rgba(200,180,80,0.3)', color: 'rgba(200,180,80,0.7)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer', letterSpacing: '0.1em' }}>CHECKOUT</button>
-              <button onClick={() => setActiveStore('none')} style={{ background: 'none', border: '1px solid rgba(200,180,100,0.2)', color: 'rgba(200,180,100,0.5)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer', letterSpacing: '0.1em' }}>← BACK</button>
+          {vendPurchases >= 6 && (
+            <div
+              onClick={() => navigateTo(13, { type: 'vortex' })}
+              style={{ marginTop: 16, padding: '12px', background: 'rgba(200,170,80,0.04)', border: '1px solid rgba(200,170,80,0.12)', fontFamily: 'monospace', fontSize: 9, color: 'rgba(200,170,80,0.4)', textAlign: 'center', letterSpacing: '0.15em', cursor: 'pointer' }}
+            >
+              ⚠ MACHINE C-7 MALFUNCTION — DO NOT APPROACH<br />
+              <span style={{ fontSize: 7, opacity: 0.5 }}>(the spiral is visible from here)</span>
             </div>
-          </div>
-          <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(200,180,80,0.3)', letterSpacing: '0.15em', marginBottom: 24 }}>HANDCRAFTED SOLUTIONS · BOULDER, CO · EST. WHEN NECESSARY</div>
+          )}
+        </div>
+      )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-            {BUILDER_PRODUCTS.map(product => (
-              <div key={product.sku} style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(200,180,80,0.12)', padding: 20 }}>
-                <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,180,80,0.3)', letterSpacing: '0.15em', marginBottom: 8 }}>SKU: {product.sku}</div>
-                <div style={{ fontSize: 14, color: 'rgba(200,180,80,0.8)', marginBottom: 10, lineHeight: 1.2 }}>{product.name}</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 11, color: 'rgba(255,255,255,0.35)', lineHeight: 1.7, marginBottom: 12 }}>{product.desc}</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 12, color: 'rgba(200,180,80,0.6)', letterSpacing: '0.1em' }}>{product.price}</div>
+      {/* FOOD COURT */}
+      {view === 'food' && (
+        <div style={{ position: 'absolute', inset: '60px 0 56px', padding: '24px 32px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ fontSize: 16, color: 'rgba(100,180,120,0.7)', letterSpacing: '0.15em' }}>FOOD COURT · LEVEL 2 (THIS IS LEVEL 1)</div>
+            <button onClick={() => setView('main')} style={{ background: 'none', border: '1px solid rgba(200,170,80,0.2)', color: 'rgba(200,170,80,0.5)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer', letterSpacing: '0.1em' }}>← MALL</button>
+          </div>
+          <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(100,180,120,0.3)', letterSpacing: '0.2em', marginBottom: 20 }}>TODAY'S SPECIALS · WHILE SUPPLIES LAST · SUPPLIES NEVER LAST</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 24 }}>
+            {FOOD_ITEMS.map((item, i) => (
+              <div key={i} style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(100,180,120,0.1)', padding: '16px 14px' }}>
+                <div style={{ fontFamily: '"Pirata One", serif', fontSize: 13, color: 'rgba(100,180,120,0.7)', marginBottom: 8, lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>{item.name}</div>
+                <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(100,180,120,0.35)', marginBottom: 8, fontStyle: 'italic' }}>{item.desc}</div>
+                <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'rgba(100,180,120,0.5)' }}>{item.price}</div>
               </div>
             ))}
           </div>
-
-          <div style={{ marginTop: 32, padding: 20, border: '1px solid rgba(200,180,80,0.08)', fontFamily: 'monospace', fontSize: 10, color: 'rgba(200,180,80,0.25)', lineHeight: 2, letterSpacing: '0.05em' }}>
-            All items subject to availability. "Availability" defined as: whether the problem is interesting enough.<br />
-            Contact: healthreinvented@gmail.com
+          <div
+            onClick={() => navigateTo(9, { type: 'expand-white' })}
+            style={{ padding: '14px 16px', border: '1px dashed rgba(100,180,120,0.12)', fontFamily: 'monospace', fontSize: 9, color: 'rgba(100,180,120,0.2)', letterSpacing: '0.12em', cursor: 'pointer', lineHeight: 2 }}
+          >
+            CASHIER WINDOW · CURRENTLY UNMANNED · OR MAYBE OVERMANNED<br />
+            <span style={{ opacity: 0.5 }}>→ contact page (somewhere that way)</span>
           </div>
         </div>
       )}
 
-      {/* Mall floor */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'rgba(0,0,0,0.6)', borderTop: '1px solid rgba(200,180,100,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 40 }}>
-        <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(200,180,100,0.15)', letterSpacing: '0.15em' }}>DIRECTORY: YOU ARE HERE</div>
-        <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(200,180,100,0.1)', letterSpacing: '0.1em' }}>FOOD COURT: LEVEL 2 (DOES NOT EXIST)</div>
-        <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(200,180,100,0.15)', letterSpacing: '0.15em' }}>EXITS: MULTIPLE</div>
+      {/* MANNEQUIN GALLERY */}
+      {view === 'mannequins' && (
+        <div style={{ position: 'absolute', inset: '60px 0 56px', padding: '24px 32px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ fontSize: 16, color: 'rgba(180,160,220,0.7)', letterSpacing: '0.15em' }}>MANNEQUIN GALLERY · SECTION C</div>
+            <button onClick={() => { setView('main'); setMannResponse(null) }} style={{ background: 'none', border: '1px solid rgba(200,170,80,0.2)', color: 'rgba(200,170,80,0.5)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer', letterSpacing: '0.1em' }}>← MALL</button>
+          </div>
+          <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(180,160,220,0.25)', letterSpacing: '0.15em', marginBottom: 32 }}>MOVE YOUR CURSOR · THEY NOTICE · CLICK ONE</div>
+          <div style={{ display: 'flex', gap: 32, alignItems: 'flex-end', justifyContent: 'center', flex: 1 }}>
+            {[0, 1, 2, 3].map(i => (
+              <div
+                key={i}
+                onClick={() => handleMannequin(i)}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', opacity: mannIdx === i && mannResponse ? 0.85 : 0.6, transition: 'opacity 0.2s' }}
+              >
+                {/* Head — rotates toward cursor */}
+                <div
+                  ref={el => { mannRefs.current[i] = el }}
+                  style={{
+                    width: 28, height: 28, borderRadius: '50%',
+                    background: 'rgba(180,160,220,0.15)',
+                    border: '1px solid rgba(180,160,220,0.2)',
+                    marginBottom: 4,
+                    transform: `rotate(${mannAngles[i]}deg)`,
+                    transition: 'transform 0.05s linear',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    position: 'relative',
+                  }}
+                >
+                  {/* Eyes */}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(180,160,220,0.6)' }} />
+                    <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(180,160,220,0.6)' }} />
+                  </div>
+                  {/* Speech bubble */}
+                  {mannIdx === i && mannResponse && (
+                    <div style={{ position: 'absolute', bottom: 34, left: '50%', transform: 'translateX(-50%)', background: 'rgba(10,8,16,0.95)', border: '1px solid rgba(180,160,220,0.3)', padding: '8px 12px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 9, color: 'rgba(180,160,220,0.8)', letterSpacing: '0.05em', lineHeight: 1.6, zIndex: 10, minWidth: 140, textAlign: 'center' }}>
+                      {mannResponse}
+                    </div>
+                  )}
+                </div>
+                {/* Body */}
+                <div style={{ width: 3, height: 12, background: 'rgba(180,160,220,0.12)' }} />
+                <div style={{ width: 32, height: 56, background: i % 2 === 0 ? 'rgba(180,160,220,0.08)' : 'rgba(200,170,80,0.06)', border: '1px solid rgba(180,160,220,0.08)' }} />
+                {/* Legs */}
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ width: 10, height: 40, background: 'rgba(180,160,220,0.07)' }} />
+                  <div style={{ width: 10, height: 40, background: 'rgba(180,160,220,0.07)' }} />
+                </div>
+                <div style={{ fontFamily: 'monospace', fontSize: 7, color: 'rgba(180,160,220,0.2)', marginTop: 8, letterSpacing: '0.1em' }}>UNIT {String.fromCharCode(65 + i)}</div>
+              </div>
+            ))}
+          </div>
+          <div
+            onClick={() => navigateTo(11, { type: 'scatter' })}
+            style={{ marginTop: 24, padding: '10px', border: '1px solid rgba(180,160,220,0.08)', fontFamily: 'monospace', fontSize: 8, color: 'rgba(180,160,220,0.2)', textAlign: 'center', letterSpacing: '0.15em', cursor: 'pointer' }}
+          >
+            FITTING ROOM ARCADE · OUT OF ORDER · ENTER ANYWAY →
+          </div>
+        </div>
+      )}
+
+      {/* ESCALATOR */}
+      {view === 'escalator' && (
+        <div style={{ position: 'absolute', inset: '60px 0 56px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
+          <button onClick={() => setView('main')} style={{ position: 'absolute', top: 16, right: 24, background: 'none', border: '1px solid rgba(200,170,80,0.2)', color: 'rgba(200,170,80,0.5)', fontFamily: '"Pirata One", serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer', letterSpacing: '0.1em' }}>← MALL</button>
+          {/* Escalator visual */}
+          <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} style={{ width: 24, height: 10, background: 'rgba(200,170,80,0.06)', border: '1px solid rgba(200,170,80,0.12)', transform: `translateY(${i * -3}px) rotate(-8deg)`, transition: 'all 0.3s' }} />
+            ))}
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 16, color: 'rgba(200,170,80,0.5)', letterSpacing: '0.2em', marginBottom: 12 }}>ESCALATOR</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(200,170,80,0.25)', letterSpacing: '0.12em', lineHeight: 1.8, marginBottom: 24 }}>
+              DESTINATION: {escUsed === 0 ? 'LEVEL 2' : escUsed === 1 ? 'CALCULATING...' : 'UNRESOLVABLE'}<br />
+              {escWarning && <span style={{ color: 'rgba(255,150,80,0.6)' }}>{escWarning}</span>}
+            </div>
+            <button
+              onClick={handleEscalator}
+              style={{ background: escUsed >= 2 ? 'rgba(255,100,50,0.08)' : 'rgba(200,170,80,0.06)', border: `1px solid ${escUsed >= 2 ? 'rgba(255,100,50,0.3)' : 'rgba(200,170,80,0.2)'}`, color: escUsed >= 2 ? 'rgba(255,150,80,0.7)' : 'rgba(200,170,80,0.6)', fontFamily: '"Pirata One", serif', fontSize: 14, padding: '12px 40px', cursor: 'pointer', letterSpacing: '0.15em' }}
+            >
+              {escUsed === 0 ? '↑ RIDE' : escUsed === 1 ? '↑ PROCEED' : '↑ DEPART (RANDOM)'}
+            </button>
+          </div>
+          <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,170,80,0.12)', letterSpacing: '0.15em', textAlign: 'center', lineHeight: 2 }}>
+            NOTE: THIS ESCALATOR TRAVELS SIDEWAYS<br />
+            MANAGEMENT NOT RESPONSIBLE FOR DIMENSIONAL DRIFT
+          </div>
+        </div>
+      )}
+
+      {/* Floor bar */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 56, background: 'rgba(0,0,0,0.7)', borderTop: '1px solid rgba(200,170,80,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 40 }}>
+        <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,170,80,0.12)', letterSpacing: '0.15em' }}>DIRECTORY: YOU ARE HERE</div>
+        <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,170,80,0.08)', letterSpacing: '0.1em' }}>EXITS: MULTIPLE · NONE CONFIRMED</div>
+        <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,170,80,0.12)', letterSpacing: '0.15em' }}>HOURS: ALWAYS / NEVER</div>
       </div>
 
-      {showReceipt && <Receipt onClose={() => setShowReceipt(false)} />}
-
       <style>{`
-        @keyframes paFade { 0% { opacity: 0 } 10% { opacity: 1 } 80% { opacity: 1 } 100% { opacity: 0 } }
+        @keyframes paFade { 0% { opacity:0 } 10% { opacity:1 } 80% { opacity:1 } 100% { opacity:0 } }
       `}</style>
       <HomeButton />
     </div>

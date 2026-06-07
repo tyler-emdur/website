@@ -4,10 +4,22 @@ import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
 const CHANNELS = [2, 4, 7, 9, 11, 13, 14, 88, 99]
-const PROJECT_SLIDES = [
-  { name: 'DIGGER', desc: 'Spotify music discovery engine. 47 objects in the universe.', year: '2024', stack: 'Next.js · Spotify API · Zustand' },
-  { name: 'THIS SITE', desc: 'An anti-portfolio. 17 worlds. You\'re in one now.', year: '2025', stack: 'Next.js · Three.js · React Three Fiber' },
-  { name: 'RUNNING LOG', desc: 'Personal trail running tracker and analytics.', year: '2024', stack: 'Python · Strava API · SQLite' },
+
+const QUIZ_QUESTIONS = [
+  { q: 'How many objects are in the universe?', opts: ['42', '47', '∞', '13'], correct: 1, wrong: ['close', 'too round', 'check your math'] },
+  { q: 'What is Boulder\'s elevation?', opts: ['2,000 ft', '3,400 ft', '5,430 ft', '14,000 ft'], correct: 2, wrong: ['keep guessing', 'sea level is showing', 'that\'s Elbert'] },
+  { q: 'Which world has mannequins?', opts: ['World 3', 'World 7', 'World 11', 'All of them'], correct: 1, wrong: ['no', 'try again', 'you\'re in World 3'] },
+  { q: 'The best line of code you ever wrote was:', opts: ['The first one', 'The one that deleted 400 lines', 'The one nobody reviewed', 'This question has no answer'], correct: 1, wrong: ['incorrect', 'try the other one', 'bold choice'] },
+  { q: 'What does DIGGER do?', opts: ['Digs holes', 'Finds music', 'Mines data', 'Delivers static'], correct: 1, wrong: ['no', 'technically yes but no', 'not really'] },
+]
+
+const SHOP_ITEMS = [
+  { name: 'REGRET (UNOPENED)', price: '$0.00', stock: 'surplus', btn: 'ADD TO CART', result: 'already in cart\n(was always in cart)' },
+  { name: 'ONE PERFECT TUESDAY', price: '$44.00', stock: 'last one', btn: 'BUY NOW', result: 'sold to someone else\n3 seconds ago' },
+  { name: 'THE ORIGINAL WORRY', price: 'free', stock: 'overstock', btn: 'CLAIM', result: 'you already have this\ncheck your pockets' },
+  { name: 'MOMENTUM (BOTTLED)', price: '$12.99', stock: 'limited', btn: 'PURCHASE', result: 'dispensing...\n[bottle is empty]\n[this is normal]' },
+  { name: 'CERTAINTY', price: '$999.99', stock: '0 in stock', btn: 'NOTIFY ME', result: 'you have been notified\n(this is not certainty)' },
+  { name: 'THE FEELING AT 5AM\nABOVE TREELINE', price: 'priceless', stock: 'cannot ship', btn: 'INQUIRE', result: 'you have to go there\nno substitutes' },
 ]
 
 function StaticScreen() {
@@ -95,19 +107,20 @@ export default function World3Broadcast() {
   const navigateTo = useWorldStore(s => s.navigateTo)
   const [channel, setChannel] = useState(2)
   const [knobAngle, setKnobAngle] = useState(0)
-  const [slideIdx, setSlideIdx] = useState(0)
   const [showPortfolio, setShowPortfolio] = useState(false)
   const [ttsIdx, setTtsIdx] = useState(0)
+  // quiz state
+  const [qIdx, setQIdx] = useState(0)
+  const [qScore, setQScore] = useState(0)
+  const [qAnswered, setQAnswered] = useState<number | null>(null)
+  const [qWrongIdx, setQWrongIdx] = useState(0)
+  // shop state
+  const [shopResult, setShopResult] = useState<string | null>(null)
+  const [shopIdx, setShopIdx] = useState<number | null>(null)
 
   useEffect(() => {
     const idx = CHANNELS.indexOf(channel)
     setKnobAngle(idx * (180 / (CHANNELS.length - 1)) - 90)
-  }, [channel])
-
-  useEffect(() => {
-    if (channel !== 4) return
-    const iv = setInterval(() => setSlideIdx(i => (i + 1) % PROJECT_SLIDES.length), 4000)
-    return () => clearInterval(iv)
   }, [channel])
 
   useEffect(() => {
@@ -147,25 +160,90 @@ export default function World3Broadcast() {
             </div>
           </div>
         )
-      case 4:
+      case 4: {
+        const q = QUIZ_QUESTIONS[qIdx % QUIZ_QUESTIONS.length]
         return (
-          <div style={{ width: '100%', height: '100%', background: '#050510', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
-            <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 10, letterSpacing: '0.2em', color: 'rgba(100,150,255,0.5)', marginBottom: 24 }}>PROJECTS · CHANNEL 4</div>
-            <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 26, fontWeight: 700, color: '#fff', marginBottom: 12 }}>{PROJECT_SLIDES[slideIdx].name}</div>
-            <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginBottom: 16, maxWidth: 360 }}>{PROJECT_SLIDES[slideIdx].desc}</div>
-            <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'rgba(100,150,255,0.4)', letterSpacing: '0.1em' }}>{PROJECT_SLIDES[slideIdx].stack}</div>
-            <div style={{ position: 'absolute', bottom: 10, right: 14, fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,255,255,0.15)' }}>{slideIdx + 1}/{PROJECT_SLIDES.length}</div>
+          <div style={{ width: '100%', height: '100%', background: '#080020', display: 'flex', flexDirection: 'column', padding: '16px 20px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 9, letterSpacing: '0.25em', color: 'rgba(255,200,100,0.6)' }}>★ QUIZ NIGHT WITH DEREK ★ CHANNEL 4</div>
+              <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,200,100,0.5)' }}>SCORE: {qScore}</div>
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 14 }}>
+              <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 14, color: '#fff', lineHeight: 1.4, textAlign: 'center', minHeight: 44 }}>{q.q}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {q.opts.map((opt, i) => {
+                  const isCorrect = i === q.correct
+                  const isSelected = qAnswered === i
+                  let bg = 'rgba(255,255,255,0.06)'
+                  let border = 'rgba(255,255,255,0.12)'
+                  let color = 'rgba(255,255,255,0.7)'
+                  if (qAnswered !== null) {
+                    if (isCorrect) { bg = 'rgba(100,255,100,0.12)'; border = 'rgba(100,255,100,0.5)'; color = '#6fff6f' }
+                    else if (isSelected) { bg = 'rgba(255,80,80,0.1)'; border = 'rgba(255,80,80,0.4)'; color = '#ff8080' }
+                  }
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        if (qAnswered !== null) return
+                        setQAnswered(i)
+                        if (isCorrect) setQScore(s => s + 1)
+                        else setQWrongIdx(w => w + 1)
+                        setTimeout(() => {
+                          setQAnswered(null)
+                          setQIdx(n => n + 1)
+                        }, 1800)
+                      }}
+                      style={{ background: bg, border: `1px solid ${border}`, color, fontFamily: '"Libre Baskerville", serif', fontSize: 11, padding: '8px 10px', cursor: qAnswered !== null ? 'default' : 'pointer', letterSpacing: '0.05em', textAlign: 'left', transition: 'all 0.2s' }}
+                    >
+                      {opt}
+                    </button>
+                  )
+                })}
+              </div>
+              {qAnswered !== null && (
+                <div style={{ fontFamily: 'monospace', fontSize: 10, color: qAnswered === q.correct ? 'rgba(100,255,100,0.7)' : 'rgba(255,150,80,0.7)', textAlign: 'center', letterSpacing: '0.1em' }}>
+                  {qAnswered === q.correct ? 'CORRECT' : q.wrong[qWrongIdx % q.wrong.length]}
+                </div>
+              )}
+            </div>
+            <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,255,255,0.12)', textAlign: 'center', letterSpacing: '0.15em' }}>DEREK IS NOT A REAL PERSON · ANSWERS MAY NOT BE CORRECT</div>
           </div>
         )
-      case 7:
+      }
+      case 7: {
         return (
-          <div style={{ width: '100%', height: '100%', background: '#000', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <StaticScreen />
-            <div style={{ position: 'absolute', bottom: 20, fontFamily: 'monospace', fontSize: 11, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.2em' }}>
-              TO REACH US: 04-15-92-65-35-89 — 97
+          <div style={{ width: '100%', height: '100%', background: '#0a0500', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '10px 14px', background: '#cc0000', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 13, fontWeight: 700, color: '#fff', letterSpacing: '0.1em' }}>IMPOSSIBLES HOME SHOPPING</div>
+              <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.15em' }}>CALL NOW · OPERATORS STANDING BY (PROBABLY)</div>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {SHOP_ITEMS.map((item, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: shopIdx === i ? 'rgba(255,200,50,0.06)' : 'rgba(0,0,0,0.3)', border: `1px solid ${shopIdx === i ? 'rgba(255,200,50,0.2)' : 'rgba(255,255,255,0.05)'}`, gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 11, color: 'rgba(255,255,255,0.8)', lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>{item.name}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,200,50,0.5)', marginTop: 2 }}>{item.price} · {item.stock}</div>
+                    {shopIdx === i && shopResult && (
+                      <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,150,80,0.7)', marginTop: 4, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{shopResult}</div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShopIdx(i)
+                      setShopResult(item.result)
+                      setTimeout(() => { setShopIdx(null); setShopResult(null) }, 3000)
+                    }}
+                    style={{ background: 'rgba(255,200,50,0.1)', border: '1px solid rgba(255,200,50,0.3)', color: 'rgba(255,200,50,0.8)', fontFamily: 'monospace', fontSize: 8, padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.1em', flexShrink: 0 }}
+                  >
+                    {item.btn}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )
+      }
       case 9:
         return (
           <div style={{ width: '100%', height: '100%', background: '#0a0500', overflow: 'hidden', position: 'relative' }}>
