@@ -19,6 +19,7 @@ import LabRegion from './regions/LabRegion'
 import OriginAnomaly from './objects/OriginAnomaly'
 import CometSystem from './scene/CometSystem'
 import VoidObjects from './scene/VoidObjects'
+import PortalConcourse from './scene/PortalConcourse'
 
 export default function UniverseScene() {
   return (
@@ -40,6 +41,9 @@ export default function UniverseScene() {
 
       {/* Comet system */}
       <CometSystem />
+
+      {/* Defined portal lanes */}
+      <PortalConcourse />
 
       {/* Void objects — scattered between regions */}
       <VoidObjects />

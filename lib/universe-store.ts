@@ -110,32 +110,33 @@ export const REGIONS: RegionDef[] = [
   },
 ]
 
-// Void objects — scattered between regions, reward roaming
+const PORTAL_GATES: Array<Omit<UniverseObject, 'type' | 'region' | 'visible'>> = [
+  { id: 'gate-00', label: 'Gate-00 / Surface Lobby', description: 'The plain front door. Suspiciously normal.', lore: 'Exit signs are also entrances here.', worldId: 0, worldPortal: 'door', position: [0, -320, 36], color: '#F4F1EC', size: 18 },
+  { id: 'gate-02', label: 'Gate-02 / Depth Desk', description: 'Please hold. The room is deeper than the queue.', worldId: 2, worldPortal: 'scatter', position: [260, -260, 22], color: '#6366F1', size: 18 },
+  { id: 'gate-03', label: 'Gate-03 / Broadcast Window', description: 'Public access television from an address that does not exist.', worldId: 3, worldPortal: 'expand-white', position: [390, 0, 32], color: '#92400E', size: 18 },
+  { id: 'gate-04', label: 'Gate-04 / Corridor Receipt', description: 'A long way round, filed as a short passage.', worldId: 4, worldPortal: 'slide-right', position: [260, 260, 18], color: '#22C55E', size: 18 },
+  { id: 'gate-05', label: 'Gate-05 / Field Station', description: 'The same as last time, but the knobs moved.', worldId: 5, worldPortal: 'rotate', position: [0, 320, 42], color: '#F97316', size: 18 },
+  { id: 'gate-06', label: 'Gate-06 / Document Storage', description: '52 pages. Most of them are waiting.', worldId: 6, worldPortal: 'nothing', position: [-260, 260, 20], color: '#B45309', size: 18 },
+  { id: 'gate-07', label: 'Gate-07 / Closed Mall', description: 'Commerce zone. Permanently closed. Still selling silence.', worldId: 7, worldPortal: 'cursor-flood', position: [-390, 0, 30], color: '#1A1410', size: 18 },
+  { id: 'gate-08', label: 'Gate-08 / Signal Office', description: 'A corrected portfolio hiding inside a corrupted one.', worldId: 8, worldPortal: 'fold', position: [-260, -260, 24], color: '#E5E5E5', size: 18 },
+  { id: 'gate-09', label: 'Gate-09 / White Endpoint', description: 'Final position before the signal normalizes completely.', worldId: 9, worldPortal: 'expand-white', position: [0, -620, 28], color: '#FFFFFF', size: 20 },
+  { id: 'gate-10', label: 'Gate-10 / Same Room Again', description: 'Interior dimensions inconsistent with exterior.', worldId: 10, worldPortal: 'vortex', position: [440, -440, 36], color: '#818CF8', size: 20 },
+  { id: 'gate-11', label: 'Gate-11 / Double Vision', description: 'Two of everything. Match them before they match you.', worldId: 11, worldPortal: 'scatter', position: [620, 0, 26], color: '#FF0064', size: 20 },
+  { id: 'gate-12', label: 'Gate-12 / Root Shell', description: 'Command line detected. Type something. Anything.', worldId: 12, worldPortal: 'nothing', position: [440, 440, 34], color: '#22C55E', size: 20 },
+  { id: 'gate-13', label: 'Gate-13 / Vertical Drop', description: 'Infinite descent. Branching paths. No map.', worldId: 13, worldPortal: 'vortex', position: [0, 620, 30], color: '#6366F1', size: 20 },
+  { id: 'gate-14', label: 'Gate-14 / Insert Coin', description: '8-bit anomaly. Saturated colors. Wrong dimension.', worldId: 14, worldPortal: 'chromatic', position: [-440, 440, 40], color: '#FF006E', size: 20 },
+  { id: 'gate-15', label: 'Gate-15 / Carrier Wave', description: 'FM static. Tune until something answers.', worldId: 15, worldPortal: 'chromatic', position: [-620, 0, 22], color: '#22C55E', size: 20 },
+  { id: 'gate-16', label: 'Gate-16 / Master List', description: 'Every world filed incorrectly. Alphabetized by mood.', worldId: 16, worldPortal: 'fold', position: [-440, -440, 32], color: '#6366F1', size: 20 },
+]
+
+// Defined portal concourse plus small debris: weird, but no longer stacked.
 export const VOID_OBJECTS: UniverseObject[] = [
-  // Near-origin wormholes — visible immediately on entry
-  { id: 'void-worm-near-1', label: 'Aperture-01 / No Label', type: 'wormhole', description: 'Small opening. The inside is much larger than the outside.', region: 'void', worldId: 5, worldPortal: 'rotate', position: [220, -80, 30], color: '#F97316', size: 38, visible: 'always' },
-  { id: 'void-worm-near-2', label: 'Aperture-02 / Wrong Exit', type: 'wormhole', description: 'Leads somewhere that broadcasts. Possibly public access.', region: 'void', worldId: 3, worldPortal: 'expand-white', position: [-180, 130, 25], color: '#92400E', size: 32, visible: 'always' },
-  { id: 'void-worm-near-3', label: 'Aperture-03 / Dead Mall', type: 'wormhole', description: 'Destination: commerce zone. Status: permanently closed.', region: 'void', worldId: 7, worldPortal: 'cursor-flood', position: [100, 200, 40], color: '#1A1410', size: 28, visible: 'always' },
-  // Mid-range wormholes — unlock after some exploration
-  { id: 'void-worm-mid-1', label: 'Rift-07 / Document Storage', type: 'wormhole', description: '52 pages. Most of them are waiting.', region: 'void', worldId: 6, worldPortal: 'nothing', position: [-350, -200, 15], color: '#B45309', size: 35, visible: { visited: 2 } },
-  { id: 'void-worm-mid-2', label: 'Rift-08 / Corrupted Signal', type: 'wormhole', description: 'The signal is in there somewhere. Keep looking.', region: 'void', worldId: 8, worldPortal: 'fold', position: [380, 220, -20], color: '#404040', size: 30, visible: { visited: 3 } },
-  // Deep void wormholes — deeper exploration rewards
-  { id: 'void-worm-deep-1', label: 'Rift-10 / Same Room', type: 'wormhole', description: 'Interior dimensions inconsistent with exterior. You have been here.', region: 'void', worldId: 10, worldPortal: 'vortex', position: [-550, -350, 20], color: '#818CF8', size: 36, visible: { visited: 3 } },
-  { id: 'void-worm-deep-2', label: 'Rift-11 / Double Vision', type: 'wormhole', description: 'Two of everything. Match them before they match you.', region: 'void', worldId: 11, worldPortal: 'scatter', position: [620, -300, 35], color: '#FF0064', size: 32, visible: { visited: 4 } },
-  { id: 'void-worm-deep-3', label: 'Rift-12 / Root Access', type: 'wormhole', description: 'Shell environment. Type something. Anything.', region: 'void', worldId: 12, worldPortal: 'nothing', position: [-400, 400, -25], color: '#22C55E', size: 28, visible: { visited: 5 } },
-  { id: 'void-worm-deep-4', label: 'Rift-13 / Vertical', type: 'wormhole', description: 'Infinite descent. Branching paths. No map.', region: 'void', worldId: 13, worldPortal: 'vortex', position: [500, 450, 30], color: '#6366F1', size: 42, visible: { visited: 2 } },
-  { id: 'void-worm-deep-5', label: 'Rift-∞ / Another One', type: 'wormhole', description: 'This one wasn\'t here last time. Probably.', region: 'void', worldId: 10, worldPortal: 'fold', position: [-120, -520, 45], color: '#A78BFA', size: 26, visible: { time: 45000 } },
-  { id: 'void-signal-spiral', label: 'Drift-∞ / Falling Signal', type: 'signal', description: 'Accelerating away from origin. Pick a branch or keep falling.', region: 'void', worldId: 13, worldPortal: 'vortex', position: [300, -400, 50], color: '#6366F1', size: 9, visible: { time: 25000 } },
-  { id: 'void-worm-pixel', label: 'Rift-14 / Insert Coin', type: 'wormhole', description: '8-bit anomaly. Saturated colors. Wrong dimension.', region: 'void', worldId: 14, worldPortal: 'chromatic', position: [150, 520, 35], color: '#FF006E', size: 40, visible: 'always' },
-  { id: 'void-worm-dial', label: 'Rift-15 / Carrier Wave', type: 'wormhole', description: 'FM static. Tune until something answers.', region: 'void', worldId: 15, worldPortal: 'chromatic', position: [-280, -180, 40], color: '#22C55E', size: 34, visible: { visited: 1 } },
-  { id: 'void-worm-index', label: 'Rift-16 / Master List', type: 'wormhole', description: 'Every world filed incorrectly. Alphabetized by mood.', region: 'void', worldId: 16, worldPortal: 'fold', position: [720, 180, -15], color: '#6366F1', size: 36, visible: { visited: 4 } },
-  { id: 'void-anomaly-pixel', label: 'Sprite-Δ / Lost Level', type: 'anomaly', description: 'Platform geometry detected. Colors exceed safe thresholds.', region: 'void', worldId: 14, worldPortal: 'chromatic', position: [-650, 100, 55], color: '#FFBE0B', size: 18, visible: { time: 12000 } },
-  // Deep space fragments — for wanderers
-  { id: 'void-frag-1', label: 'Fragment-∞ / Unanswered', type: 'fragment', description: 'Still waiting on a reply. The original question is no longer legible.', region: 'void', position: [-300, 250, -10], color: '#737373', size: 7, visible: 'always' },
-  { id: 'void-frag-2', label: 'Debris-07 / Good Year', type: 'fragment', description: 'Cataloged as significant. Significance unspecified.', region: 'void', position: [700, 400, 15], color: '#525252', size: 5, visible: { visited: 2 } },
-  { id: 'void-signal-1', label: 'Drift-04 / Open Water', type: 'signal', description: 'Unanchored. Has been moving toward something for a long time.', region: 'void', position: [200, -250, 20], color: '#A3A3A3', size: 6, visible: { time: 15000 } },
-  { id: 'void-anomaly-1', label: 'Anomaly-X / No Genre', type: 'anomaly', description: 'Does not fit existing classification. Filed under itself.', region: 'void', position: [-200, -450, 30], color: '#6B7280', size: 12, visible: { time: 40000 } },
-  { id: 'void-station-1', label: 'Relay-00 / Asking Around', type: 'station', description: 'Decommissioned communications post. Still receiving. Not transmitting.', region: 'void', position: [400, 300, -20], color: '#9CA3AF', size: 10, visible: { visited: 4 } },
+  ...PORTAL_GATES.map(gate => ({ ...gate, type: 'wormhole' as const, region: 'void', visible: 'always' as const })),
+  { id: 'void-frag-1', label: 'Fragment-∞ / Unanswered', type: 'fragment', description: 'Still waiting on a reply. The original question is no longer legible.', region: 'void', position: [-120, -130, -10], color: '#737373', size: 7, visible: 'always' },
+  { id: 'void-frag-2', label: 'Debris-07 / Good Year', type: 'fragment', description: 'Cataloged as significant. Significance unspecified.', region: 'void', position: [140, 120, 15], color: '#525252', size: 5, visible: { visited: 2 } },
+  { id: 'void-signal-1', label: 'Drift-04 / Open Water', type: 'signal', description: 'Unanchored. Moving toward something for a long time.', region: 'void', position: [120, -160, 20], color: '#A3A3A3', size: 6, visible: { time: 15000 } },
+  { id: 'void-anomaly-1', label: 'Anomaly-X / No Genre', type: 'anomaly', description: 'Does not fit existing classification. Filed under itself.', region: 'void', position: [-160, 150, 30], color: '#6B7280', size: 12, visible: { time: 40000 } },
+  { id: 'void-station-1', label: 'Relay-00 / Asking Around', type: 'station', description: 'Decommissioned communications post. Still receiving. Not transmitting.', region: 'void', position: [20, 0, -20], color: '#9CA3AF', size: 10, visible: { visited: 4 } },
 ]
 
 // Origin object

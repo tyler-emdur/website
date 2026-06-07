@@ -9,6 +9,19 @@ const JUMP = -11
 const MOVE = 4.2
 
 const PALETTE = ['#FF006E', '#FB5607', '#FFBE0B', '#8338EC', '#3A86FF', '#06FFA5', '#FF4365', '#00F5FF']
+const ACCESSIBLE_WARPS = [
+  { x: 10, y: 27, id: '1' },
+  { x: 18, y: 27, id: '2' },
+  { x: 27, y: 27, id: '3' },
+  { x: 37, y: 27, id: '4' },
+  { x: 48, y: 27, id: '5' },
+  { x: 60, y: 27, id: '6' },
+  { x: 73, y: 27, id: '7' },
+  { x: 87, y: 27, id: '8' },
+  { x: 104, y: 27, id: '9' },
+]
+const ACCESSIBLE_COINS = Array.from({ length: 24 }, (_, i) => ({ x: 5 + i * 5, y: 27 }))
+const WRONG_SIGNS = ['NOT A DOOR', 'PRESS MAYBE', '404 FLOOR', 'COIN? NO', 'EXIT-ish', 'SCORE: MILK', 'LEFT IS ALSO RIGHT']
 
 // #: block  C: coin  P: spawn  1-9: warp id  ^: mover  !: spring
 const LEVEL = [
@@ -92,6 +105,8 @@ function parseLevel() {
       } else if (ch >= '1' && ch <= '9') warps.set(key, ch)
     }
   }
+  ACCESSIBLE_WARPS.forEach(w => warps.set(`${w.x},${w.y}`, w.id))
+  ACCESSIBLE_COINS.forEach(c => coins.add(`${c.x},${c.y}`))
   return { rows, cols, solids, coins, warps, springs, movers, spawn }
 }
 
@@ -109,7 +124,7 @@ export default function World14Pixel() {
   const rafRef = useRef(0)
   const warpLock = useRef(false)
   const [coinCount, setCoinCount] = useState(0)
-  const [msg, setMsg] = useState('← → move · space jump · numbered doors warp · collect every coin')
+  const [msg, setMsg] = useState('arrows / wasd move · space jumps · numbered lies open somewhere')
 
   const totalCoins = LEVEL_DATA.coins.size
 
@@ -134,14 +149,24 @@ export default function World14Pixel() {
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
   }, [])
 
+  const setControl = (code: string, down: boolean) => {
+    keysRef.current[code] = down
+  }
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
-    const W = window.innerWidth
-    const H = window.innerHeight
-    canvas.width = W
-    canvas.height = H
+    let W = window.innerWidth
+    let H = window.innerHeight
+    const resize = () => {
+      W = window.innerWidth
+      H = window.innerHeight
+      canvas.width = W
+      canvas.height = H
+    }
+    resize()
+    window.addEventListener('resize', resize)
 
     function tileAt(tx: number, ty: number, solids: Set<string>) {
       if (tx < 0 || ty < 0 || tx >= LEVEL_DATA.cols || ty >= LEVEL_DATA.rows) return true
@@ -294,7 +319,7 @@ export default function World14Pixel() {
             ctx.font = '10px "Press Start 2P", monospace'
             ctx.fillText('!', px + 6, py + 14)
           }
-          if (ch >= '1' && ch <= '9') {
+          if (ch && ch >= '1' && ch <= '9') {
             const hue = parseInt(ch) * 40
             ctx.fillStyle = `hsl(${hue}, 90%, 55%)`
             ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4)
@@ -316,6 +341,36 @@ export default function World14Pixel() {
         }
       }
 
+      ACCESSIBLE_WARPS.forEach((door, i) => {
+        const px = door.x * TILE
+        const py = door.y * TILE
+        const hue = parseInt(door.id) * 40
+        ctx.fillStyle = `hsl(${hue}, 95%, 55%)`
+        ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4)
+        ctx.strokeStyle = i % 2 ? '#05030c' : '#fff'
+        ctx.lineWidth = 2
+        ctx.strokeRect(px + 2, py + 2, TILE - 4, TILE - 4)
+        ctx.fillStyle = '#fff'
+        ctx.font = '8px "Press Start 2P", monospace'
+        ctx.fillText(door.id, px + 6, py + 14)
+      })
+
+      WRONG_SIGNS.forEach((sign, i) => {
+        const sx = (14 + i * 16) * TILE
+        const sy = 24 * TILE + (i % 2) * 14
+        ctx.save()
+        ctx.translate(sx, sy)
+        ctx.rotate((i % 3 - 1) * 0.08)
+        ctx.fillStyle = 'rgba(0,0,0,0.45)'
+        ctx.fillRect(-4, -10, sign.length * 7 + 8, 15)
+        ctx.strokeStyle = 'rgba(255,255,255,0.16)'
+        ctx.strokeRect(-4, -10, sign.length * 7 + 8, 15)
+        ctx.fillStyle = i % 2 ? 'rgba(6,255,165,0.68)' : 'rgba(255,190,11,0.72)'
+        ctx.font = '7px "Press Start 2P", monospace'
+        ctx.fillText(sign, 0, 0)
+        ctx.restore()
+      })
+
       // player
       ctx.fillStyle = '#06FFA5'
       ctx.fillRect(p.x, p.y, p.w, p.h)
@@ -331,7 +386,10 @@ export default function World14Pixel() {
     }
 
     rafRef.current = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(rafRef.current)
+    return () => {
+      cancelAnimationFrame(rafRef.current)
+      window.removeEventListener('resize', resize)
+    }
   }, [tryWarp, findSecret, totalCoins])
 
   return (
@@ -349,9 +407,80 @@ export default function World14Pixel() {
         pointerEvents: 'none',
         maxWidth: 320,
       }}>
-        <div>★ PIXEL QUEST ★</div>
+        <div>★ PIXEL QUEST? ★</div>
         <div style={{ color: '#06FFA5', fontSize: 7 }}>COINS {coinCount}/{totalCoins}</div>
         <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 6, marginTop: 8, lineHeight: 1.8 }}>{msg}</div>
+        <div style={{ color: 'rgba(255,255,255,0.28)', fontSize: 6, marginTop: 8, lineHeight: 1.8 }}>
+          doors repeat below because the upper floor is lying.
+        </div>
+      </div>
+      <div style={{
+        position: 'fixed',
+        right: 18,
+        top: 18,
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: 6,
+        color: 'rgba(255,255,255,0.36)',
+        lineHeight: 2,
+        textAlign: 'right',
+        pointerEvents: 'none',
+        textShadow: '1px 1px 0 #3A86FF',
+      }}>
+        <div>MAP CERTAINTY: 12%</div>
+        <div>FLOOR INDEX: WRONG</div>
+        <div>PLAYER: UNSORTED</div>
+      </div>
+      <div style={{
+        position: 'fixed',
+        left: 18,
+        right: 18,
+        bottom: 18,
+        display: 'flex',
+        justifyContent: 'space-between',
+        pointerEvents: 'none',
+      }}>
+        <div style={{ display: 'flex', gap: 8, pointerEvents: 'all' }}>
+          {[
+            ['ArrowLeft', '<'],
+            ['ArrowRight', '>'],
+          ].map(([code, label]) => (
+            <button
+              key={code}
+              onPointerDown={() => setControl(code, true)}
+              onPointerUp={() => setControl(code, false)}
+              onPointerLeave={() => setControl(code, false)}
+              style={{
+                width: 46,
+                height: 46,
+                border: '1px solid rgba(255,255,255,0.18)',
+                background: 'rgba(0,0,0,0.42)',
+                color: '#FFBE0B',
+                fontFamily: '"Press Start 2P", monospace',
+                fontSize: 13,
+                cursor: 'none',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <button
+          onPointerDown={() => setControl('Space', true)}
+          onPointerUp={() => setControl('Space', false)}
+          onPointerLeave={() => setControl('Space', false)}
+          style={{
+            width: 74,
+            height: 46,
+            border: '1px solid rgba(255,255,255,0.18)',
+            background: 'rgba(0,0,0,0.42)',
+            color: '#06FFA5',
+            fontFamily: '"Press Start 2P", monospace',
+            fontSize: 8,
+            cursor: 'none',
+          }}
+        >
+          LIFT?
+        </button>
       </div>
       <HomeButton />
     </div>

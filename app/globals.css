@@ -188,6 +188,102 @@ body {
   line-height: 1.45;
 }
 
+.portal-directory {
+  position: fixed;
+  z-index: 12;
+  top: 126px;
+  left: 28px;
+  width: min(330px, calc(100vw - 56px));
+  pointer-events: none;
+  font-family: var(--font-mono);
+  color: rgba(255,255,255,0.7);
+}
+
+.portal-directory__tab,
+.portal-directory__gate {
+  cursor: none;
+  pointer-events: all;
+  font-family: var(--font-mono);
+}
+
+.portal-directory__tab {
+  display: block;
+  padding: 7px 9px;
+  border: 1px solid rgba(202,255,0,0.22);
+  background: rgba(0,0,8,0.56);
+  color: rgba(202,255,0,0.72);
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  backdrop-filter: blur(8px);
+}
+
+.portal-directory__body {
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.025), rgba(255,255,255,0.025) 1px, transparent 1px, transparent 13px),
+    rgba(0,0,8,0.58);
+  backdrop-filter: blur(10px);
+}
+
+.portal-directory__heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: rgba(255,255,255,0.42);
+  font-size: 8px;
+  letter-spacing: 0.16em;
+}
+
+.portal-directory__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.portal-directory__gate {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid color-mix(in srgb, var(--gate-color) 42%, transparent);
+  background: rgba(255,255,255,0.035);
+  color: rgba(255,255,255,0.62);
+  text-align: left;
+}
+
+.portal-directory__gate:hover {
+  background: color-mix(in srgb, var(--gate-color) 15%, rgba(0,0,8,0.72));
+  color: rgba(255,255,255,0.9);
+}
+
+.portal-directory__gate span {
+  color: var(--gate-color);
+  font-size: 10px;
+}
+
+.portal-directory__gate em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  color: inherit;
+}
+
+.portal-directory__note {
+  margin-top: 8px;
+  color: rgba(255,255,255,0.24);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
 @keyframes abstractFloat {
   0%, 100% { translate: 0 0; }
   50% { translate: 0 -10px; }
