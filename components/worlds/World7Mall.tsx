@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useWorldStore, type PortalType } from '@/lib/world-store'
+import { useWorldStore, type PortalType, type WorldId } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
 // ─── STORE DATA ───────────────────────────────────────────────────────────────
@@ -278,7 +278,7 @@ function drawStore(
 
 // ─── STORE INTERIOR OVERLAYS ──────────────────────────────────────────────
 
-function VendingInterior({ navigateTo }: { navigateTo: (w: number, o: object) => void }) {
+function VendingInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type: PortalType }) => void }) {
   const [vendIdx, setVendIdx] = useState<number | null>(null)
   const [vendResponse, setVendResponse] = useState('')
   const [vendPurchases, setVendPurchases] = useState(0)
@@ -313,7 +313,7 @@ function VendingInterior({ navigateTo }: { navigateTo: (w: number, o: object) =>
   )
 }
 
-function FoodInterior({ navigateTo }: { navigateTo: (w: number, o: object) => void }) {
+function FoodInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type: PortalType }) => void }) {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', padding: 4 }}>
       <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,204,102,0.6)', letterSpacing: '0.2em' }}>TODAY'S MENU · WHILE SUPPLIES LAST</div>
@@ -336,7 +336,7 @@ function FoodInterior({ navigateTo }: { navigateTo: (w: number, o: object) => vo
   )
 }
 
-function MannequinInterior({ navigateTo }: { navigateTo: (w: number, o: object) => void }) {
+function MannequinInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type: PortalType }) => void }) {
   const [mannResponse, setMannResponse] = useState<{ idx: number; text: string } | null>(null)
   const mouseRef = useRef({ x: 0, y: 0 })
   const mannRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -402,7 +402,7 @@ function MannequinInterior({ navigateTo }: { navigateTo: (w: number, o: object) 
   )
 }
 
-function EscalatorInterior({ navigateTo }: { navigateTo: (w: number, o: object) => void }) {
+function EscalatorInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type: PortalType }) => void }) {
   const [escUsed, setEscUsed] = useState(0)
   const [escWarning, setEscWarning] = useState('')
   const handleEscalator = useCallback(() => {

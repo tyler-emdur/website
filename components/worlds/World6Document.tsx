@@ -3,286 +3,447 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
-const EMAIL_PAGE = Math.floor(Math.random() * 52) + 1
+// ─── PINNED ITEMS ON CORKBOARD ──────────────────────────────────────────────
 
-// Pages with content (1, 4, 7, 13, 19, 27, 33, 40, 47, 52)
-const CONTENT_PAGES: Record<number, { title?: string; body: string; footnotes?: string[] }> = {
-  1: {
-    title: 'Preliminary Observations',
-    body: `The individual in question presents as someone who builds things. Not merely assembles — builds. There is a distinction which the committee has noted but which resists easy articulation.
+interface PinItem {
+  id: string
+  x: number
+  y: number
+  rot: number
+  type: 'doc' | 'photo' | 'card' | 'note' | 'redacted'
+  title?: string
+  body: string
+  redactedBody?: string    // shown until unredacted
+  unredacted?: boolean
+  pinColor?: string
+  worldId?: number
+  portal?: string
+}
 
-Subject was observed in a state of Boulder, Colorado, at an altitude of approximately 5,430 feet above sea level. Whether the altitude is relevant to the observed behaviors remains an open question.
+const INITIAL_ITEMS: PinItem[] = [
+  {
+    id: 'doc1', x: 60, y: 60, rot: -2.1,
+    type: 'doc', title: 'PRELIMINARY OBSERVATIONS',
+    body: `The individual presents as someone who builds things. Not merely assembles — builds. There is a distinction which the committee has noted but which resists articulation.
 
-Initial review suggests the subject operates across a range of domains which, in another context, might appear contradictory. The committee reserves judgment on this matter.¹
+Observed in Boulder, Colorado. Altitude: 5,430 ft. Whether altitude is relevant to observed behaviors remains an open question.
 
-What can be confirmed: the work exists. The commits have timestamps. The trails have been run. These are facts.`,
-    footnotes: ['¹ Ref. Section 7, "The Problem of Coherence in Generalist Practice," unpublished.'],
+The work exists. The commits have timestamps. The trails have been run. These are facts.`,
+    pinColor: '#cc2222',
   },
-  4: {
-    title: 'On the Question of Software',
-    body: `The subject has been observed building applications. Primary instruments: Next.js, TypeScript, Three.js, React Three Fiber, Zustand. Secondary instruments: patience, insomnia, version control.
+  {
+    id: 'doc2', x: 360, y: 45, rot: 1.4,
+    type: 'doc', title: 'TECHNICAL INVENTORY',
+    body: `Primary stack: Next.js 15, TypeScript (strict), Three.js, React Three Fiber, Zustand, Canvas 2D API.
 
-Of particular note is the application designated "Digger" (ref. production deployment, 23:47, 2024-11-09). This application concerns itself with music discovery — with the problem of finding things you did not know you were looking for.
-
-The committee finds this thematically significant.¹
-
-The deployment occurred without incident. There were 47 objects in the universe at the time of launch. One of the users online was the subject himself.²`,
-    footnotes: [
-      '¹ Cross-reference with Section 47, "The Methodology of Making Things For Their Own Sake."',
-      '² This information was provided by the subject and cannot be independently verified.',
-    ],
-  },
-  7: {
-    title: 'Notes on Physical Activity',
-    body: `Running appears to serve a function for the subject which is distinct from athletic performance. The distances recorded — Pikes Peak (14,115 ft), Mt. Elbert (14,439 ft), Boulder Marathon (3:41:22), Golden Gate Canyon 25K — suggest a pattern of voluntary difficulty.
-
-The committee hypothesizes that running provides something the subject cannot articulate. This is common. Many forms of physical exertion do. The inability to articulate a thing does not diminish its function.
-
-The subject was observed looking down into the Black Canyon of the Gunnison for a period of time that was longer than necessary.¹ The canyon is 2,722 feet deep at the rim. The sense of scale did not register correctly, and the subject continued anyway.`,
-    footnotes: ['¹ Duration not recorded. "Too long" was the subject\'s own characterization.'],
-  },
-  13: {
-    title: 'Behavioral Annotations: Creation',
-    body: `The subject demonstrates what the committee has termed "compulsive building." This is not pathological. Projects are completed. Some are shipped. The distinction between a project that is done and a project that is good enough to ship is one the subject appears to have resolved, at least partially.
-
-Observed: subject remained awake until 3 a.m. on a work product nobody had requested. The response from the first person who saw it was: "wait, how did you do that?" The subject found this sufficient.
-
-This is noted without judgment. The committee has seen worse definitions of enough.
-
-The email address is: healthreinvented@gmail.com¹`,
-    footnotes: [`¹ Current as of this filing, page ${EMAIL_PAGE} of this document.`],
-  },
-  19: {
-    title: 'Colorado, Generally',
-    body: `The subject relocated to Colorado in 2022. The specific mechanism of this relocation — what was left, what was moved toward — falls outside the committee's mandate to evaluate.
-
-What can be observed: the subject runs trails in the Rocky Mountains with some regularity. The light above treeline is different, though this too resists description. The subject has noted that "you can't photograph it correctly. You have to be there."
-
-The committee accepts this. Some things are not archivable.
-
-The Maroon Bells were visited in September 2023, at 5 a.m., before the crowds. Red rock that appeared to be lit from the inside.¹`,
-    footnotes: ['¹ This is how the subject described it. The committee has not independently confirmed the phenomenon.'],
-  },
-  27: {
-    title: 'A Note on Process',
-    body: `The subject appears to operate under a set of working principles which are not written down anywhere but which are nonetheless consistent across observed behaviors:
-
-1. Start because not starting feels worse.
-2. The first version is always wrong. This is the process.
-3. Build for the next person who reads it, who is usually you, six months later.
-4. The best line of code deletes four hundred lines.
-
-These are not unusual. The committee notes that they are also not commonly practiced. There is a gap between knowing and doing that the subject has, on balance, managed.¹`,
-    footnotes: ['¹ This is not a complete accounting. The gap remains.'],
-  },
-  33: {
-    title: 'Technical Inventory (Partial)',
-    body: `As of this filing, the subject maintains the following:
-
-Primary: Next.js 15, TypeScript (strict), Three.js, React Three Fiber, Zustand, Tailwind CSS
-
-Secondary: Python (data analysis), SQLite (lightweight persistence), Web Audio API (sound design)
-
-Explored: WebGL shader programming, audio synthesis, procedural generation, parametric design
+Projects shipped: Digger (music discovery, 2024), this website (in progress).
 
 Preferred environment: terminal, dark theme, JetBrains Mono, a problem that isn't solved yet.
 
-The committee notes that this list is incomplete by design. The subject does not believe in pinning a skill level to a technology. Things learned. Things being learned. Things not yet known. The categories are permeable.`,
-    footnotes: [],
+Note: list is incomplete by design.`,
+    pinColor: '#2244cc',
   },
-  40: {
-    title: 'On the Subject of Work',
-    body: `The subject is currently available.
-
-"Available" is a word that hides a great deal. What the subject means: if you have an interesting problem, and you care about how it's solved, and you want someone who will stay up too late thinking about it — the subject is available for that.
-
-What the subject is not available for: things that don't matter to anyone, problems defined by committee, work where quality is optional.
-
-This is not arrogance. It is a description of where the subject's best work comes from.¹
-
-Contact: healthreinvented@gmail.com`,
-    footnotes: ['¹ Subject acknowledges this is also a description of where the best arguments come from.'],
+  {
+    id: 'redact1', x: 600, y: 70, rot: 0.8,
+    type: 'redacted',
+    title: 'SUBJECT CONTACT INFORMATION',
+    redactedBody: `Full name: ████████ ██████
+Email: ████████████████████████████
+GitHub: ████████████
+Location: ████████████, CO`,
+    body: `Full name: Tyler Emdur
+Email: healthreinvented@gmail.com
+GitHub: tyler-emdur
+Location: Boulder, CO`,
+    pinColor: '#cc8822',
   },
-  47: {
-    title: 'The Number Forty-Seven',
-    body: `The committee has noted the recurrence of the number 47 in the subject's work and documentation:
-
-— 47 objects in the Digger universe at launch
-— Page 47 of this document
-— A specific shade of green used in interface work (#22C55E → values sum to 47 in some implementations)
-— Section 47 appears as a cross-reference in earlier footnotes
-
-The subject, when asked, denied that this was intentional. The committee finds this response interesting.¹
-
-Either the number 47 is a coincidence, or it is not. The committee declines to adjudicate. We note only that the subject pays attention. What it notices is not random, even when it claims to be.`,
-    footnotes: ['¹ All subjects claim their patterns are unintentional.'],
+  {
+    id: 'photo1', x: 130, y: 280, rot: 3.5,
+    type: 'photo', title: 'PIKES PEAK · AUG 2024',
+    body: '14,115 ft · summit attempt\nwake-up: 3:00am\ntrailhead: 4:15am\nsummit: 9:40am\nnotes: "worth it"',
+    pinColor: '#228844',
   },
-  52: {
-    title: 'Final Page',
-    body: `This document was assembled from observations that were never meant to be organized.
+  {
+    id: 'photo2', x: 500, y: 270, rot: -1.8,
+    type: 'photo', title: 'MT. ELBERT · 2023',
+    body: `14,439 ft — highest in Colorado
+Rocky Mountain National Park region
+Party of two. No incidents.
+"The light above treeline is different."`,
+    pinColor: '#228844',
+  },
+  {
+    id: 'note1', x: 290, y: 290, rot: -0.7,
+    type: 'note',
+    body: `Frequency 88.7 appears across multiple files. Cross-reference with:
+— Depth sector 02
+— Corridor wall stamp
+— Mall PA system
+— Dial world
 
-The committee's conclusion, such as it is: the subject builds things because something in the process of building them teaches something that can't be taught any other way. This is true of running as well. And of going up past treeline where the wind is horizontal and personal.
+Significance: UNKNOWN`,
+    pinColor: '#bbaa00',
+  },
+  {
+    id: 'note2', x: 680, y: 310, rot: 2.2,
+    type: 'note',
+    body: `40.0150°N 105.2705°W
+→ Boulder, CO
+→ Also appears in: depth readout, field station map, corridor stamp
+Why the same coordinates?`,
+    pinColor: '#bbaa00',
+  },
+  {
+    id: 'card1', x: 80, y: 480, rot: -1.3,
+    type: 'card', title: 'REF: BEHAVIORAL NOTE',
+    body: `Subject demonstrates "compulsive building." Projects are completed. Some are shipped.
+
+The distinction between done and good enough to ship appears resolved.
+
+Subject remained awake until 3am on a work product nobody requested. First response from viewer: "wait, how did you do that?" Subject found this sufficient.`,
+    pinColor: '#cc2222',
+  },
+  {
+    id: 'card2', x: 400, y: 490, rot: 1.9,
+    type: 'card', title: 'RUNNING LOG (PARTIAL)',
+    body: `Boulder Marathon — 3:41:22 — Oct 2024
+Golden Gate Canyon 25K — muddy, completed
+Maroon Bells loop — Sep 2023, 5:00am start
+Pikes Peak — see photo
+Mt. Elbert — see photo
+
+Pattern: voluntary difficulty.`,
+    pinColor: '#2244cc',
+  },
+  {
+    id: 'redact2', x: 660, y: 475, rot: -2.4,
+    type: 'redacted',
+    title: 'COMMITTEE CONCLUSION',
+    redactedBody: `[REDACTED] builds things because [REDACTED] in the process teaches something that can't be taught any other way.
+
+This is also true of [REDACTED] and of going up past treeline where [REDACTED].
+
+Whether this is sufficient is [REDACTED].
+
+The work is real. [REDACTED] have timestamps. [REDACTED] have been run.
+
+You got here. [REDACTED].`,
+    body: `Subject builds things because something in the process teaches something that can't be taught any other way.
+
+This is also true of running and of going up past treeline where the wind is horizontal and personal.
 
 Whether this is sufficient is not the committee's determination to make.
 
-What we can confirm: the work is real. The commits have timestamps. The trails have been run.
+The work is real. The commits have timestamps. The trails have been run.
 
 You got here. That's something.`,
-    footnotes: [],
+    worldId: 8,
+    portal: 'slide-right',
+    pinColor: '#cc2222',
   },
+]
+
+// ─── STRING CONNECTIONS ──────────────────────────────────────────────────────
+// [from_id, to_id, color]
+const STRINGS: [string, string, string][] = [
+  ['note1', 'doc1', '#cc4422'],
+  ['note1', 'redact1', '#cc4422'],
+  ['note2', 'doc1', '#cc8822'],
+  ['note2', 'card1', '#bb3311'],
+  ['doc2', 'card2', '#334488'],
+  ['redact2', 'card1', '#882222'],
+]
+
+// ─── HELPER: pin shape ───────────────────────────────────────────────────────
+function Pin({ color }: { color: string }) {
+  return (
+    <div style={{
+      position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 2,
+    }}>
+      <div style={{ width: 14, height: 14, borderRadius: '50%', background: color, boxShadow: `0 2px 6px rgba(0,0,0,0.6), 0 0 0 2px rgba(0,0,0,0.3)`, margin: '0 auto' }} />
+      <div style={{ width: 2, height: 8, background: 'rgba(0,0,0,0.4)', margin: '0 auto' }} />
+    </div>
+  )
 }
+
+// ─── MAIN ────────────────────────────────────────────────────────────────────
 
 export default function World6Document() {
   const navigateTo = useWorldStore(s => s.navigateTo)
-  const [page, setPage] = useState(1)
-  const [inputPage, setInputPage] = useState('1')
-  const [blankClicks, setBlankClicks] = useState(0)
-  const contentRef = useRef<HTMLDivElement>(null)
+  const [items, setItems] = useState<PinItem[]>(INITIAL_ITEMS.map(i => ({ ...i, unredacted: false })))
+  const [dragging, setDragging] = useState<string | null>(null)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [focused, setFocused] = useState<string | null>(null)
+  const [revealProgress, setRevealProgress] = useState<Record<string, number>>({})
+  const boardRef = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
-  const content = CONTENT_PAGES[page]
+  // Click: focus or start redaction reveal
+  const handleItemClick = useCallback((id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setFocused(f => f === id ? null : id)
 
-  const goToPage = useCallback((p: number) => {
-    const clamped = Math.max(1, Math.min(52, p))
-    setPage(clamped)
-    setInputPage(clamped.toString())
-    if (contentRef.current) contentRef.current.scrollTop = 0
-  }, [])
+    const item = items.find(i => i.id === id)
+    if (item?.type === 'redacted' && !item.unredacted) {
+      setRevealProgress(prev => {
+        const cur = (prev[id] || 0) + 1
+        if (cur >= 5) {
+          setItems(its => its.map(it => it.id === id ? { ...it, unredacted: true } : it))
+        }
+        return { ...prev, [id]: Math.min(cur, 5) }
+      })
+    }
+    if (item?.unredacted && item.worldId) {
+      navigateTo(item.worldId as Parameters<typeof navigateTo>[0], {
+        type: item.portal as Parameters<typeof navigateTo>[1]['type'],
+      })
+    }
+  }, [items, navigateTo])
+
+  // Drag
+  const handleMouseDown = useCallback((id: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    setDragging(id)
+    setFocused(id)
+    const el = itemRefs.current[id]
+    const item = items.find(i => i.id === id)!
+    if (el) {
+      const rect = el.getBoundingClientRect()
+      setDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+    }
+    setItems(its => {
+      const maxZ = Math.max(...its.map(i => (i as PinItem & { z?: number }).z || 0))
+      return its.map(i => i.id === id ? { ...i, z: maxZ + 1 } as PinItem : i)
+    })
+  }, [items])
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragging || !boardRef.current) return
+      const rect = boardRef.current.getBoundingClientRect()
+      setItems(its => its.map(i =>
+        i.id === dragging
+          ? { ...i, x: e.clientX - rect.left - dragOffset.x, y: e.clientY - rect.top - dragOffset.y }
+          : i
+      ))
+    }
+    const onUp = () => setDragging(null)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [dragging, dragOffset])
+
+  // Compute string endpoints
+  const getCenter = (id: string) => {
+    const item = items.find(i => i.id === id)
+    if (!item) return { x: 0, y: 0 }
+    const el = itemRefs.current[id]
+    if (el) {
+      const w = el.offsetWidth, h = el.offsetHeight
+      return { x: item.x + w / 2, y: item.y + h / 2 }
+    }
+    return { x: item.x + 80, y: item.y + 60 }
+  }
+
+  const focusedItem = items.find(i => i.id === focused)
 
   return (
     <div
       data-world="6"
       style={{
         position: 'fixed', inset: 0,
-        background: '#fafaf7',
-        fontFamily: '"Unna", Georgia, serif',
-        display: 'flex',
-        flexDirection: 'column',
+        background: '#1c1208',
+        overflow: 'hidden',
+        cursor: dragging ? 'grabbing' : 'default',
       }}
+      onClick={() => setFocused(null)}
     >
-      {/* Document header */}
+      {/* Overhead lamp glow */}
       <div style={{
-        borderBottom: '1px solid rgba(0,0,0,0.08)',
-        padding: '12px 40px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        background: '#f5f0eb',
-      }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.15em', color: 'rgba(0,0,0,0.3)', textTransform: 'uppercase' }}>
-          Confidential Review · Internal Document
+        position: 'absolute', top: 0, left: 0, right: 0, height: '60%',
+        background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,200,80,0.07) 0%, transparent 80%)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* Header */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '10px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 50, pointerEvents: 'none' }}>
+        <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,160,60,0.4)', letterSpacing: '0.3em' }}>
+          INVESTIGATION FILE · SUBJECT: T.E. · CONFIDENTIAL
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button onClick={() => goToPage(page - 1)} disabled={page <= 1} style={{ background: 'none', border: 'none', cursor: page <= 1 ? 'default' : 'pointer', color: page <= 1 ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.4)', fontFamily: '"Unna", serif', fontSize: 16 }}>‹</button>
-          <input
-            value={inputPage}
-            onChange={e => setInputPage(e.target.value)}
-            onBlur={() => goToPage(parseInt(inputPage) || 1)}
-            onKeyDown={e => e.key === 'Enter' && goToPage(parseInt(inputPage) || 1)}
-            style={{ width: 40, textAlign: 'center', border: 'none', borderBottom: '1px solid rgba(0,0,0,0.15)', background: 'transparent', fontFamily: '"Unna", serif', fontSize: 12, color: 'rgba(0,0,0,0.5)', outline: 'none', padding: '2px 4px' }}
-          />
-          <span style={{ fontFamily: '"Unna", serif', fontSize: 12, color: 'rgba(0,0,0,0.3)' }}>of 52</span>
-          <button onClick={() => goToPage(page + 1)} disabled={page >= 52} style={{ background: 'none', border: 'none', cursor: page >= 52 ? 'default' : 'pointer', color: page >= 52 ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.4)', fontFamily: '"Unna", serif', fontSize: 16 }}>›</button>
+        <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,160,60,0.25)', letterSpacing: '0.15em' }}>
+          {items.filter(i => i.type === 'redacted' && i.unredacted).length}/{items.filter(i => i.type === 'redacted').length} REDACTIONS CLEARED
         </div>
       </div>
 
-      {/* Document body */}
-      <div ref={contentRef} style={{ flex: 1, overflowY: 'auto', padding: '60px 0' }}>
-        <div style={{ maxWidth: 600, margin: '0 auto', padding: '0 40px' }}>
-          {/* Page number */}
-          <div style={{ fontSize: 10, letterSpacing: '0.2em', color: 'rgba(0,0,0,0.2)', marginBottom: 40, textTransform: 'uppercase' }}>
-            Page {page}
-          </div>
+      {/* Corkboard */}
+      <div
+        ref={boardRef}
+        style={{
+          position: 'absolute',
+          top: 36, left: 12, right: 12, bottom: 12,
+          backgroundImage: `
+            radial-gradient(circle at 30% 40%, rgba(180,130,70,0.18) 0%, transparent 50%),
+            radial-gradient(circle at 70% 60%, rgba(160,110,50,0.12) 0%, transparent 45%)
+          `,
+          backgroundColor: '#3d2b14',
+          borderRadius: 4,
+          border: '6px solid #2a1c08',
+          boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Cork texture overlay */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          backgroundImage: `
+            repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.03) 3px, rgba(0,0,0,0.03) 4px),
+            repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(0,0,0,0.02) 3px, rgba(0,0,0,0.02) 4px)
+          `,
+        }} />
 
-          {content ? (
-            <>
-              {content.title && (
-                <h2 style={{ fontSize: 24, fontWeight: 400, color: 'rgba(0,0,0,0.75)', marginBottom: 32, lineHeight: 1.3, letterSpacing: '-0.01em' }}>
-                  {content.title}
-                </h2>
-              )}
-              <div style={{ fontSize: 16, lineHeight: 2.1, color: 'rgba(0,0,0,0.6)', whiteSpace: 'pre-wrap' }}>
-                {content.body}
-              </div>
-              {content.footnotes && content.footnotes.length > 0 && (
-                <div style={{ marginTop: 48, paddingTop: 20, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-                  {content.footnotes.map((fn, i) => (
-                    <div key={i} style={{ fontSize: 12, lineHeight: 1.8, color: 'rgba(0,0,0,0.35)', marginBottom: 8, fontStyle: 'italic' }}>
-                      {fn}
-                    </div>
-                  ))}
-                </div>
-              )}
+        {/* SVG strings */}
+        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
+          {STRINGS.map(([from, to, color]) => {
+            const a = getCenter(from), b = getCenter(to)
+            const mx = (a.x + b.x) / 2
+            const my = (a.y + b.y) / 2 + 18
+            return (
+              <path
+                key={from + to}
+                d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
+                stroke={color}
+                strokeWidth="1.2"
+                fill="none"
+                opacity="0.5"
+              />
+            )
+          })}
+        </svg>
 
-              {/* Social links as archival citations on specific pages */}
-              {page === 40 && (
-                <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-                  <div style={{ fontSize: 11, letterSpacing: '0.15em', color: 'rgba(0,0,0,0.25)', marginBottom: 12, textTransform: 'uppercase' }}>Archival References</div>
-                  {[
-                    { label: 'GitHub: tyler-emdur', href: 'https://github.com/tyler-emdur' },
-                    { label: 'LinkedIn: tyleremdur', href: 'https://linkedin.com/in/tyler-emdur' },
-                  ].map(link => (
-                    <div key={link.label} style={{ fontSize: 13, lineHeight: 2, color: 'rgba(0,0,0,0.35)', fontStyle: 'italic' }}>
-                      <a href={link.href} target="_blank" rel="noopener noreferrer" style={{ color: 'rgba(0,0,0,0.4)', textDecoration: 'none', borderBottom: '1px solid rgba(0,0,0,0.15)' }}>
-                        {link.label}
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              )}
+        {/* Pinned items */}
+        {items.map(item => {
+          const isFocused = focused === item.id
+          const zIndex = (item as PinItem & { z?: number }).z || 2
+          const prog = revealProgress[item.id] || 0
+          const isRedacted = item.type === 'redacted' && !item.unredacted
 
-              {/* Continue reading on page 52 → World 8 */}
-              {page === 52 && (
-                <button
-                  onClick={() => navigateTo(8, { type: 'slide-right' })}
-                  style={{
-                    marginTop: 48, background: 'none', border: 'none', cursor: 'pointer',
-                    fontFamily: '"Unna", serif', fontSize: 14, color: 'rgba(0,0,0,0.35)',
-                    letterSpacing: '0.05em', textDecoration: 'underline', padding: 0,
-                    fontStyle: 'italic',
-                  }}
-                >
-                  continue reading →
-                </button>
-              )}
-            </>
-          ) : (
+          const w = item.type === 'photo' ? 170 : item.type === 'note' ? 180 : item.type === 'card' ? 200 : 240
+          const bg = item.type === 'note'
+            ? '#f5e060'
+            : item.type === 'photo'
+            ? '#e8e0d0'
+            : item.type === 'redacted' && !item.unredacted
+            ? '#e8e8e0'
+            : '#f5f0e8'
+
+          return (
             <div
-              onClick={() => {
-                const c = blankClicks + 1
-                setBlankClicks(c)
-                if (c >= 7) navigateTo(16, { type: 'fold' })
+              key={item.id}
+              ref={el => { itemRefs.current[item.id] = el }}
+              onMouseDown={e => handleMouseDown(item.id, e)}
+              onClick={e => handleItemClick(item.id, e)}
+              style={{
+                position: 'absolute',
+                left: item.x, top: item.y,
+                width: w,
+                transform: `rotate(${item.rot}deg) scale(${isFocused ? 1.04 : 1})`,
+                transformOrigin: 'top center',
+                cursor: dragging === item.id ? 'grabbing' : 'grab',
+                zIndex: isFocused ? 100 : zIndex,
+                transition: dragging === item.id ? 'none' : 'transform 0.15s, box-shadow 0.15s',
+                boxShadow: isFocused
+                  ? '4px 6px 24px rgba(0,0,0,0.7)'
+                  : '2px 4px 12px rgba(0,0,0,0.5)',
+                userSelect: 'none',
               }}
-              style={{ fontSize: 13, color: blankClicks > 0 ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.15)', fontStyle: 'italic', lineHeight: 2, cursor: 'default' }}
             >
-              [This page is intentionally left blank.{blankClicks > 2 ? ` (${7 - blankClicks})` : ''}]
+              <Pin color={item.pinColor || '#cc2222'} />
+
+              <div style={{
+                background: bg,
+                padding: item.type === 'photo' ? '10px 10px 30px' : '12px 14px',
+                fontFamily: item.type === 'note'
+                  ? '"Special Elite", Georgia, serif'
+                  : '"Unna", Georgia, serif',
+                minHeight: item.type === 'photo' ? 140 : undefined,
+              }}>
+                {/* Photo inner */}
+                {item.type === 'photo' && (
+                  <div style={{ width: '100%', height: 110, background: 'rgba(80,60,40,0.2)', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.08)' }}>
+                    <div style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(80,60,40,0.4)', letterSpacing: '0.1em' }}>[{item.title}]</div>
+                  </div>
+                )}
+
+                {item.title && item.type !== 'photo' && (
+                  <div style={{ fontSize: 8, fontFamily: 'monospace', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.18em', marginBottom: 8, textTransform: 'uppercase' }}>{item.title}</div>
+                )}
+
+                {/* Redacted body */}
+                {isRedacted ? (
+                  <div style={{ fontSize: 9, lineHeight: 1.8, color: 'rgba(0,0,0,0.7)', whiteSpace: 'pre-wrap' }}>
+                    {(item.redactedBody || '').split('[REDACTED]').map((seg, i, arr) => (
+                      <span key={i}>
+                        {seg}
+                        {i < arr.length - 1 && (
+                          <span style={{
+                            background: prog > i ? 'transparent' : '#1a1a1a',
+                            color: prog > i ? 'rgba(0,0,0,0.7)' : 'transparent',
+                            padding: '0 2px', cursor: 'pointer',
+                            transition: 'background 0.3s, color 0.3s',
+                          }}>
+                            {'████████████'.slice(0, 8 + i * 2)}
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                    <div style={{ marginTop: 8, fontSize: 7, color: 'rgba(0,0,0,0.2)', fontFamily: 'monospace' }}>
+                      CLICK TO REVEAL ({prog}/5)
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: item.type === 'note' ? 10 : 9, lineHeight: 1.9, color: 'rgba(0,0,0,0.65)', whiteSpace: 'pre-wrap' }}>
+                    {item.body}
+                  </div>
+                )}
+
+                {/* Unredacted CTA */}
+                {item.type === 'redacted' && item.unredacted && item.worldId && (
+                  <div style={{ marginTop: 10, padding: '6px 10px', background: 'rgba(0,0,0,0.08)', textAlign: 'center', fontFamily: 'monospace', fontSize: 8, color: 'rgba(0,0,0,0.5)', cursor: 'pointer', letterSpacing: '0.1em' }}>
+                    CONTINUE READING →
+                  </div>
+                )}
+
+                {/* Photo caption */}
+                {item.type === 'photo' && (
+                  <div style={{ fontFamily: '"Special Elite", Georgia, serif', fontSize: 9, color: 'rgba(60,40,20,0.5)', textAlign: 'center', whiteSpace: 'pre-wrap' }}>{item.body}</div>
+                )}
+
+                {/* CLASSIFIED stamp on redacted docs */}
+                {item.type === 'redacted' && !item.unredacted && (
+                  <div style={{
+                    position: 'absolute', bottom: 10, right: 10,
+                    border: '2px solid rgba(180,30,30,0.5)',
+                    color: 'rgba(180,30,30,0.5)',
+                    fontFamily: 'monospace', fontSize: 8,
+                    padding: '2px 8px', letterSpacing: '0.2em',
+                    transform: 'rotate(-8deg)',
+                  }}>CLASSIFIED</div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
+          )
+        })}
       </div>
 
-      {/* Page navigation strip */}
-      <div style={{
-        borderTop: '1px solid rgba(0,0,0,0.06)',
-        padding: '10px 40px',
-        display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center',
-        background: '#f5f0eb',
-      }}>
-        {Array.from({ length: 52 }, (_, i) => i + 1).map(p => (
-          <button
-            key={p}
-            onClick={() => goToPage(p)}
-            style={{
-              width: 18, height: 18, border: 'none',
-              background: page === p ? 'rgba(0,0,0,0.15)' : CONTENT_PAGES[p] ? 'rgba(0,0,0,0.06)' : 'transparent',
-              cursor: 'pointer', borderRadius: 1,
-              fontFamily: 'monospace', fontSize: 7,
-              color: page === p ? 'rgba(0,0,0,0.6)' : CONTENT_PAGES[p] ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.12)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'background 0.1s',
-            }}
-          >
-            {CONTENT_PAGES[p] ? '•' : ''}
-          </button>
-        ))}
+      {/* Drag hint */}
+      <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,160,60,0.2)', letterSpacing: '0.2em', pointerEvents: 'none' }}>
+        DRAG · CLICK · UNREDACT
       </div>
+
+      <style>{`
+        @keyframes stampAppear { 0%{opacity:0;transform:rotate(-8deg) scale(1.3)} 100%{opacity:1;transform:rotate(-8deg) scale(1)} }
+      `}</style>
       <HomeButton />
     </div>
   )

@@ -3,384 +3,386 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
-interface DriftItem {
+// ─── SCENE OBJECTS ─────────────────────────────────────────────────────────
+
+interface DeepObj {
   id: number
-  type: 'polaroid' | 'cassette' | 'door' | 'coord' | 'text'
-  x: number
-  y: number
-  vx: number
-  vy: number
-  rotation: number
-  vr: number
-  content: string
-  opacity: number
-  targetOpacity: number
-  floatPhase: number
-  depth: number
+  nx: number    // 0..1 normalized screen position
+  ny: number
+  depth: number // 0=shallow 1=abyss — affects fade speed and color
+  type: 'text' | 'coord' | 'door' | 'creature' | 'signal'
+  label: string
+  worldId?: number
+  portal?: string
+  glow: number  // 0..1 current visibility
+  phase: number // float phase
 }
 
-const TEXTS = [
-  'BORN: SOMEWHERE IN THE MIDWEST',
-  'RELOCATED: BOULDER, CO · 2022',
-  'OCCUPATION: BUILDER OF THINGS',
-  '47 OBJECTS IN THE UNIVERSE',
-  'CURRENTLY RUNNING',
-  'DIGGER · MUSIC DISCOVERY · DEPLOYED',
-  'NEXT.JS + THREE.JS + ZUSTAND',
-  'TRAILS: PIKES PEAK, ELBERT, MAROON BELLS',
-  'THE SIGNAL IS CLEAR',
-  'YOU FOUND IT ANYWAY',
-  'LOOKING FOR: PROBLEMS WORTH SOLVING',
-  'FREQUENCY: 88.7',
+const SCENE: Omit<DeepObj, 'glow' | 'phase'>[] = [
+  { id:1,  nx:0.22, ny:0.18, depth:0.05, type:'text',    label:'BORN: MIDWEST, RELOCATED: BOULDER CO 2022' },
+  { id:2,  nx:0.65, ny:0.28, depth:0.1,  type:'coord',   label:'40.0150°N  105.2705°W' },
+  { id:3,  nx:0.38, ny:0.35, depth:0.15, type:'text',    label:'BUILDER OF THINGS · RUNNER OF TRAILS' },
+  { id:4,  nx:0.78, ny:0.42, depth:0.2,  type:'creature',label:'' },
+  { id:5,  nx:0.15, ny:0.48, depth:0.25, type:'door',    label:'BEFORE THE DECISION', worldId:1, portal:'fold' },
+  { id:6,  nx:0.55, ny:0.52, depth:0.3,  type:'signal',  label:'FREQUENCY: 88.7' },
+  { id:7,  nx:0.82, ny:0.58, depth:0.35, type:'coord',   label:'38.8405°N  105.0442°W · PIKES PEAK' },
+  { id:8,  nx:0.30, ny:0.62, depth:0.4,  type:'text',    label:'DIGGER · MUSIC DISCOVERY · DEPLOYED 2024' },
+  { id:9,  nx:0.68, ny:0.66, depth:0.45, type:'creature',label:'' },
+  { id:10, nx:0.12, ny:0.70, depth:0.5,  type:'door',    label:'ROOM 47', worldId:6, portal:'cursor-flood' },
+  { id:11, nx:0.48, ny:0.73, depth:0.55, type:'text',    label:'NEXT.JS · THREE.JS · TYPESCRIPT · ZUSTAND' },
+  { id:12, nx:0.85, ny:0.77, depth:0.6,  type:'coord',   label:'39.1178°N  106.4453°W · MT. ELBERT' },
+  { id:13, nx:0.25, ny:0.81, depth:0.65, type:'signal',  label:'──────  88.7  ──────' },
+  { id:14, nx:0.60, ny:0.84, depth:0.7,  type:'door',    label:'WHAT YOU WERE LOOKING FOR', worldId:9, portal:'expand-white' },
+  { id:15, nx:0.40, ny:0.88, depth:0.75, type:'creature',label:'' },
+  { id:16, nx:0.72, ny:0.91, depth:0.8,  type:'text',    label:'BOULDER MARATHON · 3:41:22 · OCT 2024' },
+  { id:17, nx:0.18, ny:0.93, depth:0.85, type:'door',    label:'THE LOOP', worldId:10, portal:'vortex' },
+  { id:18, nx:0.50, ny:0.96, depth:0.95, type:'signal',  label:'[signal lost]' },
 ]
 
-const COORDS = [
-  '38.8405°N 105.0442°W · PIKES PEAK',
-  '39.1178°N 106.4453°W · MT. ELBERT',
-  '40.3428°N 105.6836°W · RMNP',
-  '39.0708°N 106.9890°W · MAROON BELLS',
-  '40.0150°N 105.2705°W · BOULDER',
-]
+// ─── SONAR RING ─────────────────────────────────────────────────────────────
 
-const CASSETTES = ['SIGNAL MIX 001', 'DIGGER SESSIONS', 'TRAIL MILES', 'LATE NIGHTS', 'BUILDING THINGS']
-const DOOR_LABELS = ['BEFORE THE DECISION', 'WHAT YOU WERE LOOKING FOR', 'ROOM 47', 'THE LOOP', 'TERMINAL', '★ PIXEL ★', 'THE DIAL']
+interface Ring {
+  id: number
+  ox: number  // origin pixel
+  oy: number
+  r: number   // current radius
+  maxR: number
+  alpha: number
+  speed: number
+}
 
-function BubbleCanvas() {
+let ringId = 0
+
+// ─── CREATURE SHAPE ─────────────────────────────────────────────────────────
+function drawCreature(ctx: CanvasRenderingContext2D, x: number, y: number, alpha: number, t: number, id: number) {
+  const pulse = 0.7 + 0.3 * Math.sin(t * 0.002 + id)
+  ctx.save()
+  ctx.globalAlpha = alpha * pulse
+  const r = 18 + id * 3
+  // body
+  ctx.beginPath()
+  ctx.ellipse(x, y, r * 0.9, r * 0.45, Math.sin(t * 0.001 + id) * 0.3, 0, Math.PI * 2)
+  ctx.strokeStyle = `rgba(0,220,180,${alpha})`
+  ctx.lineWidth = 0.8
+  ctx.stroke()
+  // tentacles
+  for (let i = 0; i < 5; i++) {
+    const tx2 = x + (i - 2) * 7
+    const ty2 = y + r * 0.45
+    ctx.beginPath()
+    ctx.moveTo(tx2, ty2)
+    ctx.quadraticCurveTo(tx2 + Math.sin(t * 0.003 + i) * 6, ty2 + 10, tx2, ty2 + 18)
+    ctx.strokeStyle = `rgba(0,180,160,${alpha * 0.5})`
+    ctx.lineWidth = 0.6
+    ctx.stroke()
+  }
+  // eye glow
+  ctx.beginPath()
+  ctx.arc(x - 6, y - 3, 3, 0, Math.PI * 2)
+  ctx.fillStyle = `rgba(0,255,200,${alpha * 0.8})`
+  ctx.fill()
+  ctx.restore()
+}
+
+// ─── MAIN ────────────────────────────────────────────────────────────────────
+
+export default function World2Depth() {
+  const navigateTo = useWorldStore(s => s.navigateTo)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const ringsRef = useRef<Ring[]>([])
+  const objsRef = useRef<DeepObj[]>(
+    SCENE.map(o => ({ ...o, glow: 0, phase: Math.random() * Math.PI * 2 }))
+  )
+  const rafRef = useRef(0)
+  const [depth, setDepth] = useState(0)
+  const [pressure, setPressure] = useState(1.0)
+  const [pings, setPings] = useState(0)
+  const [revealedDoors, setRevealedDoors] = useState<Set<number>>(new Set())
+  const sizeRef = useRef({ W: 0, H: 0 })
 
+  // depth creep
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setDepth(d => +(d + 0.08 + Math.random() * 0.04).toFixed(2))
+      setPressure(p => +(p + 0.0012).toFixed(4))
+    }, 200)
+    return () => clearInterval(iv)
+  }, [])
+
+  // resize
+  useEffect(() => {
+    const resize = () => {
+      const W = window.innerWidth, H = window.innerHeight
+      sizeRef.current = { W, H }
+      const c = canvasRef.current
+      if (c) { c.width = W; c.height = H }
+    }
+    resize()
+    window.addEventListener('resize', resize)
+    return () => window.removeEventListener('resize', resize)
+  }, [])
+
+  // render loop
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
-    let W = window.innerWidth
-    let H = window.innerHeight
-    canvas.width = W
-    canvas.height = H
-
-    const bubbles = Array.from({ length: 60 }, () => ({
-      x: Math.random() * W,
-      y: H + Math.random() * H,
-      r: 1 + Math.random() * 3,
-      vy: -(0.3 + Math.random() * 0.6),
-      vx: (Math.random() - 0.5) * 0.2,
-      phase: Math.random() * Math.PI * 2,
-      opacity: 0.05 + Math.random() * 0.15,
-    }))
-
-    const resize = () => {
-      W = window.innerWidth; H = window.innerHeight
-      canvas.width = W; canvas.height = H
-    }
-    window.addEventListener('resize', resize)
-
-    let raf = 0
     let t = 0
-    function draw() {
+
+    function render() {
       t++
+      const { W, H } = sizeRef.current
+      if (W === 0) { rafRef.current = requestAnimationFrame(render); return }
+
       ctx.clearRect(0, 0, W, H)
-      bubbles.forEach(b => {
-        b.x += b.vx + Math.sin(t * 0.02 + b.phase) * 0.3
-        b.y += b.vy
-        if (b.y < -20) {
-          b.y = H + 20
-          b.x = Math.random() * W
-        }
+
+      // ── Ocean gradient ──
+      const bg = ctx.createLinearGradient(0, 0, 0, H)
+      bg.addColorStop(0, '#001a2e')
+      bg.addColorStop(0.3, '#000e1c')
+      bg.addColorStop(0.7, '#000810')
+      bg.addColorStop(1, '#000204')
+      ctx.fillStyle = bg
+      ctx.fillRect(0, 0, W, H)
+
+      // ── Caustic surface light ──
+      const caustic = ctx.createRadialGradient(W * 0.5, 0, 0, W * 0.5, 0, H * 0.4)
+      caustic.addColorStop(0, 'rgba(0,80,140,0.18)')
+      caustic.addColorStop(1, 'transparent')
+      ctx.fillStyle = caustic
+      ctx.fillRect(0, 0, W, H * 0.4)
+
+      // ── Faint sonar grid (depth lines) ──
+      for (let i = 1; i <= 5; i++) {
+        const y = H * (i / 6)
         ctx.beginPath()
-        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2)
-        ctx.strokeStyle = `rgba(0,220,200,${b.opacity})`
-        ctx.lineWidth = 0.8
+        ctx.moveTo(0, y)
+        ctx.lineTo(W, y)
+        ctx.strokeStyle = `rgba(0,180,160,0.03)`
+        ctx.lineWidth = 0.5
         ctx.stroke()
-      })
-      raf = requestAnimationFrame(draw)
-    }
-    raf = requestAnimationFrame(draw)
-    return () => {
-      cancelAnimationFrame(raf)
-      window.removeEventListener('resize', resize)
-    }
-  }, [])
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-    />
-  )
-}
-
-export default function World2Depth() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
-  const [items, setItems] = useState<DriftItem[]>([])
-  const frameRef = useRef(0)
-  const itemsRef = useRef<DriftItem[]>([])
-  const idCounter = useRef(0)
-  const doorClickCount = useRef<Record<string, number>>({})
-  const [depth, setDepth] = useState(0)
-
-  const spawnItem = useCallback((): DriftItem => {
-    const types: DriftItem['type'][] = ['polaroid', 'cassette', 'door', 'coord', 'text']
-    const weights = [3, 2, 1, 2, 4]
-    let total = weights.reduce((a, b) => a + b, 0)
-    let r = Math.random() * total
-    let type: DriftItem['type'] = 'text'
-    for (let i = 0; i < types.length; i++) { r -= weights[i]; if (r <= 0) { type = types[i]; break } }
-
-    const side = Math.floor(Math.random() * 4)
-    let x = 0, y = 0
-    if (side === 0) { x = Math.random() * window.innerWidth; y = -120 }
-    else if (side === 1) { x = window.innerWidth + 120; y = Math.random() * window.innerHeight }
-    else if (side === 2) { x = Math.random() * window.innerWidth; y = window.innerHeight + 120 }
-    else { x = -120; y = Math.random() * window.innerHeight }
-
-    const cx = window.innerWidth / 2, cy = window.innerHeight / 2
-    const angle = Math.atan2(cy - y, cx - x) + (Math.random() - 0.5) * 1.5
-    const speed = 0.15 + Math.random() * 0.25
-
-    let content = ''
-    if (type === 'text') content = TEXTS[Math.floor(Math.random() * TEXTS.length)]
-    if (type === 'coord') content = COORDS[Math.floor(Math.random() * COORDS.length)]
-    if (type === 'cassette') content = CASSETTES[Math.floor(Math.random() * CASSETTES.length)]
-    if (type === 'door') content = DOOR_LABELS[Math.floor(Math.random() * DOOR_LABELS.length)]
-    if (type === 'polaroid') content = ['PIKES PEAK · AUG 2024', 'BOULDER MARATHON · OCT 2024', 'MAROON BELLS · SEP 2023', 'MT. ELBERT · 4:00AM', 'THE DEPLOY'][Math.floor(Math.random() * 5)]
-
-    return {
-      id: idCounter.current++,
-      type, x, y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      rotation: (Math.random() - 0.5) * 20,
-      vr: (Math.random() - 0.5) * 0.015,
-      content, opacity: 0, targetOpacity: 0.45 + Math.random() * 0.35,
-      floatPhase: Math.random() * Math.PI * 2,
-      depth: Math.random(),
-    }
-  }, [])
-
-  useEffect(() => {
-    const initial: DriftItem[] = []
-    for (let i = 0; i < 14; i++) initial.push(spawnItem())
-    itemsRef.current = initial
-    setItems([...initial])
-
-    const spawnInterval = setInterval(() => {
-      if (itemsRef.current.length < 20) {
-        const newItem = spawnItem()
-        itemsRef.current = [...itemsRef.current, newItem]
       }
-    }, 3500)
 
-    // Slowly increase depth counter
-    const depthInterval = setInterval(() => {
-      setDepth(d => d + Math.random() * 0.3)
-    }, 200)
+      // ── Advance + draw sonar rings ──
+      ringsRef.current = ringsRef.current.filter(ring => ring.alpha > 0.005)
+      for (const ring of ringsRef.current) {
+        ring.r += ring.speed
+        ring.alpha *= 0.985
 
-    function animate() {
-      itemsRef.current = itemsRef.current.map(item => {
-        const t = Date.now() * 0.001
-        const nx = item.x + item.vx + Math.sin(item.floatPhase + t * 0.4) * 0.2
-        const ny = item.y + item.vy + Math.cos(item.floatPhase + t * 0.3) * 0.15
-        const nr = item.rotation + item.vr
-        const newOpacity = item.opacity + (item.targetOpacity - item.opacity) * 0.018
-
-        const margin = 200
-        if (nx < -margin || nx > window.innerWidth + margin || ny < -margin || ny > window.innerHeight + margin) {
-          return spawnItem()
+        // hit test objects
+        for (const obj of objsRef.current) {
+          const ox = obj.nx * W, oy = obj.ny * H
+          const dist = Math.hypot(ox - ring.ox, oy - ring.oy)
+          if (Math.abs(dist - ring.r) < 12) {
+            const fadeMult = 1 - obj.depth * 0.65
+            obj.glow = Math.min(1, obj.glow + ring.alpha * 2.5 * fadeMult)
+            if (obj.type === 'door' && obj.glow > 0.3) {
+              setRevealedDoors(prev => new Set([...prev, obj.id]))
+            }
+          }
         }
-        return { ...item, x: nx, y: ny, rotation: nr, opacity: newOpacity }
-      })
-      setItems([...itemsRef.current])
-      frameRef.current = requestAnimationFrame(animate)
-    }
-    frameRef.current = requestAnimationFrame(animate)
 
-    return () => {
-      cancelAnimationFrame(frameRef.current)
-      clearInterval(spawnInterval)
-      clearInterval(depthInterval)
-    }
-  }, [spawnItem])
+        ctx.beginPath()
+        ctx.arc(ring.ox, ring.oy, ring.r, 0, Math.PI * 2)
+        ctx.strokeStyle = `rgba(0,220,180,${ring.alpha * 0.6})`
+        ctx.lineWidth = 1.2
+        ctx.stroke()
 
-  const handleDoorClick = useCallback((label: string, e: React.MouseEvent) => {
-    const count = (doorClickCount.current[label] || 0) + 1
-    doorClickCount.current[label] = count
-    if (label === 'WHAT YOU WERE LOOKING FOR') {
-      navigateTo(9, { type: 'expand-white', origin: { x: e.clientX, y: e.clientY } })
-    } else if (label === 'ROOM 47') {
-      navigateTo(6, { type: 'cursor-flood', color: '#f5f0e8' })
-    } else if (label === 'BEFORE THE DECISION') {
-      navigateTo(1, { type: 'fold' })
-    } else if (label === 'THE LOOP') {
-      navigateTo(10, { type: 'vortex', origin: { x: e.clientX, y: e.clientY } })
-    } else if (label === 'TERMINAL') {
-      navigateTo(12, { type: 'nothing' })
-    } else if (label === '★ PIXEL ★') {
-      navigateTo(14, { type: 'chromatic', origin: { x: e.clientX, y: e.clientY } })
-    } else if (label === 'THE DIAL') {
-      navigateTo(15, { type: 'chromatic' })
-    }
-  }, [navigateTo])
+        // inner echo
+        if (ring.r > 30) {
+          ctx.beginPath()
+          ctx.arc(ring.ox, ring.oy, ring.r * 0.7, 0, Math.PI * 2)
+          ctx.strokeStyle = `rgba(0,180,160,${ring.alpha * 0.2})`
+          ctx.lineWidth = 0.5
+          ctx.stroke()
+        }
+      }
 
-  const renderItem = (item: DriftItem) => {
-    const depthAlpha = 0.5 + item.depth * 0.5
-    const base: React.CSSProperties = {
-      position: 'absolute',
-      left: item.x,
-      top: item.y,
-      transform: `rotate(${item.rotation}deg)`,
-      opacity: item.opacity * depthAlpha,
-      transition: 'opacity 0.5s',
-      cursor: item.type === 'door' ? 'pointer' : 'default',
+      // ── Fade objects over time ──
+      for (const obj of objsRef.current) {
+        obj.glow = Math.max(0, obj.glow - 0.003 - obj.depth * 0.004)
+        obj.phase += 0.008
+      }
+
+      // ── Draw objects ──
+      for (const obj of objsRef.current) {
+        if (obj.glow < 0.01) continue
+        const ox = obj.nx * W, oy = obj.ny * H
+        const a = obj.glow
+        const float = Math.sin(obj.phase) * 3
+
+        if (obj.type === 'creature') {
+          drawCreature(ctx, ox, oy + float, a, t, obj.id)
+          continue
+        }
+
+        if (obj.type === 'signal') {
+          ctx.save()
+          ctx.globalAlpha = a
+          ctx.font = '10px monospace'
+          ctx.fillStyle = `rgba(0,255,200,${a})`
+          ctx.textAlign = 'center'
+          ctx.shadowColor = 'rgba(0,255,180,0.8)'
+          ctx.shadowBlur = 12
+          ctx.fillText(obj.label, ox, oy + float)
+          ctx.restore()
+          continue
+        }
+
+        if (obj.type === 'door') {
+          const dw = 44, dh = 66
+          ctx.save()
+          ctx.globalAlpha = a
+          ctx.fillStyle = 'rgba(0,8,20,0.92)'
+          ctx.strokeStyle = `rgba(0,220,180,${a * 0.8})`
+          ctx.lineWidth = 1
+          ctx.fillRect(ox - dw / 2, oy + float - dh / 2, dw, dh)
+          ctx.strokeRect(ox - dw / 2, oy + float - dh / 2, dw, dh)
+          // knob
+          ctx.beginPath()
+          ctx.arc(ox + dw / 2 - 8, oy + float, 3, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(0,220,180,${a * 0.6})`
+          ctx.fill()
+          // label below
+          ctx.font = '8px monospace'
+          ctx.fillStyle = `rgba(0,220,180,${a * 0.7})`
+          ctx.textAlign = 'center'
+          ctx.shadowColor = 'rgba(0,200,180,0.6)'
+          ctx.shadowBlur = 6
+          ctx.fillText(obj.label, ox, oy + float + dh / 2 + 14)
+          ctx.restore()
+          continue
+        }
+
+        if (obj.type === 'coord') {
+          ctx.save()
+          ctx.globalAlpha = a
+          ctx.font = '9px monospace'
+          ctx.fillStyle = `rgba(100,240,220,${a * 0.9})`
+          ctx.textAlign = 'center'
+          ctx.shadowColor = 'rgba(0,220,200,0.5)'
+          ctx.shadowBlur = 8
+          ctx.fillText(obj.label, ox, oy + float)
+          ctx.restore()
+          continue
+        }
+
+        // text
+        ctx.save()
+        ctx.globalAlpha = a * 0.85
+        ctx.font = '11px Georgia, serif'
+        ctx.fillStyle = `rgba(180,240,255,${a})`
+        ctx.textAlign = 'center'
+        ctx.fillText(obj.label, ox, oy + float)
+        ctx.restore()
+      }
+
+      // ── Vignette ──
+      const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.9)
+      vig.addColorStop(0, 'transparent')
+      vig.addColorStop(1, 'rgba(0,0,4,0.7)')
+      ctx.fillStyle = vig
+      ctx.fillRect(0, 0, W, H)
+
+      rafRef.current = requestAnimationFrame(render)
+    }
+    rafRef.current = requestAnimationFrame(render)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [])
+
+  const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const { W, H } = sizeRef.current
+    const mx = e.clientX, my = e.clientY
+
+    // Check if clicking a revealed door
+    for (const obj of objsRef.current) {
+      if (obj.type !== 'door' || obj.glow < 0.2) continue
+      const ox = obj.nx * W, oy = obj.ny * H
+      if (Math.abs(mx - ox) < 28 && Math.abs(my - oy) < 40) {
+        if (obj.worldId != null && obj.portal) {
+          navigateTo(obj.worldId as Parameters<typeof navigateTo>[0], {
+            type: obj.portal as Parameters<typeof navigateTo>[1]['type'],
+            origin: { x: mx, y: my },
+          })
+          return
+        }
+      }
     }
 
-    if (item.type === 'polaroid') {
-      return (
-        <div key={item.id} style={{
-          ...base, width: 150, height: 170,
-          background: '#e8f4f0',
-          boxShadow: '0 4px 30px rgba(0,120,160,0.4), 0 0 60px rgba(0,180,200,0.1)',
-          padding: '8px 8px 36px',
-          filter: `blur(${item.depth > 0.7 ? '1px' : '0'})`,
-        }}>
-          <div style={{ width: '100%', height: 110, background: 'rgba(0,80,120,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,200,200,0.2)', border: '1px solid rgba(0,200,200,0.3)' }} />
-          </div>
-          <div style={{ marginTop: 6, fontFamily: 'Georgia, serif', fontSize: 9, color: 'rgba(0,80,120,0.7)', textAlign: 'center', lineHeight: 1.4 }}>{item.content}</div>
-        </div>
-      )
-    }
+    // Fire sonar ping
+    const maxR = Math.hypot(W, H) * 0.85
+    ringsRef.current.push({
+      id: ringId++,
+      ox: mx, oy: my,
+      r: 0, maxR,
+      alpha: 0.85,
+      speed: 4 + depth * 0.01,
+    })
+    setPings(p => p + 1)
+  }, [navigateTo, depth])
 
-    if (item.type === 'cassette') {
-      return (
-        <div key={item.id} style={{
-          ...base, width: 120, height: 74,
-          background: 'rgba(0,20,40,0.85)',
-          border: '1px solid rgba(0,200,200,0.15)',
-          boxShadow: '0 0 20px rgba(0,200,200,0.08)',
-          padding: 8,
-        }}>
-          <div style={{ fontSize: 8, fontFamily: 'monospace', color: 'rgba(0,220,200,0.5)', letterSpacing: '0.1em', marginBottom: 6 }}>{item.content}</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px' }}>
-            <div style={{ width: 22, height: 22, borderRadius: '50%', border: '2px solid rgba(0,200,200,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(0,200,200,0.3)' }} />
-            </div>
-            <div style={{ width: 50, height: 6, background: 'rgba(0,200,200,0.08)', borderRadius: 1 }}>
-              <div style={{ width: `${30 + Math.sin(item.id * 47) * 25}%`, height: '100%', background: 'rgba(0,200,200,0.2)' }} />
-            </div>
-            <div style={{ width: 22, height: 22, borderRadius: '50%', border: '2px solid rgba(0,200,200,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(0,200,200,0.3)' }} />
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    if (item.type === 'door') {
-      return (
-        <div
-          key={item.id}
-          style={{
-            ...base, width: 56, height: 84,
-            background: 'rgba(0,10,30,0.9)',
-            border: '1px solid rgba(0,200,200,0.2)',
-            boxShadow: '0 0 30px rgba(0,150,200,0.15)',
-          }}
-          onClick={e => handleDoorClick(item.content, e)}
-        >
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 4, height: 4, borderRadius: '50%', background: 'rgba(0,220,200,0.4)' }} />
-          <div style={{
-            position: 'absolute', bottom: -24, left: '50%', transform: 'translateX(-50%)',
-            width: 160, textAlign: 'center',
-            fontFamily: 'monospace', fontSize: 7,
-            color: 'rgba(0,220,200,0.3)', letterSpacing: '0.08em', whiteSpace: 'nowrap',
-          }}>
-            {item.content}
-          </div>
-        </div>
-      )
-    }
-
-    if (item.type === 'coord') {
-      return (
-        <div key={item.id} style={{
-          ...base, fontFamily: 'monospace', fontSize: 9,
-          color: 'rgba(0,220,200,0.35)', letterSpacing: '0.15em', whiteSpace: 'nowrap',
-          textShadow: '0 0 10px rgba(0,200,200,0.3)',
-        }}>
-          {item.content}
-        </div>
-      )
-    }
-
-    if (item.type === 'text') {
-      return (
-        <div key={item.id} style={{
-          ...base, fontFamily: 'Georgia, serif', fontSize: 12,
-          color: `rgba(180,240,255,${0.2 + item.depth * 0.15})`,
-          maxWidth: 260, lineHeight: 1.6, letterSpacing: '0.04em',
-        }}>
-          {item.content}
-        </div>
-      )
-    }
-    return null
-  }
+  const pingHint = pings === 0
 
   return (
-    <div
-      data-world="2"
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'linear-gradient(180deg, #001520 0%, #000d1a 40%, #000810 100%)',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Caustic light — ocean surface light from above */}
+    <div data-world="2" style={{ position: 'fixed', inset: 0, overflow: 'hidden', cursor: 'crosshair' }}>
+      <canvas
+        ref={canvasRef}
+        style={{ position: 'absolute', inset: 0 }}
+        onClick={handleClick}
+      />
+
+      {/* Click hint */}
+      {pingHint && (
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          pointerEvents: 'none',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+        }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: '50%',
+            border: '1px solid rgba(0,220,180,0.25)',
+            animation: 'sonarPulse 2s ease-out infinite',
+          }} />
+          <div style={{
+            fontFamily: 'monospace', fontSize: 10,
+            color: 'rgba(0,220,180,0.35)', letterSpacing: '0.25em',
+          }}>CLICK TO PING</div>
+        </div>
+      )}
+
+      {/* HUD */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: '35%',
-        background: 'radial-gradient(ellipse 120% 60% at 50% 0%, rgba(0,120,180,0.15) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }} />
-      {/* Caustic ripple lines */}
-      <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '40%', opacity: 0.06, pointerEvents: 'none' }}>
-        {Array.from({ length: 12 }).map((_, i) => (
-          <ellipse key={i}
-            cx={`${8 + i * 8}%`} cy="0" rx={`${2 + Math.sin(i * 1.3) * 2}%`} ry="200"
-            fill="none" stroke="rgba(0,220,255,1)" strokeWidth="0.5"
-          />
-        ))}
-      </svg>
-
-      {/* Depth fog layers */}
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: '40%',
-        background: 'linear-gradient(0deg, rgba(0,4,12,0.9) 0%, transparent 100%)',
-        pointerEvents: 'none',
-      }} />
-
-      <BubbleCanvas />
-
-      {/* Items */}
-      {items.map(renderItem)}
-
-      {/* Depth readout */}
-      <div style={{
-        position: 'absolute', bottom: 24, left: 32,
+        position: 'absolute', bottom: 28, left: 32,
         fontFamily: 'monospace', fontSize: 9,
-        color: 'rgba(0,220,200,0.3)', letterSpacing: '0.2em',
-        lineHeight: 1.8,
+        color: 'rgba(0,180,160,0.45)', letterSpacing: '0.18em',
+        lineHeight: 2.2, pointerEvents: 'none',
       }}>
-        <div>DEPTH: {depth.toFixed(1)}m</div>
-        <div style={{ opacity: 0.6 }}>40.0150°N 105.2705°W</div>
+        <div>DEPTH   {depth.toFixed(1)} m</div>
+        <div>PRESSURE {pressure.toFixed(3)} atm</div>
+        <div style={{ opacity: 0.5 }}>40.0150°N  105.2705°W</div>
       </div>
 
       <div style={{
-        position: 'absolute', bottom: 24, right: 32,
+        position: 'absolute', bottom: 28, right: 32,
         fontFamily: 'monospace', fontSize: 9,
-        color: 'rgba(0,220,200,0.15)', letterSpacing: '0.15em',
+        color: 'rgba(0,180,160,0.2)', letterSpacing: '0.15em',
+        textAlign: 'right', pointerEvents: 'none',
       }}>
-        DEPTH · SECTOR 02
+        <div>SECTOR 02</div>
+        <div>PINGS: {pings}</div>
+        {revealedDoors.size > 0 && (
+          <div style={{ color: 'rgba(0,220,180,0.4)' }}>{revealedDoors.size} DOOR{revealedDoors.size > 1 ? 'S' : ''} FOUND</div>
+        )}
       </div>
 
+      <style>{`
+        @keyframes sonarPulse {
+          0%   { transform: scale(0.8); opacity: 0.6; }
+          50%  { transform: scale(1.8); opacity: 0.2; }
+          100% { transform: scale(2.6); opacity: 0; }
+        }
+      `}</style>
       <HomeButton />
     </div>
   )
