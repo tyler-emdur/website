@@ -2,23 +2,27 @@
 
 ## What This Is
 
-A portfolio that refuses to be one. Structured as an ARG (alternate reality game) where the work, bio, and contact information are distributed across 17 distinct "worlds" — each with its own visual language, physics, and way of moving between them. Each world should feel like a different application, game, machine, or reality — not a themed webpage. The goal is that a visitor forgets they are on a website.
+A portfolio that refuses to be one. Structured as an ARG where the work, bio, and contact information are distributed across 17 distinct "worlds." Each world is a completely different type of experience — game, government form, television, vintage OS, arcade cabinet, signal lab — not a themed webpage. The goal is that a visitor forgets they are on a website.
 
 ---
 
 ## Design Philosophy
 
-**Places, not pages.** Each world is an environment you occupy, not a layout you look at.
+**Not themed environments. Unique experiences.**
+
+Each world must have a unique interaction model, visual language, pacing, emotional tone, and objective. No repeated mechanics. No repeated navigation systems. No repeated puzzle structures.
+
+**Meow Wolf standard:** Every world should feel like it was built by a different team with a completely different goal. A visitor should constantly think "how is this part of the same website?" while slowly realizing everything connects through the same hidden system.
 
 - Forbidden: cards, dashboards, section layouts, button grids, menus disguised as worlds
 - Required: interaction language unique to each world (not just a different color palette)
-- Connection system: worlds share recurring anomalies — frequency **88.7**, coordinates **40.0150°N 105.2705°W**, organization names — not shared visual style
+- Connection system: worlds share recurring anomalies — frequency **88.7**, coordinates **40.0150°N 105.2705°W**, designation **T.EMDUR**, survey **TE-∅** — not shared visual style
 
 ---
 
 ## Architecture
 
-**Stack:** Next.js 15 · TypeScript (strict) · React Three Fiber · Three.js · Zustand · Canvas 2D API · Web Audio API
+**Stack:** Next.js 15 · TypeScript (strict) · React Three Fiber · Three.js · Zustand · Canvas 2D API
 
 **Entry point:** `app/page.tsx` → `WorldManager` (renders current world, manages portal transitions)
 
@@ -27,49 +31,38 @@ A portfolio that refuses to be one. Structured as an ARG (alternate reality game
 ```
 lib/
   world-store.ts          Global world state, portal triggers, session log
-  universe-store.ts       Three.js universe state (v1 entry, still live at /build etc.)
-  types.ts                Shared TypeScript interfaces
+  universe-store.ts       Three.js universe state (W1)
   data/
     projects.ts           4 projects with tech stack, links, status
-    runs.ts               Boulder Marathon, Pikes Peak, Golden Gate 25K, others
-    adventures.ts         9 Colorado/Utah locations with coordinates and descriptions
-    memories.ts           14 archive entries (notes, photos, objects)
+    runs.ts               Marathon, Pikes Peak, Golden Gate 25K, others
+    adventures.ts         9 Colorado/Utah locations with coordinates
+    memories.ts           14 archive entries
 
 components/
   worlds/
-    WorldManager.tsx      Renders current world + portal overlay; sets data-world on <html>
-    PortalTransition.tsx  8 unique portal animations keyed by PortalType
-    HomeButton.tsx        Persistent back-to-home in each world
-    World0Surface.tsx     The Surface
-    World1Apartment.tsx   The Apartment (Universe entry — Three.js)
-    World2Depth.tsx       The Depth
-    World3Broadcast.tsx   The Broadcast
-    World4Corridor.tsx    The Corridor
-    World5FieldStation.tsx Field Station
-    World6Document.tsx    The Document
-    World7Mall.tsx        The Mall
-    World8Signal.tsx      The Signal
-    World9Contact.tsx     The Contact Page
-    World10Loop.tsx       The Loop
-    World11Flicker.tsx    The Flicker (Arcade)
-    World12Terminal.tsx   The Terminal
-    World13Spiral.tsx     The Spiral
-    World14Pixel.tsx      The Pixel
-    World15Dial.tsx       The Dial
-    World16Index.tsx      The Index
-  universe/               Three.js universe (v1 — accessible at sub-routes)
+    WorldManager.tsx      Renders current world + portal overlay
+    PortalTransition.tsx  8 unique portal animations (PortalType)
+    HomeButton.tsx        Persistent back-to-hub in each world
+    World0Surface.tsx     Particle field entry
+    World1Apartment.tsx   Three.js Universe hub
+    World2Depth.tsx       Sonar ping ocean
+    World3Broadcast.tsx   ★ REBUILT — Late-night CRT television
+    World4Corridor.tsx    ★ REBUILT — Kafkaesque government building
+    World5FieldStation.tsx  Ham radio cabin with draggable dial
+    World6Document.tsx    Investigation corkboard with drag + redaction
+    World7Mall.tsx        Perspective canvas mall corridor
+    World8Signal.tsx      ★ REBUILT — Signal reconstruction lab
+    World9Contact.tsx     ★ REBUILT — CAPTCHA that breaks down
+    World10Loop.tsx       ★ REBUILT — Vintage OS desktop (Windows 95)
+    World11Flicker.tsx    ★ REBUILT — Full arcade cabinet
+    World12Terminal.tsx   Command-line interface
+    World13Spiral.tsx     Scrollable descent spiral
+    World14Pixel.tsx      ★ FIXED — 2D pixel platformer
+    World15Dial.tsx       FM radio tuner
+    World16Index.tsx      Grid world catalog
+  universe/               Three.js universe scene, regions, effects
   cursor/                 Custom cursor system
-  hud/                    Universe HUD (v1 only)
-
-app/
-  page.tsx                Home → WorldManager
-  layout.tsx              Loads world fonts; initial title "[untitled document]"
-  globals.css             World-scoped CSS via html[data-world="N"] selectors
-  build/                  /build — Projects page (v1)
-  run/                    /run — Running page (v1)
-  archive/                /archive — Archive page (v1)
-  explore/                /explore — Explore page (v1)
-  lab/                    /lab — Lab experiments page (v1)
+  hud/                    Universe HUD
 ```
 
 ---
@@ -80,11 +73,11 @@ app/
 |------|--------|
 | `fold` | CSS 3D perspective fold to black |
 | `expand-white` | White circle expands from click origin |
-| `rotate` | Black overlay rotates 90° over content |
+| `rotate` | Black overlay rotates 90° |
 | `scatter` | All body elements fly to random positions |
 | `vortex` | Spiral vortex |
 | `chromatic` | Chromatic aberration burst |
-| `cursor-flood` | 80 particles expand from random positions, flooding the screen |
+| `cursor-flood` | 80 particles expand from random positions |
 | `slide-right` | New world slides in from right |
 | `nothing` | Immediate swap |
 
@@ -93,246 +86,245 @@ app/
 ## The 17 Worlds
 
 ### World 0 — The Surface
-**Identity:** waiting room / threshold
-**Interaction:** time and stillness
+**Identity:** threshold / particle field entry
+**Interaction:** presence and time
 
-A blank white page with a blinking cursor. No nav, no labels. Behavior depends on input type.
-
-| Action | Destination | Portal |
-|--------|-------------|--------|
-| Wait 47s (idle) | W1 | Fold |
-| Click the cursor | W3 | White circle expand |
-| Scroll | W7 | Cursor flood |
-| Right-click | W5 | Viewport rotation |
-| Type any key | W6 | Letter expands to fill screen |
-
-Hidden: counter in bottom-right counts down slowly, never reaches zero. `window.__counter = 0` in console triggers a message.
+Particle field. Mouse moves particles. Wait 47s → W1. Click cursor → W3. Scroll → W7. Right-click → W5. Type any key → W6.
 
 ---
 
-### World 1 — The Apartment (Universe Entry)
-**Identity:** Three.js immersive space — navigation hub
-**Interaction:** spatial exploration, portals scattered as objects in 3D space
+### World 1 — The Universe
+**Identity:** Three.js impossible machine, slowly learned
+**Interaction:** drag to pan, scroll to zoom, click objects to discover
 
-The Three.js universe. The main entry into the rest of the project's older sub-pages. Portals appear as floating objects. Still functional as a nav hub for `/build`, `/run`, `/archive`, `/explore`, `/lab`.
+47 catalogued objects across 5 regions. PortalDirectory unlocks after 3 discoveries. Survey markers, corner terminal with `OPERATOR T.EMDUR`. Glitch overlay can flash `DESIGNATION: TYLER EMDUR`. Objects have clinical/archival descriptions (no humor). GiantStructures fills background with ancient rings, megastructures, debris fields at 700–2100 unit scale.
+
+Connection system: coordinates `40.0150°N 105.2705°W` in AmbientTransmissions, frequency 88.7 in gate lore, `SURVEY TE-∅` throughout.
 
 ---
 
 ### World 2 — The Depth
-**Identity:** underwater descent
-**Interaction:** vertical scrolling/drifting into darkness, bioluminescent objects floating up
+**Identity:** deep ocean sonar station
+**Interaction:** click to ping — rings expand from click point and briefly illuminate objects in darkness
 
-Dark ocean environment. Canvas-rendered bubble particles float upward with sinusoidal drift. Items appear at different depths with parallax. Caustic light patches render as SVG ellipses near the surface.
-
-- Depth counter auto-increments in corner
-- Boulder coordinates (`40.0150°N 105.2705°W`) displayed lower left
-- `FREQUENCY: 88.7` appears in item text (connection system)
-- Clickable floating doors lead to W1, W9, W6
+Dark ocean gradient. 18 deep objects at different depths. Objects fade back to black; only visible while a ring passes through them. Clicking a visible door navigates. "CLICK TO PING" hint disappears after first ping.
 
 ---
 
-### World 3 — The Broadcast
-**Identity:** physical CRT television in a dark room
-**Interaction:** click the channel knob to cycle channels; room glows react to on-screen content
+### World 3 — The Broadcast ★ REBUILT
+**Identity:** late-night cable television, physical CRT set in a dark room
+**Interaction:** channel knob (▲▼ buttons or arrow keys), brief static burst on channel change
 
-A large CRT TV housing sits in a dark room (`#060402`). Ambient room glow changes color based on what's on screen (`CHANNEL_GLOW` record). Physical components: antenna (two arms), speaker grille (7 bars), brand nameplate "S I G N A L", LED channel display (VT323 font, orange glow). Static burst (320ms canvas noise) transitions between channels.
-
-**No button grid.** Only the physical knob navigates channels.
+Physical wood-cabinet TV. CRT scanlines overlay. Vignette. Green power LED.
 
 | CH | Content |
 |----|---------|
-| 2 | Tyler bio, rotating sentences |
-| 4 | Project slideshow (quiz show format) |
-| 7 | Shopping channel / dead air |
-| 9 | Live news ticker with fake headlines |
-| 11 | YouTube embed |
-| 13 | Static / glitch |
-
-"CLICK TO CHANGE" hint fades after 4 seconds.
+| 2 | Pure static (canvas noise) |
+| 4 | KWND News 4 — absurd stories, lore ticker scrolling coordinates + object counts |
+| 7 | Nature Hour — narrator describes unclassifiable creature transmitting on 88.7 |
+| 9 | DOOR-LESS™ infomercial — impossible product, fake testimonials |
+| 13 | Emergency Alert System — strange message about unmapped objects |
+| 22 | Mr. Static's Playhouse — cheerful kids show that goes dark |
+| 44 | Classic test pattern |
+| 66 | SECURITEL — camera grid watching sectors of other worlds |
+| 88 | Frequency 88.7 acquired → countdown → routes to W15 |
 
 ---
 
-### World 4 — The Corridor
-**Identity:** brutalist concrete hallway, impossible geometry
-**Interaction:** drag to traverse; doors shift position every ~4 seconds
+### World 4 — The Corridor ★ REBUILT
+**Identity:** Kafkaesque government building
+**Interaction:** navigate a bureaucratic form system that loops on itself
 
-A 3000px-wide perspective hallway (`#1e1c1c` concrete gray). Doors are numbered room plates (`B-01`, `B-04`, `B-12`, `B-??`, `DO NOT`). Floor uses radial-gradient dot texture + expansion joints. Ceiling has fluorescent strip lights every 300px. Wall stamps include load ratings, fire ratings, drawing refs, and anomalies (`88.7`, `40.0150°N`). The DO NOT door has welded X-bars.
+Institutional beige walls, fluorescent lighting (with cleanup-safe flicker). Ticket dispenser. Form B-7 requires Form A-3 which requires Form B-7. After 2 loop cycles, a supervisor admits there is a maintenance door that was always unlocked. That door leads to W1.
 
-`doorShifts` state causes random doors to shift position by up to ±40px every ~4 seconds (30% probability per interval).
-
-| Door | Destination | Portal |
-|------|-------------|--------|
-| B-01 | W1 | Fold |
-| B-04 | W5 | Rotation |
-| B-12 | W7 | Cursor flood |
-| B-?? | W9 | Expand-white |
-| DO NOT | 3 tries → W0 | Fold |
+Flow: Lobby → Window 3 (ticket) → Room 114 (Form B-7) → Room 108 (Form A-3, requires B-7) → Room 122 (Form C-12, requires A-3 + B-7) → Escalate → Supervisor → Lobby with maintenance door visible.
 
 ---
 
 ### World 5 — The Field Station
-**Identity:** remote outpost you physically occupy
-**Interaction:** observation (not dashboard-reading)
+**Identity:** remote ham radio outpost
+**Interaction:** drag the frequency dial to tune; each band has its own transmission
 
-Scientific monitoring interface. The feeling of being inside a remote station — not looking at a monitoring panel. Three live panels: signal analysis (strength meter flatlines after 30s), location matrix (SVG map with Boulder pulsing dot), systems (antenna + maintenance hatch). Real-time clock and session uptime. Coordinates `40.0150°N 105.2705°W` visible.
+Three-column cabin layout: window (sky changes by time of day) + barometer + floor hatch | radio transceiver with draggable dial | notebook + lamp + mug.
+
+Frequencies: 72.4, 80.0, **88.7** (portal → W15, special styling), 94.1 (portal → W3), 101.5, 107.3, 114.9. Transmissions type out character by character. Floor hatch: 5 clicks → W6. Barometer drifts ±0.002/second.
 
 ---
 
 ### World 6 — The Document
-**Identity:** classified archive investigation
-**Interaction:** reading a dossier, not a PDF viewer
+**Identity:** investigation corkboard
+**Interaction:** drag documents around, click redacted sections 5× to unredact
 
-52-page document. Serif text, white background, prose in the third person ("the individual in question"). Content appears on scattered pages; most are blank. Email appears on a random page each visit. Social links on page 40 as archival citations. Page 52 → W8 (slide-right).
+Cork texture background. 10 pinned items (docs, photos, notes, 2 redacted classified docs). SVG bezier strings connect related items. Final unredacted doc → W8 portal.
 
 ---
 
 ### World 7 — The Mall
-**Identity:** 1993 mall corridor you physically walk through
-**Interaction:** drag left/right to walk the perspective corridor; click stores to enter
+**Identity:** 1993 dead mall corridor you walk through
+**Interaction:** drag to walk perspective corridor; click stores to enter interiors
 
-Canvas-rendered perspective corridor with proper vanishing-point projection. Stores are drawn on-canvas with depth-correct scaling — they recede as you walk forward. Checkerboard tile floor (perspective-projected quads), fluorescent ceiling strips with radial glow, store signage with colored sign bands.
-
-**Drag to walk.** Clicking a hovered store opens its interior overlay.
+Canvas-rendered perspective with vanishing-point projection. Checkerboard tile floor (projected quads). Ceiling fluorescent strips with glow. PA announcements every 24s including `Frequency 88.7 is currently unavailable in this location.`
 
 | Store | Interior |
 |-------|---------|
-| MACHINES | 6 vending machines (CERTAINTY · SLEEP · PURPOSE · REASONS · STATIC · THE ORIGINAL IDEA). Each selection returns a random failure/absurdist response. Buy 6 → glitch portal to Spiral. |
-| FOOD COURT | Menu board: TIME SOUP · YESTERDAY · STATIC LG · DECISION. CASHIER button → W9. |
-| GALLERY | 4 mannequins whose heads rotate to track cursor. Click one → it speaks. |
-| ESCALATOR | Click 3×: first two warn, third warps to a random world. |
-
-PA announcements slide up from below every 24 seconds. Includes: `Frequency 88.7 is currently unavailable in this location.`
+| Vending | 6 machines (CERTAINTY, SLEEP, PURPOSE, REASONS, STATIC, THE ORIGINAL IDEA) |
+| Food Court | Menu board; CASHIER → W9 |
+| Gallery | 4 mannequins track cursor; click to speak |
+| Escalator | 3rd click → random world warp |
 
 ---
 
-### World 8 — The Signal
-**Identity:** degraded transmission clearing over time
-**Interaction:** wait or type passphrase to decode
+### World 8 — The Signal ★ REBUILT
+**Identity:** signal reconstruction lab, single dark monitor
+**Interaction:** drag scrambled waveform segments into correct order; clarity meter fills
 
-The actual portfolio — bio, 4 projects, 3 runs, contact — rendered with corruption/glitch overlays that clear over 4 minutes via progress bar. Type `IMMEDIATEACCESS` to clear instantly. Continue → W9.
-
----
-
-### World 9 — The Contact Page
-**Identity:** completely normal
-**Interaction:** a regular webpage (intentional contrast)
-
-Clean white page. Name, email, GitHub, LinkedIn, contact form (submits to void). Footer at barely-visible opacity: `you found it.`
+6 scrambled waveform segments (canvas-drawn, noise floor visible). Drag to reorder. Each segment that snaps to correct position decodes and shows its text line. Full message when all correct: `T.EMDUR / 40.0150°N 105.2705°W / 88.7 MHz / 47 OBJECTS / YOU ARE BEING OBSERVED`. Decode animation, then exit to W1.
 
 ---
 
-### World 10 — The Loop
-**Identity:** puzzle memory game
-**Interaction:** pick doors; the room keeps changing; discoveries accumulate in a log
+### World 9 — The Contact ★ REBUILT
+**Identity:** CAPTCHA verification system that breaks down
+**Interaction:** complete progressively impossible challenges until reclassified
 
-Repeating room with 3–4 doors. Each door taken through a loop adds an observation to a discovery log (tally marks scratched on the floor track loop count). After 8+ loops, an EXIT door appears. Log entries include `the hum has a frequency: 88.7`.
+White institutional background, Google CAPTCHA aesthetic.
 
-Room shrinks slightly on each loop. After loop 5, status changes to UNSTABLE.
+Phase 1–2: Normal image tiles (traffic lights, crosswalks)
+Phase 3: Impossible prompts — "Select all images containing distance" / "Select all images where it is currently 3:00pm" / "Identify every object that sounds like the number seven" / "Select every memory you regret" (tiles labeled MEMORY_001–009)
+Phase 4: Canvas draw — "Please draw the shape of silence"
+Phase 5: Analysis → lists detected attributes: hesitation, backtracking, strategy attempt, wondering if this is a trick
+Phase 6: "ENTITY CLASS: HUMAN ENOUGH / DESIGNATION: T.EMDUR / ACCESS GRANTED" → W1
 
 ---
 
-### World 11 — The Flicker (Arcade)
-**Identity:** game show arcade
-**Interaction:** memory card matching game with timer, combos, and leaderboard
+### World 10 — The Loop ★ REBUILT
+**Identity:** Windows 95-era desktop, something wrong with the system
+**Interaction:** double-click desktop icons to open windows; drag to reposition
 
-Title screen with fake leaderboard (ACE/REX/ZAP/MAX). PRESS START gates gameplay. 90-second countdown, score system with combo multiplier (combo × 100). 6×3 grid of neon-colored cards. Game Over / Win overlay with RETRY and CORRIDOR buttons. Scanlines overlay throughout.
+Teal desktop (#008080). 5 desktop icons: My Computer, Documents, Archive, Recycle Bin, THE WORLD.
+
+| Window | Contents |
+|--------|---------|
+| My Computer | 4 drives including F:\\ (DO NOT OPEN) |
+| Documents | 5 files; tyler_emdur.exe (read-only); do_not_catalog.exe denies access |
+| Archive — Sector 03-Ω | 47 items, 1 recovered, last access corrupted |
+| Recycle Bin | Descends to W13 via vortex |
+| THE WORLD | Shortcut to W1 |
+
+Clock runs on wrong time (jumps by random minutes). Error dialogs spawn spontaneously. Clicking OK spawns another dialog until 3 OKs.
+
+---
+
+### World 11 — The Flicker ★ REBUILT
+**Identity:** full fake arcade cabinet
+**Interaction:** insert coin, select game, play, see leaderboard
+
+Physical cabinet with marquee, CRT screen with scanlines, joystick buttons. Attract mode cycles title → ★★★★★ → INSERT COIN with fake leaderboard (T.E. at 999,990 / ??? at 47,047).
+
+Games:
+- **Memory Match**: 4×3 grid of 6 pairs (DEPTH, SIGNAL, MALL, SPIRAL, BROADCAST, ARCHIVE)
+- **Reaction Test**: press when screen goes green; measures reaction time
+
+High score table shows your session score blended into the leaderboard.
 
 ---
 
 ### World 12 — The Terminal
 **Identity:** command-line interface
-**Interaction:** type commands
+**Interaction:** type commands to navigate and discover
 
-A terminal. Commands explore fragments of Tyler's information.
+A terminal. Commands explore fragments of data. `help` lists commands.
 
 ---
 
 ### World 13 — The Spiral
 **Identity:** disorienting descent
-**Interaction:** passive visual spiral
+**Interaction:** scroll to descend, click wormholes arranged radially
 
-A spiral world. Reached from World 7's vending machine glitch or World 10.
+Reached from W7 escalator, W10 Recycle Bin, W14 door.
 
 ---
 
-### World 14 — The Pixel
-**Identity:** indie RPG / adventure game
-**Interaction:** mastery, game mechanics
+### World 14 — The Pixel ★ FIXED
+**Identity:** 2D pixel art platformer
+**Interaction:** arrow keys / WASD move, space jumps; walk into numbered doors to warp
 
-Pixel art adventure game world.
+Neon pixel aesthetic (#1a0a2e sky). Player spawns in bottom corridor (row 26). Walk right to find 9 numbered warp doors and 24 coins. Warps lead to W3, W4, W5, W7, W10, W13, W15, W16, W1. Moving platform and spring. Collect all coins → W16 vault unlocked.
+
+Bug fixed: warp doors and coins were positioned at y=27 (solid floor), moved to y=26 (walkable corridor).
 
 ---
 
 ### World 15 — The Dial
-**Identity:** radio receiver
-**Interaction:** audio-first, turning a dial through frequencies
+**Identity:** FM radio receiver
+**Interaction:** drag frequency dial through 70–120 MHz; different content at each band
 
-Tune through frequencies. `88.7` is significant. Reached from World 7 (escalator), World 10 (loop log).
+Frequencies: 72.4, 80.0, 88.7 (significant), 94.1, 101.5, 107.3, 114.9. Connected to W5 and W3.
 
 ---
 
 ### World 16 — The Index
-**Identity:** incomplete list
-**Interaction:** reading, following references
+**Identity:** grid catalog of all worlds
+**Interaction:** click cells to navigate; fake entries locked
 
-An index that refers to other worlds.
+Grid of world cells. Fake entries (Attic, Basement, World 17, NULL, Cache, Mirror) show locked responses.
 
 ---
 
 ## Connection System (Cross-World Anomalies)
 
-These recurring elements create continuity between worlds without shared visual style:
+These recurring elements create continuity without shared visual style:
 
 | Anomaly | Appears in |
 |---------|-----------|
-| Frequency **88.7** | W2 (item text), W4 (wall stamp), W7 (PA announcement), W10 (loop log), W15 (dial) |
-| Coordinates **40.0150°N 105.2705°W** | W2 (depth readout), W4 (wall stamp), W5 (map) |
+| **88.7 MHz** | W3 CH88 (portal), W3 CH7 (narration), W3 CH4 (ticker), W5 (band with portal), W7 (PA announcement), W8 (decoded message), W1 (ambient + gate lore) |
+| **40.0150°N 105.2705°W** | W2 (depth readout), W1 (AmbientTransmissions), W8 (decoded message) |
+| **T.EMDUR / TYLER EMDUR** | W1 (corner terminal as OPERATOR, glitch flash), W9 (final CAPTCHA result), W8 (decoded message) |
+| **47 objects** | W1 (survey count drifts around 47), W8 (decoded message), W11 (??? high score 47,047) |
+| **SURVEY TE-∅** | W1 (AbstractIndex corner terminal, AmbientTransmissions) |
 
 ---
 
-## Recent Commit History
+## Recent Commits
 
 | Hash | Description |
 |------|-------------|
-| `c8dc695` | Rebuild World 3 and World 7 as physical environments |
-| `a4cdca4` | (prior session work) |
+| `e80a05f` | Rebuild 7 worlds as radically different Meow Wolf experiences |
+| `c838dc3` | Strip internet-humor tone from Universe — replace with archival/clinical voice |
+| `701a1bc` | (prior universe redesign pass) |
 | `a8e5c0d` | Fix game and portals |
 | `087aaad` | Strip HUD to bare text, surface portals, fix start screen |
-| `fb1f191` | Restore Three.js universe as entry |
-| `3e3dc4e` | Rebuild World 1 as a real hub — all worlds reachable |
-
----
-
-## In Progress / Remaining Redesigns
-
-Worlds that still need environmental redesign (from pages → places):
-
-| World | Current State | Target |
-|-------|--------------|--------|
-| W5 Field Station | Monitoring dashboard panels | Remote outpost interior you physically occupy — observation not data-reading |
-| W2 Depth | Objects floating on a dark plane | True vertical descent — parallax canvas, deeper = darker, pressure builds |
-| W6 Document | PDF viewer aesthetic | Investigation desk — scattered papers, evidence board, redacted files |
 
 ---
 
 ## Known Behaviors (Not Bugs)
 
-- W4 corridor perspective is CSS-scaled divs, not ray-traced
-- W2 items spawn off-screen and drift; density caps at 18 concurrent items
-- W6 email page is determined randomly at module load — same page per session
-- W7 escalator destination is random each ride
-- W9 form submits nothing — intentional
-- The counter on W0 never reaches zero — intentional
-- Back button may behave unexpectedly across worlds — intentional (browser history not wired to world stack)
+- W4 maintenance door only appears after completing 2 form loops (by design)
+- W7 escalator warp destination is random each ride
+- W9 CAPTCHA always marks weird-phase answers wrong (by design)
+- W9 canvas drawing is never actually analyzed (by design)
+- W10 clock shows wrong time and jumps randomly (by design)
+- W11 T.E. high score is permanently at 999,990 (by design)
+- W14 bottom corridor is isolated from upper level — access only via warp doors (by design)
+- W0 counter never reaches zero (by design)
+- Browser back button behaves unexpectedly across worlds (intentional — history not wired to world stack)
 
 ---
 
-## V1 Universe (Still Live)
+## Remaining Work
 
-The Three.js universe is accessible via direct routes:
+| World | Status | Priority |
+|-------|--------|----------|
+| W13 Spiral | Basic scroll descent, needs Meow Wolf pass — could become psychological depth test | Medium |
+| W16 Index | Grid catalog, could become 2004 educational website (Worldpedia) | Low |
+| W5 Field Station | Good but dial mechanic could use active anomaly-hunting spectrogram layer | Low |
+| W12 Terminal | Functional but could be more surprising | Low |
 
-- `/build` — Projects with detail panel
-- `/run` — Running log with pace profiles and elevation charts
-- `/archive` — Memory archive with CRT photo placeholders, glitch text
-- `/explore` — Adventure log with elevation canvas and topo visualization
+---
+
+## V1 Universe Sub-routes (Still Live)
+
+- `/build` — Projects
+- `/run` — Running log with pace profiles
+- `/archive` — Memory archive
+- `/explore` — Adventure log
 - `/lab` — 11 interactive canvas experiments

@@ -168,7 +168,7 @@ export default function World11Flicker() {
     return () => clearInterval(iv)
   }, [mode])
 
-  const insertCoin = () => { setCredits(c => c + 1); if (credits >= 0) setMode('select') }
+  const insertCoin = () => { setCredits(c => c + 1); setMode('select') }
 
   const handleWin = (s: number) => {
     setScore(prev => prev + s)

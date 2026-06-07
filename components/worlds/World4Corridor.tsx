@@ -10,14 +10,21 @@ type Screen = 'lobby' | 'ticket' | 'form-b7' | 'form-a3' | 'form-c12' | 'waiting
 function Fluorescent() {
   const [on, setOn] = useState(true)
   useEffect(() => {
+    let t1: ReturnType<typeof setTimeout>, t2: ReturnType<typeof setTimeout>
+    let alive = true
     const flicker = () => {
-      const delay = 8000 + Math.random() * 20000
-      setTimeout(() => {
+      if (!alive) return
+      t1 = setTimeout(() => {
+        if (!alive) return
         setOn(false)
-        setTimeout(() => { setOn(true); flicker() }, 80 + Math.random() * 120)
-      }, delay)
+        t2 = setTimeout(() => {
+          if (!alive) return
+          setOn(true); flicker()
+        }, 80 + Math.random() * 120)
+      }, 8000 + Math.random() * 20000)
     }
     flicker()
+    return () => { alive = false; clearTimeout(t1); clearTimeout(t2) }
   }, [])
   return (
     <div style={{
