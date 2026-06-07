@@ -184,8 +184,8 @@ function saveDiscovered(ids: string[]) {
 export const useUniverseStore = create<UniverseStore>((set, get) => ({
   mode: 'exploring',
   selectedId: null,
-  cameraTarget: [-500, 550, 620],
-  lookTarget: [-500, 550, 0],
+  cameraTarget: [-500, 550, 300],
+  lookTarget: [0, 0, 0],
   discoveredIds: loadDiscovered(),
   visitStartTime: Date.now(),
   recentDiscovery: null,

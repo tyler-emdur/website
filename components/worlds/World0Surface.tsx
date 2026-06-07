@@ -2,11 +2,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useWorldStore } from '@/lib/world-store'
 
-function isMobile() {
-  if (typeof window === 'undefined') return false
-  return /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent) || window.innerWidth < 768
-}
-
 function ParticleField() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mouse = useRef({ x: -9999, y: -9999 })
@@ -56,7 +51,6 @@ function ParticleField() {
         p.y = (p.y + p.vy + H) % H
       })
 
-      // Draw connections
       for (let i = 0; i < N; i++) {
         for (let j = i + 1; j < N; j++) {
           const dx = pts[i].x - pts[j].x
@@ -73,7 +67,6 @@ function ParticleField() {
         }
       }
 
-      // Draw dots
       pts.forEach(p => {
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
@@ -105,10 +98,8 @@ export default function World0Surface() {
   const [visible, setVisible] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [pixelClicks, setPixelClicks] = useState(0)
-  const [mobile, setMobile] = useState(false)
 
   useEffect(() => {
-    setMobile(isMobile())
     const t = setTimeout(() => setVisible(true), 120)
     return () => clearTimeout(t)
   }, [])
@@ -127,120 +118,140 @@ export default function World0Surface() {
     }
   }
 
-  if (mobile) {
-    return (
-      <div style={{
-        position: 'fixed', inset: 0,
-        background: '#f4f1ec',
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        padding: '40px 32px',
-        textAlign: 'center',
-      }}>
-        <div style={{
-          fontFamily: '"IM Fell English", Georgia, serif',
-          fontSize: 'clamp(1.4rem, 5vw, 2rem)',
-          fontWeight: 400,
-          color: '#1c1a17',
-          letterSpacing: '-0.02em',
-          marginBottom: 32,
-        }}>
-          Tyler Emdur
-        </div>
-        <div style={{
-          fontFamily: 'Georgia, serif',
-          fontSize: 13,
-          color: 'rgba(28,26,23,0.5)',
-          letterSpacing: '0.06em',
-          lineHeight: 1.9,
-          maxWidth: 300,
-        }}>
-          this site is best experienced<br />on a desktop or laptop.<br /><br />
-          <span style={{ color: 'rgba(28,26,23,0.3)', fontSize: 11 }}>please switch to a computer<br />for the full experience.</span>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div
-      onClick={enter}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        position: 'fixed', inset: 0,
-        background: '#f4f1ec',
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        userSelect: 'none',
-        overflow: 'hidden',
-      }}
-    >
-      <ParticleField />
+    <>
+      {/* Mobile warning — pure CSS, no JS delay */}
+      <style>{`
+        .surface-mobile { display: none; }
+        .surface-desktop { display: flex; }
+        @media (max-width: 767px), (hover: none) and (pointer: coarse) {
+          .surface-mobile { display: flex !important; }
+          .surface-desktop { display: none !important; }
+        }
+      `}</style>
 
-      <div style={{
-        position: 'relative', zIndex: 1,
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(6px)',
-        transition: 'opacity 1s ease, transform 1s ease',
-        textAlign: 'center',
-      }}>
+      {/* Mobile screen */}
+      <div
+        className="surface-mobile"
+        style={{
+          position: 'fixed', inset: 0,
+          background: '#f4f1ec',
+          flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '40px 32px',
+          textAlign: 'center',
+        }}
+      >
         <div style={{
           fontFamily: '"IM Fell English", Georgia, serif',
-          fontSize: 'clamp(1.6rem, 4vw, 2.8rem)',
+          fontSize: 'clamp(1.6rem, 6vw, 2.2rem)',
           fontWeight: 400,
           color: '#1c1a17',
           letterSpacing: '-0.02em',
-          lineHeight: 1,
+          marginBottom: 36,
         }}>
           Tyler Emdur
         </div>
-
         <div style={{
-          marginTop: 28,
           fontFamily: 'Georgia, serif',
-          fontSize: 13,
-          color: hovered ? 'rgba(28,26,23,0.55)' : 'rgba(28,26,23,0.35)',
-          letterSpacing: '0.18em',
-          transition: 'color 0.6s ease',
-          textTransform: 'lowercase',
+          fontSize: 14,
+          color: 'rgba(28,26,23,0.5)',
+          letterSpacing: '0.04em',
+          lineHeight: 2,
+          maxWidth: 280,
         }}>
-          click to enter
+          this site is best experienced<br />on a desktop or laptop.
         </div>
-
         <div style={{
-          marginTop: 48,
+          marginTop: 24,
           fontFamily: 'Georgia, serif',
           fontSize: 11,
           color: 'rgba(28,26,23,0.28)',
           letterSpacing: '0.08em',
-          textAlign: 'center',
-          lineHeight: 1.6,
-          textTransform: 'lowercase',
+          lineHeight: 1.8,
         }}>
-          a work in progress<br />art coding project
+          please switch to a computer<br />for the full experience.
         </div>
       </div>
 
-      {/* Hidden rainbow pixel */}
+      {/* Desktop screen */}
       <div
-        onClick={handlePixel}
+        className="surface-desktop"
+        onClick={enter}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         style={{
-          position: 'fixed',
-          bottom: 12,
-          right: 12,
-          width: 8,
-          height: 8,
-          background: pixelClicks > 0
-            ? `linear-gradient(135deg, #FF006E, #FFBE0B, #06FFA5)`
-            : 'rgba(28,26,23,0.08)',
-          imageRendering: 'pixelated',
-          boxShadow: pixelClicks > 2 ? '0 0 12px rgba(255,0,110,0.5)' : 'none',
-          transition: 'background 0.2s, box-shadow 0.3s',
-          zIndex: 2,
+          position: 'fixed', inset: 0,
+          background: '#f4f1ec',
+          flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          userSelect: 'none',
+          overflow: 'hidden',
         }}
-        title=""
-      />
-    </div>
+      >
+        <ParticleField />
+
+        <div style={{
+          position: 'relative', zIndex: 1,
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'translateY(0)' : 'translateY(6px)',
+          transition: 'opacity 1s ease, transform 1s ease',
+          textAlign: 'center',
+        }}>
+          <div style={{
+            fontFamily: '"IM Fell English", Georgia, serif',
+            fontSize: 'clamp(1.6rem, 4vw, 2.8rem)',
+            fontWeight: 400,
+            color: '#1c1a17',
+            letterSpacing: '-0.02em',
+            lineHeight: 1,
+          }}>
+            Tyler Emdur
+          </div>
+
+          <div style={{
+            marginTop: 28,
+            fontFamily: 'Georgia, serif',
+            fontSize: 13,
+            color: hovered ? 'rgba(28,26,23,0.55)' : 'rgba(28,26,23,0.35)',
+            letterSpacing: '0.18em',
+            transition: 'color 0.6s ease',
+            textTransform: 'lowercase',
+          }}>
+            click to enter
+          </div>
+
+          <div style={{
+            marginTop: 48,
+            fontFamily: 'Georgia, serif',
+            fontSize: 11,
+            color: 'rgba(28,26,23,0.28)',
+            letterSpacing: '0.08em',
+            textAlign: 'center',
+            lineHeight: 1.6,
+            textTransform: 'lowercase',
+          }}>
+            a work in progress<br />art coding project
+          </div>
+        </div>
+
+        {/* Hidden rainbow pixel */}
+        <div
+          onClick={handlePixel}
+          style={{
+            position: 'fixed',
+            bottom: 12, right: 12,
+            width: 8, height: 8,
+            background: pixelClicks > 0
+              ? 'linear-gradient(135deg, #FF006E, #FFBE0B, #06FFA5)'
+              : 'rgba(28,26,23,0.08)',
+            imageRendering: 'pixelated',
+            boxShadow: pixelClicks > 2 ? '0 0 12px rgba(255,0,110,0.5)' : 'none',
+            transition: 'background 0.2s, box-shadow 0.3s',
+            zIndex: 2,
+          }}
+        />
+      </div>
+    </>
   )
 }
