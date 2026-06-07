@@ -70,6 +70,19 @@ export default function World0Surface() {
         }}>
           click to enter
         </div>
+
+        <div style={{
+          marginTop: 48,
+          fontFamily: 'Georgia, serif',
+          fontSize: 11,
+          color: 'rgba(28,26,23,0.28)',
+          letterSpacing: '0.08em',
+          textAlign: 'center',
+          lineHeight: 1.6,
+          textTransform: 'lowercase',
+        }}>
+          a work in progress<br />art coding project
+        </div>
       </div>
 
       {/* Hidden rainbow pixel — wrong dimension leaking through */}
