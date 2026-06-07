@@ -1,6 +1,6 @@
 'use client'
 import { useEffect } from 'react'
-import { useWorldStore } from '@/lib/world-store'
+import { useWorldStore, getWorldLog } from '@/lib/world-store'
 import PortalTransition from './PortalTransition'
 import World0Surface from './World0Surface'
 import World1Apartment from './World1Apartment'
@@ -32,7 +32,6 @@ function WorldConsoleSetup() {
     if (typeof window === 'undefined') return
     // Expose world log
     ;(window as unknown as Record<string, unknown>).__worldLog = () => {
-      const { getWorldLog } = require('@/lib/world-store')
       console.log('%c' + getWorldLog(), 'font-family: monospace; font-size: 11px; color: #22C55E')
     }
     // Counter reset

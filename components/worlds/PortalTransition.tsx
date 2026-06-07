@@ -89,7 +89,12 @@ function ScatterPortal({ onDone }: { onDone: () => void }) {
       })
     }
   }, [])
-  return <div data-portal style={{ position: 'fixed', inset: 0, zIndex: 9998, background: '#000', pointerEvents: 'none', opacity: 0, transition: 'opacity 0.3s', animation: 'fadeInBlack 0.5s 0.5s both' }} />
+  return (
+    <>
+      <div data-portal style={{ position: 'fixed', inset: 0, zIndex: 9998, background: '#000', pointerEvents: 'none', opacity: 0, transition: 'opacity 0.3s', animation: 'fadeInBlack 0.5s 0.5s both' }} />
+      <style>{`@keyframes fadeInBlack { from { opacity: 0 } to { opacity: 1 } }`}</style>
+    </>
+  )
 }
 
 function LetterExpandPortal({ config, onDone }: { config: PortalConfig; onDone: () => void }) {

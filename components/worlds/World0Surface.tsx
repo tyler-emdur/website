@@ -4,15 +4,13 @@ import { useWorldStore } from '@/lib/world-store'
 
 export default function World0Surface() {
   const navigateTo = useWorldStore(s => s.navigateTo)
-  const counter = useWorldStore(s => s.counter)
   const resetCounter = useWorldStore(s => s.resetCounter)
   const recordInteraction = useWorldStore(s => s.recordInteraction)
   const [cursorBlink, setCursorBlink] = useState(true)
-  const [typing, setTyping] = useState('')
   const [showHint, setShowHint] = useState(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const interacted = useRef(false)
-  const [counterVal, setCounterVal] = useState(counter)
+  const [counterVal, setCounterVal] = useState(1247)
 
   // Blink cursor at 1.1s interval
   useEffect(() => {
@@ -67,7 +65,6 @@ export default function World0Surface() {
       if (interacted.current) return
       interacted.current = true
       recordInteraction()
-      setTyping(e.key)
       navigateTo(6, { type: 'letter-expand', letter: e.key.length === 1 ? e.key : 'T' })
     }
 
