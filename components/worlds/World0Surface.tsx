@@ -120,20 +120,20 @@ export default function World0Surface() {
 
   return (
     <>
-      {/* Mobile warning — pure CSS, no JS delay */}
+      {/* Mobile warning — inline display:none guarantees hidden on desktop,
+          !important in media query overrides inline to show on mobile */}
       <style>{`
-        .surface-mobile { display: none; }
-        .surface-desktop { display: flex; }
         @media (max-width: 767px), (hover: none) and (pointer: coarse) {
-          .surface-mobile { display: flex !important; }
+          .surface-mobile  { display: flex !important; }
           .surface-desktop { display: none !important; }
         }
       `}</style>
 
-      {/* Mobile screen */}
+      {/* Mobile screen — hidden by default via inline style */}
       <div
         className="surface-mobile"
         style={{
+          display: 'none',
           position: 'fixed', inset: 0,
           background: '#f4f1ec',
           flexDirection: 'column',
@@ -181,6 +181,7 @@ export default function World0Surface() {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
+          display: 'flex',
           position: 'fixed', inset: 0,
           background: '#f4f1ec',
           flexDirection: 'column',
