@@ -10,17 +10,17 @@ const MOVE = 4.2
 
 const PALETTE = ['#FF006E', '#FB5607', '#FFBE0B', '#8338EC', '#3A86FF', '#06FFA5', '#FF4365', '#00F5FF']
 const ACCESSIBLE_WARPS = [
-  { x: 10, y: 27, id: '1' },
-  { x: 18, y: 27, id: '2' },
-  { x: 27, y: 27, id: '3' },
-  { x: 37, y: 27, id: '4' },
-  { x: 48, y: 27, id: '5' },
-  { x: 60, y: 27, id: '6' },
-  { x: 73, y: 27, id: '7' },
-  { x: 87, y: 27, id: '8' },
-  { x: 104, y: 27, id: '9' },
+  { x: 10, y: 26, id: '1' },
+  { x: 18, y: 26, id: '2' },
+  { x: 27, y: 26, id: '3' },
+  { x: 37, y: 26, id: '4' },
+  { x: 48, y: 26, id: '5' },
+  { x: 60, y: 26, id: '6' },
+  { x: 73, y: 26, id: '7' },
+  { x: 87, y: 26, id: '8' },
+  { x: 104, y: 26, id: '9' },
 ]
-const ACCESSIBLE_COINS = Array.from({ length: 24 }, (_, i) => ({ x: 5 + i * 5, y: 27 }))
+const ACCESSIBLE_COINS = Array.from({ length: 24 }, (_, i) => ({ x: 5 + i * 5, y: 26 }))
 const WRONG_SIGNS = ['NOT A DOOR', 'PRESS MAYBE', '404 FLOOR', 'COIN? NO', 'EXIT-ish', 'SCORE: MILK', 'LEFT IS ALSO RIGHT']
 
 // #: block  C: coin  P: spawn  1-9: warp id  ^: mover  !: spring

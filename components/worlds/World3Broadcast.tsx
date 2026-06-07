@@ -1,506 +1,423 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useWorldStore } from '@/lib/world-store'
+import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
-const CHANNELS = [2, 4, 7, 9, 11, 13, 14, 88, 99]
+// ── Channel definitions ─────────────────────────────────────────────────────
+const CHANNELS = [2, 4, 7, 9, 13, 22, 44, 66, 88]
 
-const QUIZ_QUESTIONS = [
-  { q: 'How many objects are in the universe?', opts: ['42', '47', '∞', '13'], correct: 1, wrong: ['close', 'too round', 'check your math'] },
-  { q: "What is Boulder's elevation?", opts: ['2,000 ft', '3,400 ft', '5,430 ft', '14,000 ft'], correct: 2, wrong: ['keep guessing', 'sea level is showing', "that's Elbert"] },
-  { q: 'Which world has mannequins?', opts: ['World 3', 'World 7', 'World 11', 'All of them'], correct: 1, wrong: ['no', 'try again', "you're in World 3"] },
-  { q: 'The best line of code you wrote was:', opts: ['The first one', 'The one that deleted 400 lines', 'The one nobody reviewed', 'No answer'], correct: 1, wrong: ['incorrect', 'try the other one', 'bold choice'] },
-  { q: 'What does DIGGER do?', opts: ['Digs holes', 'Finds music', 'Mines data', 'Delivers static'], correct: 1, wrong: ['no', 'technically yes but no', 'not really'] },
-]
-
-const SHOP_ITEMS = [
-  { name: 'REGRET (UNOPENED)', price: '$0.00', stock: 'surplus', btn: 'ADD TO CART', result: 'already in cart\n(was always in cart)' },
-  { name: 'ONE PERFECT TUESDAY', price: '$44.00', stock: 'last one', btn: 'BUY NOW', result: 'sold to someone else\n3 seconds ago' },
-  { name: 'THE ORIGINAL WORRY', price: 'free', stock: 'overstock', btn: 'CLAIM', result: 'you already have this\ncheck your pockets' },
-  { name: 'MOMENTUM (BOTTLED)', price: '$12.99', stock: 'limited', btn: 'PURCHASE', result: 'dispensing...\n[bottle is empty]\n[this is normal]' },
-  { name: 'CERTAINTY', price: '$999.99', stock: '0 in stock', btn: 'NOTIFY ME', result: 'you have been notified\n(this is not certainty)' },
-  { name: 'THE FEELING AT 5AM\nABOVE TREELINE', price: 'priceless', stock: 'cannot ship', btn: 'INQUIRE', result: 'you have to go there\nno substitutes' },
-]
-
-const TYLER_CONTENT = [
-  "Tyler Emdur is a software engineer living in Boulder, Colorado. He builds things for the internet and runs trails on weekends.",
-  "His current projects include Digger, a music discovery application, and this website, which has more going on than it appears.",
-  "He has run Pikes Peak, summited Mt. Elbert at four in the morning, and deployed code at two in the morning. Sometimes the same week.",
-  "He is looking for: interesting problems to solve, people who care about what they're making, and a good trail recommendation.",
-  "Contact: healthreinvented at gmail dot com.",
-]
-
-const NEWS_QUOTES = [
-  "LOCAL BUILDER DEPLOYS AT 2AM, CITES 'MOMENTUM' AS PRIMARY MOTIVATION",
-  "BOULDER TRAIL RUNNER DISCOVERS ALTITUDE MAKES EVERYTHING HARDER, CONTINUES ANYWAY",
-  "SOFTWARE ENGINEER BUILDS PORTFOLIO AS MULTI-WORLD ARG EXPERIENCE",
-  "DIGGER.APP LAUNCHES — MUSIC DISCOVERY FOR PEOPLE WHO ACTUALLY CARE",
-  "47 OBJECTS IN THE UNIVERSE CONFIRMED BY INDEPENDENT SOURCES",
-  "ANNUAL REMINDER: BEST LINE OF CODE YOU EVER WROTE DELETED 400 LINES",
-  "WEATHER UPDATE: ABOVE TREELINE CONDITIONS REMAIN HORIZONTAL AND PERSONAL",
-]
-
-function StaticCanvas() {
+// ── Static noise canvas ─────────────────────────────────────────────────────
+function StaticScreen() {
   const ref = useRef<HTMLCanvasElement>(null)
   const raf = useRef(0)
   useEffect(() => {
     const c = ref.current; if (!c) return
     const ctx = c.getContext('2d')!
-    c.width = 480; c.height = 360
-    function draw() {
-      const d = ctx.createImageData(480, 360)
-      for (let i = 0; i < d.data.length; i += 4) {
-        const v = Math.random() < 0.35 ? 180 + Math.random() * 60 : Math.floor(Math.random() * 40)
-        d.data[i] = v; d.data[i+1] = v; d.data[i+2] = v; d.data[i+3] = 255
+    const draw = () => {
+      const W = c.offsetWidth || 320, H = c.offsetHeight || 240
+      if (c.width !== W) c.width = W; if (c.height !== H) c.height = H
+      const img = ctx.createImageData(W, H)
+      for (let i = 0; i < img.data.length; i += 4) {
+        const v = Math.random() * 200
+        img.data[i] = img.data[i+1] = img.data[i+2] = v; img.data[i+3] = 255
       }
-      ctx.putImageData(d, 0, 0)
-      for (let y = 0; y < 360; y += 3) {
-        ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(0, y, 480, 1)
-      }
+      ctx.putImageData(img, 0, 0)
       raf.current = requestAnimationFrame(draw)
     }
-    raf.current = requestAnimationFrame(draw)
+    draw()
     return () => cancelAnimationFrame(raf.current)
   }, [])
-  return <canvas ref={ref} style={{ width: '100%', height: '100%', imageRendering: 'pixelated', display: 'block' }} />
+  return <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block' }} />
 }
 
-function NewsTicker({ quotes }: { quotes: string[] }) {
-  const [idx, setIdx] = useState(0)
-  const [pos, setPos] = useState(480)
-  const rafRef = useRef(0)
-  const posRef = useRef(480)
-  const idxRef = useRef(0)
-  const textRef = useRef<HTMLDivElement>(null)
+// ── News ticker ─────────────────────────────────────────────────────────────
+const TICKER_ITEMS = [
+  'LOCAL MAN FINDS DOOR · DOOR UNCLEAR ABOUT SITUATION',
+  'WEATHER: WEATHER EXPECTED TO CONTINUE · DETAILS AT 11',
+  'FREQUENCY 88.7 REPORTS UNUSUAL ACTIVITY · INVESTIGATION PENDING',
+  'BOULDER ELEVATION REMAINS 5,430 FT · NO PLANS TO CHANGE',
+  'SURVEY TE-∅ OBJECTS INDEXED: 47 · VERIFICATION INCOMPLETE',
+  'REPORT: MOST OBJECTS MOVING TOWARD SOMETHING · SIGNIFICANCE DISPUTED',
+  'COORDINATES 40.0150°N 105.2705°W — CLASSIFIED',
+  'ARCHIVES PARTIALLY RECOVERED · CONTEXT STILL MISSING',
+  'ANOMALY DETECTED IN SECTOR 03-Ω · DO NOT APPROACH',
+  'THIS HAS BEEN A BROADCAST',
+]
+
+function NewsChannel() {
+  const [story, setStory] = useState(0)
+  const [tickerX, setTickerX] = useState(0)
+  const tickerText = TICKER_ITEMS.join(' · · · ')
+  const STORIES = [
+    { headline: 'REPORTS: FAMILIAR PLACE BECOMES UNRECOGNIZABLE AFTER PROLONGED OBSERVATION', sub: 'Experts disagree on cause. Some call it "Tuesday."', anchor: 'K. MARSH', time: '11:03 PM' },
+    { headline: 'OBJECT CATALOGUED AS SIGNIFICANT — SIGNIFICANCE STILL UNSPECIFIED', sub: 'Database entry pending review for third consecutive quarter.', anchor: 'K. MARSH', time: '11:06 PM' },
+    { headline: 'DOOR REQUIRING FORM FOUND TO CONTAIN ANOTHER FORM', sub: 'Citizens describe situation as "expected, somehow."', anchor: 'K. MARSH', time: '11:09 PM' },
+    { headline: 'LOCAL FREQUENCY CONTINUES BROADCASTING TO NO ACKNOWLEDGED RECEIVER', sub: 'Signal strength: elevated. Content: unclassified.', anchor: 'K. MARSH', time: '11:12 PM' },
+  ]
+
   useEffect(() => {
-    function tick() {
-      posRef.current -= 1.5
-      if (textRef.current && posRef.current < -(textRef.current.offsetWidth + 50)) {
-        idxRef.current = (idxRef.current + 1) % quotes.length
-        setIdx(idxRef.current)
-        posRef.current = 480
-      }
-      setPos(posRef.current)
-      rafRef.current = requestAnimationFrame(tick)
-    }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [quotes])
+    const iv = setInterval(() => setStory(s => (s + 1) % STORIES.length), 8000)
+    return () => clearInterval(iv)
+  }, [])
+
+  useEffect(() => {
+    let x = 0
+    const iv = setInterval(() => {
+      x = (x - 1.5) % (tickerText.length * 8)
+      setTickerX(x)
+    }, 30)
+    return () => clearInterval(iv)
+  }, [tickerText])
+
+  const s = STORIES[story]
   return (
-    <div style={{ position: 'relative', height: 28, background: '#0a0a2a', overflow: 'hidden', borderTop: '1px solid rgba(255,255,100,0.3)' }}>
-      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 80, background: '#cc0000', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2 }}>
-        <span style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 11, fontWeight: 700, color: '#fff', letterSpacing: '0.1em' }}>LIVE</span>
+    <div style={{ width: '100%', height: '100%', background: '#0a1628', color: '#e8e8e8', display: 'flex', flexDirection: 'column', fontFamily: 'Arial, sans-serif', fontSize: 'clamp(8px,1.2vw,13px)', overflow: 'hidden' }}>
+      {/* Header bar */}
+      <div style={{ background: '#cc0000', padding: '3px 10px', display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', fontWeight: 700, letterSpacing: '0.08em' }}>
+        <span>KWND NEWS 4</span><span>{s.time}</span>
       </div>
-      <div ref={textRef} style={{ position: 'absolute', left: pos, top: 0, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', height: '100%', paddingLeft: 90 }}>
-        <span style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 12, color: '#fff' }}>{quotes[idx]}</span>
+      {/* Main content */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '8px 10px 4px' }}>
+        <div style={{ background: 'rgba(0,0,0,0.5)', padding: '4px 8px', marginBottom: 4 }}>
+          <div style={{ fontWeight: 700, lineHeight: 1.3, color: '#fff', fontSize: '1em' }}>{s.headline}</div>
+          <div style={{ color: '#aaa', fontSize: '0.78em', marginTop: 2 }}>{s.sub}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, fontSize: '0.75em' }}>
+          <div style={{ background: '#cc0000', padding: '1px 6px', fontWeight: 700 }}>LIVE</div>
+          <div style={{ color: '#aaa' }}>{s.anchor} REPORTING</div>
+        </div>
+      </div>
+      {/* Ticker */}
+      <div style={{ background: '#cc0000', padding: '3px 0', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-block', transform: `translateX(${tickerX}px)`, fontSize: '0.78em', fontWeight: 600, letterSpacing: '0.05em' }}>
+          {tickerText} · {tickerText}
+        </span>
       </div>
     </div>
   )
 }
 
-const CHANNEL_GLOW: Record<number, string> = {
-  2: '#1a2a8a',
-  4: '#3a1a6a',
-  7: '#6a2a0a',
-  9: '#1a3a6a',
-  11: '#1a2a5a',
-  13: '#2a2a2a',
-  88: '#0a3a1a',
+// ── Infomercial ─────────────────────────────────────────────────────────────
+function InfomercialChannel() {
+  const [page, setPage] = useState(0)
+  const PAGES = [
+    { title: 'ARE YOU TIRED OF HAVING TOO MANY DOORS?', body: 'Introducing DOOR-LESS™, the revolutionary solution that eliminates all your doors and replaces them with the memory of doors.', cta: 'CALL NOW: 1-800-NO-DOORS' },
+    { title: 'TESTIMONIAL', body: '"I used DOOR-LESS™ and now I can\'t find the room. But I remember it perfectly." — K. from somewhere. Results not typical. Room may be irretrievable.', cta: 'ORDER IN THE NEXT 47 MINUTES' },
+    { title: 'BUT WAIT — THERE\'S MORE', body: 'Order now and receive a FREE bottle of CERTAINTY (1 oz). WARNING: Contents disputed. Do not open if you prefer things the way they are.', cta: '$19.99 + S&H (S&H: $847.00)' },
+    { title: 'THE DOOR-LESS™ SYSTEM', body: 'Step 1: Identify your doors. Step 2: Remember them fondly. Step 3: Proceed.', cta: 'OPERATORS ARE STANDING BY (PROBABLY)' },
+  ]
+  useEffect(() => {
+    const iv = setInterval(() => setPage(p => (p + 1) % PAGES.length), 6000)
+    return () => clearInterval(iv)
+  }, [])
+  const p = PAGES[page]
+  return (
+    <div style={{ width: '100%', height: '100%', background: '#1a0040', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: 16, textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ color: '#ffcc00', fontSize: 'clamp(9px,1.5vw,16px)', fontWeight: 900, marginBottom: 8, lineHeight: 1.2, letterSpacing: '0.04em' }}>{p.title}</div>
+      <div style={{ color: '#e0e0e0', fontSize: 'clamp(7px,1.1vw,12px)', marginBottom: 12, lineHeight: 1.5, maxWidth: 260 }}>{p.body}</div>
+      <div style={{ background: '#cc0000', color: '#fff', padding: '4px 12px', fontWeight: 700, fontSize: 'clamp(7px,1.1vw,11px)', letterSpacing: '0.06em' }}>{p.cta}</div>
+    </div>
+  )
 }
 
+// ── Nature documentary ──────────────────────────────────────────────────────
+function NatureChannel() {
+  const [line, setLine] = useState(0)
+  const NARRATION = [
+    'Here, in the deepest part of the index, the unclassified object waits.',
+    'It has no natural predators. Largely because no one has confirmed it exists.',
+    'The survey team observed it for eleven minutes before their instruments disagreed.',
+    'When approached, it becomes the same size as the distance between two thoughts.',
+    'Remarkably, it appears to be transmitting on frequency 88.7.',
+    'We do not know if it is aware of the camera.',
+    '...It may be aware of the camera.',
+  ]
+  useEffect(() => {
+    const iv = setInterval(() => setLine(l => (l + 1) % NARRATION.length), 5500)
+    return () => clearInterval(iv)
+  }, [])
+  return (
+    <div style={{ width: '100%', height: '100%', background: '#0d1a0a', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 12, fontFamily: 'Georgia, serif' }}>
+      <div style={{ background: 'rgba(0,0,0,0.7)', padding: '6px 10px', borderLeft: '3px solid #4a8' }}>
+        <div style={{ color: '#d4e8c4', fontSize: 'clamp(8px,1.2vw,13px)', lineHeight: 1.6, fontStyle: 'italic' }}>
+          {NARRATION[line]}
+        </div>
+      </div>
+      <div style={{ fontSize: 'clamp(6px,0.9vw,9px)', color: 'rgba(150,200,130,0.4)', marginTop: 4, letterSpacing: '0.1em' }}>
+        NATURE HOUR · SECTOR 04-Δ
+      </div>
+    </div>
+  )
+}
+
+// ── Emergency alert ─────────────────────────────────────────────────────────
+function EmergencyChannel() {
+  const [blink, setBlink] = useState(true)
+  useEffect(() => {
+    const iv = setInterval(() => setBlink(b => !b), 900)
+    return () => clearInterval(iv)
+  }, [])
+  return (
+    <div style={{ width: '100%', height: '100%', background: '#000', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: 16, fontFamily: 'monospace' }}>
+      <div style={{ display: 'flex', gap: 3, marginBottom: 12 }}>
+        {['#f00','#fa0','#ff0','#0f0','#0af','#00f','#a0f'].map((c,i) => (
+          <div key={i} style={{ width: 'clamp(12px,3vw,24px)', height: 'clamp(20px,5vw,40px)', background: c }} />
+        ))}
+      </div>
+      <div style={{ color: blink ? '#ff4400' : '#aa2200', fontSize: 'clamp(9px,1.6vw,16px)', fontWeight: 700, letterSpacing: '0.12em', marginBottom: 8, textAlign: 'center' }}>
+        ⚠ EMERGENCY ALERT SYSTEM ⚠
+      </div>
+      <div style={{ color: '#e0e0e0', fontSize: 'clamp(7px,1.1vw,11px)', textAlign: 'center', lineHeight: 1.7, maxWidth: 260 }}>
+        THIS IS NOT A TEST.<br />
+        AN UNMAPPED OBJECT HAS BEEN DETECTED<br />
+        IN YOUR IMMEDIATE VICINITY.<br />
+        <span style={{ color: '#aaa' }}>PROCEED NORMALLY. DO NOT ACKNOWLEDGE IT.</span><br />
+        THIS MESSAGE WILL NOT REPEAT.
+      </div>
+      <div style={{ marginTop: 10, fontSize: 'clamp(6px,0.9vw,9px)', color: 'rgba(255,100,50,0.4)', letterSpacing: '0.15em' }}>
+        BROADCAST AUTHORITY · CHANNEL 13
+      </div>
+    </div>
+  )
+}
+
+// ── Kids show ───────────────────────────────────────────────────────────────
+function KidsChannel() {
+  const [t, setT] = useState(0)
+  const SEGMENTS = [
+    { bg: '#ff6eb4', text: "Hi! I'm MR. STATIC! Can you say hello? Great! You're doing so well!", color: '#fff' },
+    { bg: '#ffd700', text: "Today we're going to count all the objects in the survey! Ready? 47... 46... 44... Hmm.", color: '#333' },
+    { bg: '#98fb98', text: "Mr. Static's favorite color is the color of an abandoned room in the afternoon.", color: '#333' },
+    { bg: '#9370db', text: "Let's play a game! Find the door! It has been in the same place the whole time. Have you found it? Good.", color: '#fff' },
+    { bg: '#1a1a2e', text: "...Mr. Static will be right back.", color: 'rgba(255,255,255,0.3)' },
+  ]
+  useEffect(() => {
+    const iv = setInterval(() => setT(v => (v + 1) % SEGMENTS.length), 5000)
+    return () => clearInterval(iv)
+  }, [])
+  const s = SEGMENTS[t]
+  return (
+    <div style={{ width: '100%', height: '100%', background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, transition: 'background 0.5s', textAlign: 'center', fontFamily: '"Comic Sans MS", cursive, Arial' }}>
+      <div style={{ color: s.color, fontSize: 'clamp(9px,1.4vw,14px)', lineHeight: 1.7, transition: 'color 0.5s', maxWidth: 260 }}>{s.text}</div>
+    </div>
+  )
+}
+
+// ── Test pattern ─────────────────────────────────────────────────────────────
+function TestPattern() {
+  return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 3, display: 'flex' }}>
+        {['#fff','#ff0','#0ff','#0f0','#f0f','#f00','#00f'].map((c,i) => (
+          <div key={i} style={{ flex: 1, background: c }} />
+        ))}
+      </div>
+      <div style={{ flex: 1, display: 'flex' }}>
+        {['#00f','#000','#f0f','#000','#0ff','#000','#fff'].map((c,i) => (
+          <div key={i} style={{ flex: 1, background: c }} />
+        ))}
+      </div>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+        <div style={{ background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '4px 12px', fontFamily: 'monospace', fontSize: 'clamp(7px,1vw,10px)', letterSpacing: '0.2em' }}>
+          TECHNICAL DIFFICULTIES · PLEASE STAND BY
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Security cams ───────────────────────────────────────────────────────────
+function SecurityChannel() {
+  const [t, setT] = useState(0)
+  useEffect(() => { const iv = setInterval(() => setT(v => v + 1), 2000); return () => clearInterval(iv) }, [])
+  const CAMS = [
+    { id: 'CAM 1', loc: 'SECTOR 02 — TRAIL HEAD', color: '#224' },
+    { id: 'CAM 2', loc: 'DEPTH-02 — LEVEL 3', color: '#142' },
+    { id: 'CAM 3', loc: 'CORRIDOR B-07 — MID', color: '#221' },
+    { id: 'CAM 4', loc: 'FREQ 88.7 — ORIGIN', color: '#321' },
+  ]
+  return (
+    <div style={{ width: '100%', height: '100%', background: '#0a0a0a', display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 2, padding: 2 }}>
+      {CAMS.map((cam, i) => (
+        <div key={i} style={{ background: cam.color, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 4px)' }} />
+          <div style={{ position: 'absolute', top: 3, left: 4, fontFamily: 'monospace', fontSize: 'clamp(6px,0.9vw,9px)', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.08em' }}>
+            {cam.id} · {cam.loc}
+          </div>
+          <div style={{ position: 'absolute', bottom: 3, right: 4, fontFamily: 'monospace', fontSize: 'clamp(5px,0.8vw,8px)', color: 'rgba(255,255,255,0.35)' }}>
+            {String(Math.floor((t * 2) % 60)).padStart(2,'0')}:{String(Math.floor(t % 60)).padStart(2,'0')}
+          </div>
+          {i === 3 && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 4, height: 4, borderRadius: '50%', background: `rgba(255,200,100,${0.4 + Math.sin(t * 0.8) * 0.35})`, boxShadow: '0 0 12px rgba(255,200,100,0.6)' }} />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Portal channel (88) ──────────────────────────────────────────────────────
+function PortalChannel({ onNavigate }: { onNavigate: () => void }) {
+  const [count, setCount] = useState(5)
+  useEffect(() => {
+    const iv = setInterval(() => setCount(c => {
+      if (c <= 1) { clearInterval(iv); onNavigate(); return 0 }
+      return c - 1
+    }), 1000)
+    return () => clearInterval(iv)
+  }, [onNavigate])
+  return (
+    <div style={{ width: '100%', height: '100%', background: '#000', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace' }}>
+      <div style={{ color: 'rgba(34,197,94,0.8)', fontSize: 'clamp(8px,1.2vw,13px)', letterSpacing: '0.2em', marginBottom: 8 }}>FREQUENCY 88.7</div>
+      <div style={{ color: 'rgba(255,255,255,0.15)', fontSize: 'clamp(6px,0.9vw,9px)', letterSpacing: '0.3em', marginBottom: 20 }}>SIGNAL ACQUIRED</div>
+      <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 'clamp(7px,1vw,10px)' }}>ROUTING IN {count}...</div>
+    </div>
+  )
+}
+
+// ── Main world ──────────────────────────────────────────────────────────────
 export default function World3Broadcast() {
   const navigateTo = useWorldStore(s => s.navigateTo)
-  const [channel, setChannel] = useState(2)
-  const [transitioning, setTransitioning] = useState(false)
-  const [knobAngle, setKnobAngle] = useState(0)
-  const [showHint, setShowHint] = useState(true)
-  const [ttsIdx, setTtsIdx] = useState(0)
-  const [showPortfolio, setShowPortfolio] = useState(false)
-  const [qIdx, setQIdx] = useState(0)
-  const [qScore, setQScore] = useState(0)
-  const [qAnswered, setQAnswered] = useState<number | null>(null)
-  const [qWrongIdx, setQWrongIdx] = useState(0)
-  const [shopResult, setShopResult] = useState<string | null>(null)
-  const [shopIdx, setShopIdx] = useState<number | null>(null)
+  const [chIdx, setChIdx] = useState(1) // start on CH4 news
+  const [switching, setSwitching] = useState(false)
 
-  useEffect(() => {
-    const t = setTimeout(() => setShowHint(false), 4000)
-    return () => clearTimeout(t)
+  const changeChannel = useCallback((dir: number) => {
+    setSwitching(true)
+    setTimeout(() => {
+      setChIdx(i => (i + dir + CHANNELS.length) % CHANNELS.length)
+      setSwitching(false)
+    }, 180)
   }, [])
 
   useEffect(() => {
-    const idx = CHANNELS.indexOf(channel)
-    setKnobAngle(idx * (200 / (CHANNELS.length - 1)) - 100)
-  }, [channel])
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') changeChannel(1)
+      if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') changeChannel(-1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [changeChannel])
 
-  useEffect(() => {
-    if (channel !== 2) return
-    const iv = setInterval(() => setTtsIdx(i => (i + 1) % TYLER_CONTENT.length), 5000)
-    return () => clearInterval(iv)
-  }, [channel])
+  const ch = CHANNELS[chIdx]
 
-  useEffect(() => {
-    if (channel !== 13) return
-    const t = setTimeout(() => setShowPortfolio(true), 90000)
-    return () => clearTimeout(t)
-  }, [channel])
-
-  const changeChannel = useCallback((direction: 1 | -1 = 1) => {
-    if (transitioning) return
-    setTransitioning(true)
-    setTimeout(() => {
-      const idx = CHANNELS.indexOf(channel)
-      const nextIdx = (idx + direction + CHANNELS.length) % CHANNELS.length
-      const next = CHANNELS[nextIdx]
-      if (next === 99) {
-        navigateTo(8, { type: 'slide-right' })
-      } else if (next === 14) {
-        navigateTo(14, { type: 'chromatic' })
-      } else if (next === 88) {
-        navigateTo(15, { type: 'chromatic' })
-      } else {
-        setChannel(next)
-        setTransitioning(false)
-      }
-    }, 320)
-  }, [channel, transitioning, navigateTo])
-
-  const glowColor = CHANNEL_GLOW[channel] || '#1a1a1a'
-
-  const renderScreen = () => {
-    if (transitioning) return <StaticCanvas />
-    switch (channel) {
-      case 2:
-        return (
-          <div style={{ width: '100%', height: '100%', background: '#080808', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
-            <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 10, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.25)', marginBottom: 18 }}>PUBLIC ACCESS · CHANNEL 2</div>
-            <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 14, lineHeight: 1.9, color: 'rgba(255,255,255,0.8)', textAlign: 'center', maxWidth: 380, fontStyle: 'italic', minHeight: 80 }}>
-              {TYLER_CONTENT[ttsIdx]}
-            </div>
-          </div>
-        )
-      case 4: {
-        const q = QUIZ_QUESTIONS[qIdx % QUIZ_QUESTIONS.length]
-        return (
-          <div style={{ width: '100%', height: '100%', background: '#080020', display: 'flex', flexDirection: 'column', padding: '14px 18px', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 9, letterSpacing: '0.2em', color: 'rgba(255,200,100,0.6)' }}>★ QUIZ NIGHT WITH DEREK ★</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,200,100,0.5)' }}>SCORE: {qScore}</div>
-            </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12 }}>
-              <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 13, color: '#fff', lineHeight: 1.4, textAlign: 'center' }}>{q.q}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-                {q.opts.map((opt, i) => {
-                  const isCorrect = i === q.correct
-                  const isSelected = qAnswered === i
-                  let bg = 'rgba(255,255,255,0.06)'; let border = 'rgba(255,255,255,0.12)'; let color = 'rgba(255,255,255,0.7)'
-                  if (qAnswered !== null) {
-                    if (isCorrect) { bg = 'rgba(100,255,100,0.12)'; border = 'rgba(100,255,100,0.5)'; color = '#6fff6f' }
-                    else if (isSelected) { bg = 'rgba(255,80,80,0.1)'; border = 'rgba(255,80,80,0.4)'; color = '#ff8080' }
-                  }
-                  return (
-                    <button key={i} onClick={() => {
-                      if (qAnswered !== null) return
-                      setQAnswered(i)
-                      if (isCorrect) setQScore(s => s + 1)
-                      else setQWrongIdx(w => w + 1)
-                      setTimeout(() => { setQAnswered(null); setQIdx(n => n + 1) }, 1800)
-                    }} style={{ background: bg, border: `1px solid ${border}`, color, fontFamily: '"Libre Baskerville", serif', fontSize: 10, padding: '7px 9px', cursor: qAnswered !== null ? 'default' : 'pointer', letterSpacing: '0.03em', textAlign: 'left', transition: 'all 0.2s' }}>
-                      {opt}
-                    </button>
-                  )
-                })}
-              </div>
-              {qAnswered !== null && (
-                <div style={{ fontFamily: 'monospace', fontSize: 9, color: qAnswered === q.correct ? 'rgba(100,255,100,0.7)' : 'rgba(255,150,80,0.7)', textAlign: 'center', letterSpacing: '0.1em' }}>
-                  {qAnswered === q.correct ? 'CORRECT' : q.wrong[qWrongIdx % q.wrong.length]}
-                </div>
-              )}
-            </div>
-          </div>
-        )
-      }
-      case 7:
-        return (
-          <div style={{ width: '100%', height: '100%', background: '#0a0500', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ padding: '8px 14px', background: '#cc0000', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-              <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 12, fontWeight: 700, color: '#fff', letterSpacing: '0.08em' }}>IMPOSSIBLES HOME SHOPPING</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.12em' }}>OPERATORS STANDING BY (PROBABLY)</div>
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '6px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {SHOP_ITEMS.map((item, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: shopIdx === i ? 'rgba(255,200,50,0.06)' : 'rgba(0,0,0,0.3)', border: `1px solid ${shopIdx === i ? 'rgba(255,200,50,0.2)' : 'rgba(255,255,255,0.05)'}`, gap: 8 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 10, color: 'rgba(255,255,255,0.8)', lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>{item.name}</div>
-                    <div style={{ fontFamily: 'monospace', fontSize: 7, color: 'rgba(255,200,50,0.5)', marginTop: 2 }}>{item.price} · {item.stock}</div>
-                    {shopIdx === i && shopResult && <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,150,80,0.7)', marginTop: 4, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{shopResult}</div>}
-                  </div>
-                  <button onClick={() => { setShopIdx(i); setShopResult(item.result); setTimeout(() => { setShopIdx(null); setShopResult(null) }, 3000) }}
-                    style={{ background: 'rgba(255,200,50,0.1)', border: '1px solid rgba(255,200,50,0.3)', color: 'rgba(255,200,50,0.8)', fontFamily: 'monospace', fontSize: 8, padding: '4px 10px', cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.1em', flexShrink: 0 }}>
-                    {item.btn}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      case 9:
-        return (
-          <div style={{ width: '100%', height: '100%', background: '#050510', overflow: 'hidden', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '16px 18px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 20, fontWeight: 700, color: '#fff' }}>THE DAILY SIGNAL</div>
-              <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>EST. 2024 · BOULDER, CO</div>
-            </div>
-            <div style={{ position: 'absolute', top: 60, left: 0, right: 0 }}><NewsTicker quotes={NEWS_QUOTES} /></div>
-            <div style={{ position: 'absolute', top: 105, left: 18, right: 18, bottom: 16 }}>
-              <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 17, fontWeight: 700, color: 'rgba(255,255,255,0.85)', lineHeight: 1.2, marginBottom: 10 }}>
-                LOCAL ENGINEER BUILDS ANTI-PORTFOLIO WEBSITE, DENIES IT IS A PORTFOLIO
-              </div>
-              <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 11, lineHeight: 1.8, color: 'rgba(255,255,255,0.45)' }}>
-                Sources confirm the site contains "at minimum nine discrete realities." Developer said only: "you'll find it."
-              </div>
-            </div>
-          </div>
-        )
-      case 11:
-        return <iframe src="https://www.youtube-nocookie.com/embed/jfKfPfyJRdk?autoplay=0&rel=0" style={{ width: '100%', height: '100%', border: 'none' }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
-      case 13:
-        return showPortfolio ? (
-          <iframe src="/" style={{ width: '100%', height: '100%', border: 'none' }} />
-        ) : (
-          <div style={{ width: '100%', height: '100%', background: '#000', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-            <div style={{ fontFamily: '"Libre Baskerville", serif', fontSize: 12, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.15em' }}>LOADING SIGNAL</div>
-            <div style={{ width: 180, height: 2, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: 'rgba(255,255,255,0.5)', animation: 'tvLoad 90s linear forwards', width: '0%' }} />
-            </div>
-            <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,255,255,0.15)', letterSpacing: '0.2em' }}>PLEASE HOLD</div>
-          </div>
-        )
-      case 88:
-        return (
-          <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
-            <StaticCanvas />
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'rgba(0,0,0,0.5)' }}>
-              <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(34,197,94,0.6)', letterSpacing: '0.2em' }}>FM 88.0 — 108.0 · THE DIAL</div>
-              <button onClick={() => navigateTo(15, { type: 'chromatic' })} style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.4)', color: '#4ade80', fontFamily: 'monospace', fontSize: 9, padding: '7px 14px', cursor: 'pointer', letterSpacing: '0.15em' }}>
-                TUNE IN →
-              </button>
-            </div>
-          </div>
-        )
-      default:
-        return <StaticCanvas />
+  const screenContent = () => {
+    if (switching) return <StaticScreen />
+    switch (ch) {
+      case 2: return <StaticScreen />
+      case 4: return <NewsChannel />
+      case 7: return <NatureChannel />
+      case 9: return <InfomercialChannel />
+      case 13: return <EmergencyChannel />
+      case 22: return <KidsChannel />
+      case 44: return <TestPattern />
+      case 66: return <SecurityChannel />
+      case 88: return <PortalChannel onNavigate={() => navigateTo(15 as WorldId, { type: 'chromatic' as PortalType })} />
+      default: return <StaticScreen />
     }
   }
 
   return (
-    <div
-      data-world="3"
-      style={{
-        position: 'fixed', inset: 0,
-        background: '#060402',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        overflow: 'hidden',
-        fontFamily: '"Libre Baskerville", serif',
-      }}
-    >
-      {/* Room atmosphere — TV light spills onto walls */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: `radial-gradient(ellipse 70% 50% at 50% 50%, ${glowColor}44, transparent 70%)`,
-        pointerEvents: 'none',
-        transition: 'background 1.2s ease',
-        zIndex: 0,
-      }} />
-
-      {/* Floor — subtle dark gradient at very bottom */}
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: '18%',
-        background: 'linear-gradient(0deg, #030201 0%, transparent 100%)',
-        pointerEvents: 'none', zIndex: 0,
-      }} />
-
-      {/* Ceiling crease */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: '12%',
-        background: 'linear-gradient(180deg, #020100 0%, transparent 100%)',
-        pointerEvents: 'none', zIndex: 0,
-      }} />
-
-      {/* ─── TV SET ─── */}
-      <div style={{ position: 'relative', zIndex: 1, width: 'min(88vw, 680px)' }}>
-
-        {/* Antenna */}
-        <div style={{
-          position: 'absolute', top: -52, left: '50%', transform: 'translateX(-50%)',
-          width: 120, height: 56, pointerEvents: 'none',
-        }}>
-          <div style={{ position: 'absolute', bottom: 4, left: '50%', transform: 'translateX(-50%)', width: 22, height: 10, background: '#1e1810', borderRadius: '2px 2px 0 0' }} />
-          <div style={{ position: 'absolute', bottom: 10, left: '50%', width: 2, height: 50, background: '#2a2218', transform: 'translateX(-50%) rotate(-22deg)', transformOrigin: 'bottom center', borderRadius: 1 }} />
-          <div style={{ position: 'absolute', bottom: 10, left: '50%', width: 2, height: 50, background: '#2a2218', transform: 'translateX(-50%) rotate(22deg)', transformOrigin: 'bottom center', borderRadius: 1 }} />
-        </div>
-
-        {/* Housing */}
-        <div style={{
-          background: 'linear-gradient(160deg, #28200e 0%, #1a1408 40%, #120e04 100%)',
-          borderRadius: '10px 10px 6px 6px',
-          padding: '20px 22px 22px',
-          boxShadow: `
-            0 0 0 1px rgba(80,60,20,0.3),
-            0 12px 80px rgba(0,0,0,0.95),
-            0 4px 20px rgba(0,0,0,0.8),
-            inset 0 1px 0 rgba(255,240,180,0.07),
-            inset 0 -3px 6px rgba(0,0,0,0.5)
-          `,
-        }}>
-          {/* Brand nameplate */}
-          <div style={{ textAlign: 'center', marginBottom: 12 }}>
-            <span style={{ fontFamily: '"Arial Black", sans-serif', fontSize: 10, color: 'rgba(200,180,110,0.3)', letterSpacing: '0.45em', textTransform: 'uppercase' }}>
-              S I G N A L
-            </span>
-          </div>
-
-          {/* Screen bezel + screen */}
-          <div style={{
-            background: '#0a0806',
-            borderRadius: 6,
-            padding: 10,
-            boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.8)',
-          }}>
-            <div style={{
-              position: 'relative',
-              paddingTop: '60%',
-              background: '#000',
-              borderRadius: 4,
-              overflow: 'hidden',
-              boxShadow: `
-                inset 0 0 40px rgba(0,0,0,0.6),
-                0 0 0 2px #0d0a06
-              `,
-            }}>
-              {/* Content */}
-              <div style={{ position: 'absolute', inset: 0 }}>
-                {renderScreen()}
-              </div>
-
-              {/* Scanlines */}
-              <div style={{
-                position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3,
-                background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.09) 2px, rgba(0,0,0,0.09) 3px)',
-              }} />
-
-              {/* CRT vignette */}
-              <div style={{
-                position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4,
-                background: 'radial-gradient(ellipse 92% 92% at 50% 50%, transparent 55%, rgba(0,0,0,0.75) 100%)',
-              }} />
-
-              {/* Screen glare */}
-              <div style={{
-                position: 'absolute', top: '6%', left: '6%', width: '28%', height: '22%',
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.035) 0%, transparent 100%)',
-                borderRadius: '50%', pointerEvents: 'none', zIndex: 5,
-              }} />
-
-              {/* Channel number OSD */}
-              <div style={{
-                position: 'absolute', top: 8, right: 10,
-                fontFamily: '"VT323", monospace', fontSize: 18,
-                color: 'rgba(255,255,255,0.5)',
-                pointerEvents: 'none', zIndex: 6, letterSpacing: '0.05em',
-              }}>
-                {channel.toString().padStart(2, '0')}
-              </div>
-            </div>
-          </div>
-
-          {/* Control panel below screen */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            marginTop: 16, padding: '0 4px',
-          }}>
-            {/* Speaker grille */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
-              {Array.from({ length: 7 }).map((_, i) => (
-                <div key={i} style={{ width: 52, height: 1.5, background: 'rgba(180,155,80,0.2)', borderRadius: 1 }} />
-              ))}
-            </div>
-
-            {/* LED channel display */}
-            <div style={{
-              background: '#030200',
-              border: '1px solid rgba(255,100,30,0.25)',
-              borderRadius: 2,
-              padding: '5px 16px',
-              fontFamily: '"VT323", monospace', fontSize: 28,
-              color: 'rgba(255,120,40,0.9)',
-              letterSpacing: '0.1em',
-              textShadow: '0 0 12px rgba(255,100,30,0.7)',
-              minWidth: 90, textAlign: 'center',
-            }}>
-              CH {channel.toString().padStart(2, '0')}
-            </div>
-
-            {/* Knob cluster */}
-            <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-              {/* Brightness knob — decorative */}
-              <div style={{
-                width: 28, height: 28, borderRadius: '50%',
-                background: 'radial-gradient(circle at 32% 28%, #2e2416, #120e06)',
-                border: '1px solid rgba(100,80,40,0.35)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.6)',
-              }}>
-                <div style={{ width: 2, height: 10, background: 'rgba(200,170,100,0.3)', borderRadius: 1, marginTop: -5 }} />
-              </div>
-
-              {/* Channel knob — interactive */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                <div
-                  onClick={() => changeChannel(1)}
-                  style={{
-                    width: 48, height: 48, borderRadius: '50%',
-                    background: 'radial-gradient(circle at 33% 28%, #3e3018, #1a1206)',
-                    border: '2px solid rgba(120,90,40,0.45)',
-                    cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transform: `rotate(${knobAngle}deg)`,
-                    transition: 'transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94)',
-                    boxShadow: '0 3px 10px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06)',
-                    position: 'relative',
-                  }}
-                >
-                  <div style={{ width: 2.5, height: 18, background: 'rgba(230,200,120,0.55)', borderRadius: 1, marginTop: -9 }} />
-                </div>
-                {showHint && (
-                  <div style={{ fontSize: 7, color: 'rgba(200,170,100,0.3)', letterSpacing: '0.1em', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
-                    CLICK TO CHANGE
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* TV base/feet */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 40px' }}>
-          <div style={{ width: 40, height: 8, background: '#110e05', borderRadius: '0 0 4px 4px', boxShadow: '0 4px 12px rgba(0,0,0,0.8)' }} />
-          <div style={{ width: 40, height: 8, background: '#110e05', borderRadius: '0 0 4px 4px', boxShadow: '0 4px 12px rgba(0,0,0,0.8)' }} />
-        </div>
-      </div>
-
-      {/* Hint: CH14 CH88 beyond CH13 */}
-      <div style={{
-        position: 'absolute', bottom: 20,
-        fontFamily: 'monospace', fontSize: 9,
-        color: 'rgba(255,255,255,0.08)', letterSpacing: '0.2em',
-        zIndex: 1,
-      }}>
-        CH 14 · CH 88 · BEYOND CH 13
-      </div>
-
-      <style>{`@keyframes tvLoad { to { width: 100% } }`}</style>
+    <div data-world="3" style={{
+      position: 'fixed', inset: 0, background: '#1a1008',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
       <HomeButton />
+
+      {/* TV cabinet */}
+      <div style={{
+        position: 'relative',
+        width: 'min(620px, 88vw)',
+        background: 'linear-gradient(160deg, #4a3d2a 0%, #2e2518 60%, #1e1810 100%)',
+        borderRadius: 18,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06)',
+        padding: '24px 24px 18px',
+      }}>
+        {/* Screen bezel */}
+        <div style={{
+          background: '#111',
+          borderRadius: 8,
+          padding: 6,
+          boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.9), 0 0 0 2px #333',
+          marginBottom: 14,
+        }}>
+          {/* Screen */}
+          <div style={{
+            position: 'relative',
+            aspectRatio: '4/3',
+            borderRadius: 4,
+            overflow: 'hidden',
+            background: '#000',
+          }}>
+            {screenContent()}
+            {/* Scanlines overlay */}
+            <div style={{
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px)',
+            }} />
+            {/* CRT vignette */}
+            <div style={{
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              background: 'radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%)',
+            }} />
+            {/* Channel display */}
+            <div style={{
+              position: 'absolute', top: 6, right: 8,
+              fontFamily: 'monospace', fontSize: 'clamp(9px,1.5vw,14px)',
+              color: 'rgba(34,197,94,0.7)',
+              letterSpacing: '0.1em', textShadow: '0 0 8px rgba(34,197,94,0.5)',
+            }}>CH {ch}</div>
+          </div>
+        </div>
+
+        {/* Controls row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+          {/* Speaker grille */}
+          <div style={{ display: 'flex', gap: 3 }}>
+            {Array.from({length: 6}).map((_,i) => (
+              <div key={i} style={{ width: 3, height: 22, background: 'rgba(255,255,255,0.08)', borderRadius: 2 }} />
+            ))}
+          </div>
+          {/* Channel controls */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={() => changeChannel(-1)} style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'linear-gradient(145deg, #555, #333)',
+              border: '1px solid #222', color: '#aaa', fontSize: 14, cursor: 'pointer',
+              boxShadow: '0 3px 6px rgba(0,0,0,0.5)',
+            }}>▲</button>
+            <div style={{
+              fontFamily: 'monospace', fontSize: 10, color: 'rgba(255,255,255,0.25)',
+              letterSpacing: '0.08em', textAlign: 'center', lineHeight: 1.4,
+            }}>CH<br />{ch}</div>
+            <button onClick={() => changeChannel(1)} style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'linear-gradient(145deg, #555, #333)',
+              border: '1px solid #222', color: '#aaa', fontSize: 14, cursor: 'pointer',
+              boxShadow: '0 3px 6px rgba(0,0,0,0.5)',
+            }}>▼</button>
+          </div>
+          {/* Power indicator */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1a3', boxShadow: '0 0 6px #1f5' }} />
+            <div style={{ fontFamily: 'monospace', fontSize: 7, color: 'rgba(255,255,255,0.15)', letterSpacing: '0.1em' }}>PWR</div>
+          </div>
+        </div>
+
+        {/* TV legs */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 40px', marginTop: 6 }}>
+          {[0,1].map(i => (
+            <div key={i} style={{ width: 14, height: 16, background: 'linear-gradient(to bottom, #2e2518, #1a1208)', borderRadius: '0 0 4px 4px' }} />
+          ))}
+        </div>
+      </div>
+
+      <div style={{
+        position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+        fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,255,255,0.18)',
+        letterSpacing: '0.12em',
+      }}>↑ ↓  or  ▲ ▼  to change channel</div>
     </div>
   )
 }

@@ -1,377 +1,400 @@
 'use client'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useWorldStore, type PortalType, type WorldId } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
-const DOORS: {
-  label: string
-  sublabel: string
-  world: WorldId
-  portal: PortalType
-  x: number
-  sealed?: boolean
-  number: string
-}[] = [
-  { label: 'B-01', sublabel: 'BEFORE THE DECISION', world: 1, portal: 'fold', x: 8, number: '01' },
-  { label: 'B-04', sublabel: 'AFTER THE SOUND', world: 5, portal: 'rotate', x: 20, number: '04' },
-  { label: 'B-07', sublabel: 'THE SECOND TUESDAY', world: 7, portal: 'cursor-flood', x: 34, number: '07' },
-  { label: 'B-12', sublabel: 'WHAT YOU WERE LOOKING FOR', world: 9, portal: 'expand-white', x: 49, number: '12' },
-  { label: 'B-??', sublabel: 'THE LOOP', world: 10, portal: 'vortex', x: 64, number: '??' },
-  { label: 'B-19', sublabel: 'STATIC BETWEEN WORLDS', world: 15, portal: 'chromatic', x: 77, number: '19' },
-  { label: 'B-23', sublabel: 'INCOMPLETE · SHUFFLED', world: 16, portal: 'fold', x: 89, number: '23' },
-  { label: 'B-31', sublabel: 'INSERT COIN', world: 14, portal: 'chromatic', x: 99, number: '31' },
-  { label: 'DO NOT', sublabel: 'SEALED', world: 0, portal: 'fold', x: 112, number: 'XX', sealed: true },
-]
+// ── Types ────────────────────────────────────────────────────────────────────
+type Screen = 'lobby' | 'ticket' | 'form-b7' | 'form-a3' | 'form-c12' | 'waiting' | 'clerk' | 'maintenance' | 'exit'
 
-const WALL_STAMPS = [
-  '4.2m × 3.1m',
-  'LOAD BEARING',
-  'FIRE RATING: 2HR',
-  'INSPECT DATE: ??',
-  'SEE DWG B-12',
-  'NOT TO SCALE',
-  '88.7',
-  '40.0150°N',
-]
+// ── Fluorescent flicker ──────────────────────────────────────────────────────
+function Fluorescent() {
+  const [on, setOn] = useState(true)
+  useEffect(() => {
+    const flicker = () => {
+      const delay = 8000 + Math.random() * 20000
+      setTimeout(() => {
+        setOn(false)
+        setTimeout(() => { setOn(true); flicker() }, 80 + Math.random() * 120)
+      }, delay)
+    }
+    flicker()
+  }, [])
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, height: 6,
+      background: on ? 'rgba(220,230,210,0.15)' : 'rgba(0,0,0,0.4)',
+      transition: 'background 0.05s',
+      boxShadow: on ? '0 0 40px rgba(210,230,200,0.2)' : 'none',
+    }} />
+  )
+}
 
+// ── Shared layout wrapper ────────────────────────────────────────────────────
+function Building({ children, title }: { children: React.ReactNode; title: string }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: '#c8c4b0',
+      backgroundImage: 'repeating-linear-gradient(90deg, rgba(0,0,0,0.02) 0px, rgba(0,0,0,0.02) 1px, transparent 1px, transparent 40px)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      overflow: 'auto',
+    }}>
+      <Fluorescent />
+      {/* Header */}
+      <div style={{
+        width: '100%', background: '#2c4a7a', color: '#fff',
+        padding: '8px 20px', fontSize: 10, letterSpacing: '0.2em',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexShrink: 0,
+      }}>
+        <span>DEPARTMENT OF UNRESOLVED MATTERS</span>
+        <span style={{ opacity: 0.5 }}>PUBLIC SERVICES DIVISION</span>
+      </div>
+      {/* Room title */}
+      <div style={{
+        width: '100%', background: '#d4cdb8', borderBottom: '2px solid #aaa7a0',
+        padding: '6px 20px', fontSize: 9, letterSpacing: '0.15em', color: '#444',
+        flexShrink: 0,
+      }}>CURRENT LOCATION: {title}</div>
+      {/* Content */}
+      <div style={{ flex: 1, width: '100%', maxWidth: 560, padding: 20 }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// ── Form component ───────────────────────────────────────────────────────────
+function FormField({ label, hint }: { label: string; hint?: string }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <label style={{ display: 'block', fontSize: 10, color: '#555', marginBottom: 3, letterSpacing: '0.06em' }}>
+        {label} {hint && <span style={{ color: '#888', fontStyle: 'italic' }}>{hint}</span>}
+      </label>
+      <input style={{
+        width: '100%', padding: '5px 8px', background: '#fff',
+        border: '1px solid #aaa', fontSize: 11, color: '#222',
+        boxSizing: 'border-box', fontFamily: 'inherit',
+      }} />
+    </div>
+  )
+}
+
+function FormBox({ title, number, children, onSubmit, submitLabel = 'SUBMIT FORM' }: {
+  title: string; number: string; children: React.ReactNode; onSubmit: () => void; submitLabel?: string
+}) {
+  return (
+    <div style={{ background: '#f0ece0', border: '1px solid #bbb', padding: 16, marginBottom: 12 }}>
+      <div style={{ borderBottom: '2px solid #2c4a7a', paddingBottom: 8, marginBottom: 12 }}>
+        <div style={{ fontSize: 9, color: '#666', letterSpacing: '0.15em' }}>FORM {number}</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#2c4a7a', marginTop: 2 }}>{title}</div>
+      </div>
+      {children}
+      <button onClick={onSubmit} style={{
+        marginTop: 12, padding: '7px 18px', background: '#2c4a7a', color: '#fff',
+        border: 'none', fontSize: 10, letterSpacing: '0.12em', cursor: 'pointer', fontFamily: 'inherit',
+      }}>{submitLabel}</button>
+    </div>
+  )
+}
+
+// ── Notice box ───────────────────────────────────────────────────────────────
+function Notice({ type, children }: { type: 'info' | 'error' | 'warning'; children: React.ReactNode }) {
+  const colors = {
+    info: { bg: '#d4e4f0', border: '#2c4a7a', text: '#1a3a6a' },
+    error: { bg: '#f0d4d4', border: '#aa2222', text: '#7a1a1a' },
+    warning: { bg: '#f0e8c8', border: '#8a7a22', text: '#6a5a12' },
+  }
+  const c = colors[type]
+  return (
+    <div style={{
+      background: c.bg, border: `1px solid ${c.border}`,
+      padding: '8px 12px', fontSize: 11, color: c.text, lineHeight: 1.6, marginBottom: 12,
+    }}>{children}</div>
+  )
+}
+
+// ── Main world ───────────────────────────────────────────────────────────────
 export default function World4Corridor() {
   const navigateTo = useWorldStore(s => s.navigateTo)
-  const [scrollX, setScrollX] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState(0)
-  const [scrollStart, setScrollStart] = useState(0)
-  const [floorText, setFloorText] = useState('')
-  const [doNotTries, setDoNotTries] = useState(0)
-  const [lockedShake, setLockedShake] = useState(false)
-  const [doorShifts, setDoorShifts] = useState<Record<string, number>>({})
-  const containerRef = useRef<HTMLDivElement>(null)
-  const targetName = 'TYLER EMDUR'
-  const totalWidth = 4200
-  const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1200
+  const [screen, setScreen] = useState<Screen>('lobby')
+  const [ticketNumber] = useState(() => Math.floor(Math.random() * 900) + 100)
+  const [waitProgress, setWaitProgress] = useState(0)
+  const [visitedForms, setVisitedForms] = useState<Set<string>>(new Set())
+  const [loopCount, setLoopCount] = useState(0)
 
-  // Floor text resolves to name
-  useEffect(() => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789·—'
-    let resolved = 0
-    const iv = setInterval(() => {
-      if (resolved >= targetName.length) { clearInterval(iv); return }
-      const now = Date.now()
-      const frac = Math.min((now % 120000) / 120000, 1)
-      resolved = Math.floor(frac * targetName.length)
-      let out = ''
-      for (let i = 0; i < targetName.length; i++) {
-        out += i < resolved ? targetName[i] : chars[Math.floor(Math.random() * chars.length)]
-      }
-      setFloorText(out)
-    }, 250)
-    return () => clearInterval(iv)
-  }, [])
-
-  // Doors occasionally shift position (the corridor is unreliable)
-  useEffect(() => {
-    const iv = setInterval(() => {
-      if (Math.random() < 0.3) {
-        const doorIdx = Math.floor(Math.random() * (DOORS.length - 1))
-        const door = DOORS[doorIdx]
-        setDoorShifts(prev => ({
-          ...prev,
-          [door.label]: (Math.random() - 0.5) * 40,
-        }))
-      }
-    }, 4000)
-    return () => clearInterval(iv)
-  }, [])
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart(e.clientX)
-    setScrollStart(scrollX)
+  const visit = (s: Screen) => {
+    setVisitedForms(prev => new Set([...prev, s]))
+    setScreen(s)
   }
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDragging) return
-    const delta = e.clientX - dragStart
-    const newX = Math.max(0, Math.min(totalWidth - screenWidth, scrollStart - delta))
-    setScrollX(newX)
-  }, [isDragging, dragStart, scrollStart, screenWidth])
-
-  const handleMouseUp = useCallback(() => setIsDragging(false), [])
-
   useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [handleMouseMove, handleMouseUp])
-
-  const handleDoorClick = useCallback((door: typeof DOORS[0], e: React.MouseEvent) => {
-    if (door.sealed) {
-      const tries = doNotTries + 1
-      setDoNotTries(tries)
-      setLockedShake(true)
-      setTimeout(() => setLockedShake(false), 500)
-      if (tries >= 3) setTimeout(() => navigateTo(0, { type: 'fold' }), 600)
-      return
-    }
-    navigateTo(door.world, { type: door.portal, origin: { x: e.clientX, y: e.clientY } })
-  }, [doNotTries, navigateTo])
-
-  const centerX = scrollX + screenWidth / 2
+    if (screen !== 'waiting') return
+    const iv = setInterval(() => {
+      setWaitProgress(p => {
+        if (p >= 100) {
+          clearInterval(iv)
+          setScreen('clerk')
+          return 100
+        }
+        return p + 2
+      })
+    }, 80)
+    return () => clearInterval(iv)
+  }, [screen])
 
   return (
-    <div
-      data-world="4"
-      ref={containerRef}
-      style={{
-        position: 'fixed', inset: 0,
-        background: '#1e1c1c',
-        overflow: 'hidden',
-        cursor: isDragging ? 'grabbing' : 'grab',
-        userSelect: 'none',
-      }}
-      onMouseDown={handleMouseDown}
-    >
-      <div style={{ position: 'absolute', inset: 0, transform: `translateX(${-scrollX}px)`, width: totalWidth }}>
-
-        {/* Ceiling — harsh concrete with overhead light strip */}
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: '38%',
-          background: 'linear-gradient(180deg, #2a2828 0%, #232121 100%)',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-        }}>
-          {/* Overhead fluorescent light strips */}
-          {Array.from({ length: Math.floor(totalWidth / 300) }).map((_, i) => (
-            <div key={i} style={{
-              position: 'absolute',
-              left: i * 300 + 100,
-              top: 0,
-              width: 100, height: '100%',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.12) 0%, transparent 80%)',
-              pointerEvents: 'none',
-            }} />
-          ))}
-          {/* Ceiling grid lines */}
-          <svg width={totalWidth} height="38vh" style={{ position: 'absolute', top: 0, left: 0, opacity: 0.12 }}>
-            {Array.from({ length: Math.floor(totalWidth / 100) }).map((_, i) => (
-              <line key={i} x1={i * 100} y1="0" x2={i * 100} y2="100%" stroke="#ccc" strokeWidth="0.5" />
-            ))}
-            {Array.from({ length: 8 }).map((_, i) => (
-              <line key={i} x1="0" y1={`${i * 12.5}%`} x2={totalWidth} y2={`${i * 12.5}%`} stroke="#ccc" strokeWidth="0.5" />
-            ))}
-          </svg>
-        </div>
-
-        {/* Floor — rough concrete */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: '30%',
-          background: '#252323',
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-        }}>
-          {/* Floor texture */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.015) 1px, transparent 1px)',
-            backgroundSize: '8px 8px',
-          }} />
-          {/* Floor expansion joints */}
-          {Array.from({ length: Math.floor(totalWidth / 200) }).map((_, i) => (
-            <div key={i} style={{
-              position: 'absolute', top: 0, left: i * 200, width: 1, height: '100%',
-              background: 'rgba(0,0,0,0.3)',
-            }} />
-          ))}
-        </div>
-
-        {/* Left wall */}
-        <div style={{
-          position: 'absolute', top: '38%', left: 0, right: 0, height: '32%',
-          background: 'linear-gradient(180deg, #1a1818 0%, #232121 50%, #1a1818 100%)',
-        }}>
-          {/* Horizontal baseboard lines */}
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.05)' }} />
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.05)' }} />
-
-          {/* Wall stamps / markings */}
-          {WALL_STAMPS.map((stamp, i) => (
-            <div key={i} style={{
-              position: 'absolute',
-              left: 80 + i * Math.floor(totalWidth / WALL_STAMPS.length),
-              top: '50%',
-              transform: `translateY(-50%) rotate(${i % 2 === 0 ? 0 : 90}deg)`,
-              fontFamily: '"Arial Black", monospace',
-              fontSize: 9,
-              color: 'rgba(255,255,255,0.05)',
-              letterSpacing: '0.15em',
-              whiteSpace: 'nowrap',
-            }}>
-              {stamp}
-            </div>
-          ))}
-        </div>
-
-        {/* DOORS */}
-        {DOORS.map((door) => {
-          const doorCenterX = (door.x / 100) * totalWidth
-          const distFromCenter = Math.abs(doorCenterX - centerX)
-          const scale = Math.max(0.25, 1 - distFromCenter / 1200)
-          const doorWidth = 80 * scale
-          const doorHeight = Math.min(window.innerHeight * 0.42, 260) * scale
-          const doorY = window.innerHeight * 0.38 - doorHeight
-          const shift = doorShifts[door.label] || 0
-
-          return (
-            <div
-              key={door.label}
-              onClick={(e) => handleDoorClick(door, e)}
-              style={{
-                position: 'absolute',
-                left: doorCenterX - doorWidth / 2 + shift,
-                top: doorY,
-                width: doorWidth,
-                height: doorHeight,
-                background: door.sealed ? '#0d0505' : '#181616',
-                border: `${Math.max(1, 2 * scale)}px solid rgba(${door.sealed ? '150,30,30' : '180,180,170'},${0.15 + scale * 0.35})`,
-                cursor: 'pointer',
-                transition: 'left 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94), border-color 0.2s',
-                animation: door.sealed && lockedShake ? 'doorShake 0.08s infinite' : 'none',
-              }}
-            >
-              {/* Door frame — thick concrete reveal */}
-              <div style={{
-                position: 'absolute', inset: 0,
-                boxShadow: `inset 0 0 0 ${Math.max(1, 3 * scale)}px rgba(${door.sealed ? '100,20,20' : '100,98,95'},0.2)`,
-                pointerEvents: 'none',
-              }} />
-
-              {/* Doorknob */}
-              <div style={{
-                position: 'absolute', right: '12%', top: '50%',
-                width: Math.max(3, 7 * scale), height: Math.max(3, 7 * scale),
-                borderRadius: '50%',
-                background: door.sealed ? 'rgba(150,30,30,0.5)' : 'rgba(160,155,148,0.4)',
-              }} />
-
-              {/* Sealed bars */}
-              {door.sealed && (
-                <>
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ position: 'absolute', width: '120%', height: `${Math.max(1, 2 * scale)}px`, background: 'rgba(150,30,30,0.4)', transform: 'rotate(25deg)' }} />
-                    <div style={{ position: 'absolute', width: '120%', height: `${Math.max(1, 2 * scale)}px`, background: 'rgba(150,30,30,0.4)', transform: 'rotate(-25deg)' }} />
-                  </div>
-                </>
-              )}
-
-              {/* Room number plate */}
-              <div style={{
-                position: 'absolute', top: `-${Math.max(20, 20 * scale)}px`,
-                left: '50%', transform: 'translateX(-50%)',
-              }}>
-                <div style={{
-                  background: door.sealed ? 'rgba(60,10,10,0.9)' : 'rgba(30,28,28,0.9)',
-                  border: `1px solid rgba(${door.sealed ? '150,30,30' : '180,180,170'},0.2)`,
-                  padding: `${Math.max(2, 3 * scale)}px ${Math.max(4, 6 * scale)}px`,
-                }}>
-                  <div style={{
-                    fontFamily: '"Arial Black", "Impact", sans-serif',
-                    fontSize: Math.max(7, 10 * scale),
-                    color: `rgba(${door.sealed ? '180,60,60' : '200,196,190'},${0.5 + scale * 0.4})`,
-                    letterSpacing: '0.15em', whiteSpace: 'nowrap',
-                  }}>
-                    {door.label}
-                  </div>
-                </div>
-              </div>
-
-              {/* Sublabel — stencil style */}
-              <div style={{
-                position: 'absolute',
-                bottom: -(28 * scale + 4),
-                left: '50%', transform: 'translateX(-50%)',
-                textAlign: 'center', width: 220,
-              }}>
-                <div style={{
-                  fontFamily: '"Arial", monospace',
-                  fontSize: Math.max(6, 9 * scale),
-                  color: `rgba(${door.sealed ? '180,60,60' : '180,175,165'},${0.15 + scale * 0.25})`,
-                  letterSpacing: '0.1em', whiteSpace: 'nowrap',
-                  textTransform: 'uppercase',
-                }}>
-                  {door.sublabel}
-                </div>
-              </div>
-
-              {door.sealed && doNotTries > 0 && (
-                <div style={{
-                  position: 'absolute', top: '50%', left: '50%',
-                  transform: 'translate(-50%,-50%)',
-                  fontFamily: '"Arial Black", monospace', fontSize: 7,
-                  color: 'rgba(180,60,60,0.6)', letterSpacing: '0.1em',
-                }}>
-                  {3 - doNotTries > 0 ? `${3 - doNotTries}` : '...'}
-                </div>
-              )}
-            </div>
-          )
-        })}
-
-        {/* Perspective vanishing lines */}
-        <svg
-          width={totalWidth}
-          height="100vh"
-          style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
-        >
-          {Array.from({ length: 16 }).map((_, i) => {
-            const x = i * (totalWidth / 15)
-            const topX = totalWidth * 0.5 + (x - totalWidth * 0.5) * 0.12
-            return (
-              <g key={i}>
-                <line x1={topX} y1="38vh" x2={x} y2="100vh" stroke="rgba(255,255,255,0.025)" strokeWidth="0.5" />
-                <line x1={topX} y1="0" x2={x} y2="38vh" stroke="rgba(255,255,255,0.015)" strokeWidth="0.5" />
-              </g>
-            )
-          })}
-        </svg>
-
-        {/* Floor text — stencil */}
-        <div style={{
-          position: 'absolute', bottom: 16, left: scrollX + screenWidth / 2 - 200, width: 400,
-          textAlign: 'center', fontFamily: '"Arial Black", monospace', fontSize: 11,
-          letterSpacing: '0.4em', color: 'rgba(255,255,255,0.05)',
-          textTransform: 'uppercase',
-        }}>
-          {floorText || '· · · · · · · · ·'}
-        </div>
-
-        {/* Emergency exit sign */}
-        <div style={{
-          position: 'fixed', top: '42%', left: 24,
-          background: 'rgba(180,0,0,0.7)', padding: '4px 8px',
-          fontFamily: '"Arial Black", monospace', fontSize: 8,
-          color: '#fff', letterSpacing: '0.15em',
-        }}>
-          EXIT →
-        </div>
-      </div>
-
-      {/* Drag hint */}
-      <div style={{
-        position: 'fixed', bottom: 20, right: 32,
-        fontFamily: '"Arial", monospace', fontSize: 9,
-        color: 'rgba(255,255,255,0.12)', letterSpacing: '0.15em',
-      }}>
-        DRAG TO TRAVERSE
-      </div>
-
-      <style>{`
-        @keyframes doorShake {
-          0%, 100% { transform: translateX(0) }
-          25% { transform: translateX(-4px) }
-          75% { transform: translateX(4px) }
-        }
-      `}</style>
+    <div data-world="4">
       <HomeButton />
+      <Building title={
+        screen === 'lobby' ? 'MAIN LOBBY — FLOOR 1' :
+        screen === 'ticket' ? 'RECEPTION — WINDOW 3' :
+        screen === 'form-b7' ? 'FORM PROCESSING — ROOM 114' :
+        screen === 'form-a3' ? 'FORM PROCESSING — ROOM 108' :
+        screen === 'form-c12' ? 'FORM PROCESSING — ROOM 122' :
+        screen === 'waiting' ? 'WAITING AREA — FLOOR 2' :
+        screen === 'clerk' ? 'CLERK WINDOW — WINDOW 3' :
+        screen === 'maintenance' ? 'MAINTENANCE CORRIDOR' :
+        'EXIT'
+      }>
+
+        {/* LOBBY */}
+        {screen === 'lobby' && (
+          <div>
+            <div style={{ background: '#e8e2ce', border: '1px solid #c4be9e', padding: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#333', marginBottom: 8, letterSpacing: '0.1em' }}>
+                DEPARTMENT OF UNRESOLVED MATTERS
+              </div>
+              <div style={{ fontSize: 10, color: '#555', lineHeight: 1.7 }}>
+                HOURS: 9:00 AM – 4:30 PM (CLOSED 4:31 PM – 8:59 AM)<br />
+                SERVICES: Forms, Requests, Referrals, Re-Referrals<br />
+                <span style={{ color: '#888' }}>Parking validation not available. Parking not available.</span>
+              </div>
+            </div>
+            <Notice type="info">
+              All visitors must obtain a ticket from Window 3 before proceeding.
+              Please have your Form B-7 ready. If you do not have Form B-7,
+              proceed to Window 3 to obtain instructions for obtaining Form B-7.
+            </Notice>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={() => visit('ticket')} style={{
+                padding: '8px 16px', background: '#2c4a7a', color: '#fff',
+                border: 'none', fontSize: 10, cursor: 'pointer', letterSpacing: '0.1em', fontFamily: 'inherit',
+              }}>PROCEED TO WINDOW 3</button>
+            </div>
+            {/* Hidden maintenance door — always there, discovered after loops */}
+            {loopCount >= 2 && (
+              <div style={{ marginTop: 28, paddingTop: 16, borderTop: '1px dashed #aaa' }}>
+                <div style={{ fontSize: 9, color: '#aaa', marginBottom: 8, letterSpacing: '0.1em' }}>
+                  [You notice a door you somehow missed.]
+                </div>
+                <button onClick={() => visit('maintenance')} style={{
+                  padding: '6px 14px', background: '#555', color: '#ccc',
+                  border: '1px solid #888', fontSize: 10, cursor: 'pointer', letterSpacing: '0.08em', fontFamily: 'inherit',
+                }}>⚠ MAINTENANCE — DO NOT ENTER</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TICKET */}
+        {screen === 'ticket' && (
+          <div>
+            <div style={{ background: '#fff', border: '1px solid #ccc', padding: 12, marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 9, color: '#888', letterSpacing: '0.1em' }}>YOUR NUMBER</div>
+                <div style={{ fontSize: 32, fontWeight: 700, color: '#2c4a7a', letterSpacing: '0.2em' }}>{ticketNumber}</div>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: 9, color: '#aaa', lineHeight: 1.8 }}>
+                <div>NOW SERVING: {ticketNumber - 847}</div>
+                <div>EST. WAIT: 847 YEARS</div>
+                <div>PRIORITY: STANDARD</div>
+              </div>
+            </div>
+            <Notice type="info">
+              To be served, you will need <strong>Form B-7</strong> (Current Year, Section 4).
+              Form B-7 is available in Room 114.
+            </Notice>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => visit('form-b7')} style={{
+                padding: '8px 16px', background: '#2c4a7a', color: '#fff',
+                border: 'none', fontSize: 10, cursor: 'pointer', letterSpacing: '0.1em', fontFamily: 'inherit',
+              }}>GO TO ROOM 114 — FORM B-7</button>
+              <button onClick={() => visit('lobby')} style={{
+                padding: '8px 16px', background: 'none', color: '#666',
+                border: '1px solid #aaa', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit',
+              }}>← BACK</button>
+            </div>
+          </div>
+        )}
+
+        {/* FORM B-7 */}
+        {screen === 'form-b7' && (
+          <div>
+            {visitedForms.has('form-b7') && (
+              <Notice type="warning">You have visited this form before. Your previous submission was not retained.</Notice>
+            )}
+            <FormBox
+              title="APPLICATION FOR GENERAL SERVICES ACCESS"
+              number="B-7 (SECTION 4)"
+              onSubmit={() => { setLoopCount(c => c + 1); visit('form-a3') }}
+              submitLabel="SUBMIT FOR REVIEW"
+            >
+              <FormField label="FULL LEGAL NAME (as it appears on Form A-3)" />
+              <FormField label="REFERENCE NUMBER FROM FORM C-12" hint="(see Section 2, Subsection 4b)" />
+              <FormField label="DATE OF LAST FORM COMPLETION" hint="(not including this form)" />
+              <FormField label="PURPOSE OF VISIT" hint="(if known)" />
+              <div style={{ fontSize: 9, color: '#888', lineHeight: 1.7, marginTop: 8, padding: '6px', background: '#e8e0cc', borderLeft: '2px solid #bbb' }}>
+                REQUIRED ATTACHMENTS:<br />
+                · Completed Form A-3 (notarized)<br />
+                · Current Form C-12, Section 2<br />
+                · One (1) valid form of identification (Form A-3b)
+              </div>
+            </FormBox>
+            <Notice type="error">
+              INCOMPLETE: This form requires a completed <strong>Form A-3</strong> and <strong>Form C-12</strong>.
+              You have not submitted these forms.
+            </Notice>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={() => visit('form-a3')} style={{ padding: '8px 16px', background: '#2c4a7a', color: '#fff', border: 'none', fontSize: 10, cursor: 'pointer', letterSpacing: '0.1em', fontFamily: 'inherit' }}>
+                GET FORM A-3 — ROOM 108
+              </button>
+              <button onClick={() => visit('form-c12')} style={{ padding: '8px 16px', background: '#2c4a7a', color: '#fff', border: 'none', fontSize: 10, cursor: 'pointer', letterSpacing: '0.1em', fontFamily: 'inherit' }}>
+                GET FORM C-12 — ROOM 122
+              </button>
+              <button onClick={() => visit('lobby')} style={{ padding: '8px 16px', background: 'none', color: '#666', border: '1px solid #aaa', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit' }}>← LOBBY</button>
+            </div>
+          </div>
+        )}
+
+        {/* FORM A-3 */}
+        {screen === 'form-a3' && (
+          <div>
+            <FormBox
+              title="PROOF OF PRIOR FORM COMPLETION"
+              number="A-3"
+              onSubmit={() => { setLoopCount(c => c + 1); visit('form-b7') }}
+              submitLabel="SUBMIT A-3"
+            >
+              <FormField label="FORM B-7 CONFIRMATION NUMBER" hint="(from Form B-7, Section 4)" />
+              <FormField label="NOTARIZATION REFERENCE" hint="(see Form A-3b for notarization)" />
+              <FormField label="ORIGINAL DATE OF ORIGINAL REQUEST" />
+              <div style={{ fontSize: 9, color: '#888', lineHeight: 1.7, marginTop: 8, padding: '6px', background: '#e8e0cc', borderLeft: '2px solid #bbb' }}>
+                NOTE: This form requires a completed Form B-7 (Section 4) to process.
+                Form B-7 is available in Room 114.
+              </div>
+            </FormBox>
+            <Notice type="error">
+              Form A-3 cannot be processed without first completing <strong>Form B-7, Section 4</strong>.
+              Return to Room 114.
+            </Notice>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => visit('form-b7')} style={{ padding: '8px 16px', background: '#2c4a7a', color: '#fff', border: 'none', fontSize: 10, cursor: 'pointer', letterSpacing: '0.1em', fontFamily: 'inherit' }}>BACK TO FORM B-7</button>
+              <button onClick={() => visit('lobby')} style={{ padding: '8px 16px', background: 'none', color: '#666', border: '1px solid #aaa', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit' }}>← LOBBY</button>
+            </div>
+          </div>
+        )}
+
+        {/* FORM C-12 */}
+        {screen === 'form-c12' && (
+          <div>
+            <FormBox
+              title="SUPPLEMENTARY CROSS-REFERENCE FORM"
+              number="C-12 (SECTION 2)"
+              onSubmit={() => { setLoopCount(c => c + 1); visit('form-b7') }}
+              submitLabel="SUBMIT C-12"
+            >
+              <FormField label="ATTACHED FORM A-3 REFERENCE NUMBER" />
+              <FormField label="FORM B-7 SECTION 3 CHECKBOX CONFIRMATION" hint="(tick all that apply)" />
+              <FormField label="REASON FOR REQUIRING THIS FORM" />
+              <div style={{ fontSize: 9, color: '#888', lineHeight: 1.7, marginTop: 8, padding: '6px', background: '#e8e0cc', borderLeft: '2px solid #bbb' }}>
+                THIS FORM IS VOID WITHOUT:<br />
+                · Form A-3 (notarized, current year)<br />
+                · Form B-7, Section 3 (pre-approval)<br />
+                · Request-C (available at the desk that requires Form C-12)
+              </div>
+            </FormBox>
+            <Notice type="warning">
+              This form depends on Form A-3, which depends on Form B-7, which depends on this form.
+              <br /><span style={{ fontSize: 10, color: '#8a7a22' }}>This is a known issue. Estimated resolution: pending.</span>
+            </Notice>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => visit('waiting')} style={{ padding: '8px 16px', background: '#2c4a7a', color: '#fff', border: 'none', fontSize: 10, cursor: 'pointer', letterSpacing: '0.1em', fontFamily: 'inherit' }}>ESCALATE TO SUPERVISOR</button>
+              <button onClick={() => visit('lobby')} style={{ padding: '8px 16px', background: 'none', color: '#666', border: '1px solid #aaa', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit' }}>← LOBBY</button>
+            </div>
+          </div>
+        )}
+
+        {/* WAITING ROOM */}
+        {screen === 'waiting' && (
+          <div>
+            <Notice type="info">
+              Your escalation request has been received.<br />
+              <span style={{ color: '#666' }}>A supervisor has been notified. Please wait.</span>
+            </Notice>
+            <div style={{ background: '#e8e2ce', border: '1px solid #c4be9e', padding: 12, marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: '#666', marginBottom: 6, letterSpacing: '0.08em' }}>QUEUE PROGRESS</div>
+              <div style={{ background: '#c4be9e', height: 8, borderRadius: 2 }}>
+                <div style={{ height: '100%', background: '#2c4a7a', borderRadius: 2, transition: 'width 0.2s', width: `${waitProgress}%` }} />
+              </div>
+              <div style={{ fontSize: 9, color: '#888', marginTop: 4 }}>
+                {waitProgress < 100 ? `Processing... (${waitProgress}%)` : 'Supervisor is available.'}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CLERK */}
+        {screen === 'clerk' && (
+          <div>
+            <div style={{ background: '#e8e2ce', border: '1px solid #c4be9e', padding: 12, marginBottom: 12, borderLeft: '3px solid #2c4a7a' }}>
+              <div style={{ fontSize: 10, color: '#444', lineHeight: 1.8 }}>
+                <em>&ldquo;I see the issue. You need Form B-7, Section 4. Which requires Form A-3.
+                Which requires Form B-7, Section 3. Which requires Form C-12.
+                Which requires Form A-3.&rdquo;</em>
+              </div>
+              <div style={{ fontSize: 9, color: '#888', marginTop: 4 }}>— CLERK, WINDOW 3</div>
+            </div>
+            <div style={{ background: '#e8e2ce', border: '1px solid #c4be9e', padding: 12, marginBottom: 12, borderLeft: '3px solid #cc8822' }}>
+              <div style={{ fontSize: 10, color: '#444', lineHeight: 1.8 }}>
+                <em>&ldquo;There is another option. I should have mentioned this earlier.
+                There is a door at the back of the building that has never required any forms.
+                It has been open the whole time. I apologize for the inconvenience.&rdquo;</em>
+              </div>
+              <div style={{ fontSize: 9, color: '#888', marginTop: 4 }}>— CLERK, WINDOW 3</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { setLoopCount(2); visit('lobby') }} style={{ padding: '8px 16px', background: '#2c4a7a', color: '#fff', border: 'none', fontSize: 10, cursor: 'pointer', letterSpacing: '0.1em', fontFamily: 'inherit' }}>RETURN TO LOBBY</button>
+            </div>
+          </div>
+        )}
+
+        {/* MAINTENANCE */}
+        {screen === 'maintenance' && (
+          <div>
+            <Notice type="warning">
+              AUTHORIZED PERSONNEL ONLY.<br />
+              <span style={{ color: '#6a5a12' }}>No forms required.</span>
+            </Notice>
+            <div style={{ background: '#e8e2ce', border: '1px solid #c4be9e', padding: 12, marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: '#555', lineHeight: 1.7 }}>
+                The corridor is unlabeled. It leads somewhere.<br />
+                You do not need to fill anything out to proceed.<br />
+                This is unusual.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => navigateTo(1 as WorldId, { type: 'fold' as PortalType })} style={{
+                padding: '10px 20px', background: '#444', color: '#ccc',
+                border: '1px solid #888', fontSize: 10, cursor: 'pointer', letterSpacing: '0.1em', fontFamily: 'inherit',
+              }}>PROCEED THROUGH DOOR</button>
+              <button onClick={() => visit('lobby')} style={{ padding: '8px 16px', background: 'none', color: '#666', border: '1px solid #aaa', fontSize: 10, cursor: 'pointer', fontFamily: 'inherit' }}>← LOBBY</button>
+            </div>
+          </div>
+        )}
+
+      </Building>
     </div>
   )
 }

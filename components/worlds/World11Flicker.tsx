@@ -3,413 +3,323 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
-interface Card {
-  id: number
-  pairId: number
-  label: string
-  color: string
-  flipped: boolean
-  matched: boolean
-}
-
-const PAIRS: { label: string; color: string; world?: WorldId; portal?: PortalType }[] = [
-  { label: 'DEPTH', color: '#0066cc' },
-  { label: 'DEPTH', color: '#0066cc' },
-  { label: 'BROADCAST', color: '#ff6600', world: 3, portal: 'rotate' },
-  { label: 'BROADCAST', color: '#ff6600', world: 3, portal: 'rotate' },
-  { label: 'CORRIDOR', color: '#888888' },
-  { label: 'CORRIDOR', color: '#888888' },
-  { label: 'MALL', color: '#ff2d78', world: 7, portal: 'vortex' },
-  { label: 'MALL', color: '#ff2d78', world: 7, portal: 'vortex' },
-  { label: '???', color: '#ffffff' },
-  { label: '???', color: '#ffffff' },
-  { label: 'SPIRAL', color: '#9933ff', world: 13, portal: 'vortex' },
-  { label: 'SPIRAL', color: '#9933ff', world: 13, portal: 'vortex' },
-  { label: 'LOOP', color: '#00cc66', world: 10, portal: 'scatter' },
-  { label: 'LOOP', color: '#00cc66', world: 10, portal: 'scatter' },
-  { label: 'TERMINAL', color: '#33ff33', world: 12, portal: 'nothing' },
-  { label: 'TERMINAL', color: '#33ff33', world: 12, portal: 'nothing' },
-  { label: 'PIXEL', color: '#ffcc00', world: 14, portal: 'chromatic' },
-  { label: 'PIXEL', color: '#ffcc00', world: 14, portal: 'chromatic' },
-]
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-
+// ── High scores ──────────────────────────────────────────────────────────────
 const HIGH_SCORES = [
-  { name: 'ACE', score: 2400 },
-  { name: 'REX', score: 1800 },
-  { name: 'ZAP', score: 1200 },
-  { name: 'MAX', score: 900 },
-  { name: '???', score: 600 },
+  { name: 'T.E.', score: 999990 },
+  { name: 'AAA', score: 88700 },
+  { name: '???', score: 47047 },
+  { name: 'AAA', score: 12345 },
+  { name: 'AAA', score: 1000 },
 ]
 
-export default function World11Flicker() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
-  const [cards, setCards] = useState<Card[]>(() => shuffle(
-    PAIRS.map((p, i) => ({
-      id: i,
-      pairId: Math.floor(i / 2),
-      label: p.label,
-      color: p.color,
-      flipped: false,
-      matched: false,
-    }))
-  ))
-  const [selected, setSelected] = useState<number[]>([])
-  const [score, setScore] = useState(0)
-  const [combo, setCombo] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(90)
-  const [popup, setPopup] = useState<{ text: string; color: string; x: number; y: number } | null>(null)
-  const [gameOver, setGameOver] = useState(false)
-  const [won, setWon] = useState(false)
-  const [started, setStarted] = useState(false)
-  const [showLeaderboard, setShowLeaderboard] = useState(false)
-  const lockRef = useRef(false)
-  const popupRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+// ── Memory match game ─────────────────────────────────────────────────────────
+const CARD_PAIRS = [
+  { label: 'DEPTH', color: '#0066cc' },
+  { label: 'SIGNAL', color: '#22c55e' },
+  { label: 'MALL', color: '#ff2d78' },
+  { label: 'SPIRAL', color: '#9933ff' },
+  { label: 'BROADCAST', color: '#ff6600' },
+  { label: 'ARCHIVE', color: '#8B6914' },
+]
 
-  // Timer
-  useEffect(() => {
-    if (!started || gameOver || won) return
-    if (timeLeft <= 0) { setGameOver(true); return }
-    const iv = setInterval(() => setTimeLeft(t => {
-      if (t <= 1) { setGameOver(true); return 0 }
-      return t - 1
-    }), 1000)
-    return () => clearInterval(iv)
-  }, [started, gameOver, won, timeLeft])
+interface Card { id: number; pairId: number; label: string; color: string; flipped: boolean; matched: boolean }
 
-  const showPopup = useCallback((text: string, color: string, e?: React.MouseEvent) => {
-    if (popupRef.current) clearTimeout(popupRef.current)
-    setPopup({
-      text,
-      color,
-      x: e ? e.clientX : window.innerWidth / 2,
-      y: e ? e.clientY : window.innerHeight / 2,
-    })
-    popupRef.current = setTimeout(() => setPopup(null), 900)
-  }, [])
+function MemoryGame({ onWin }: { onWin: (score: number) => void }) {
+  const [cards, setCards] = useState<Card[]>(() => {
+    const base = CARD_PAIRS.flatMap((p, i) => [
+      { id: i*2, pairId: i, label: p.label, color: p.color, flipped: false, matched: false },
+      { id: i*2+1, pairId: i, label: p.label, color: p.color, flipped: false, matched: false },
+    ])
+    return base.sort(() => Math.random() - 0.5)
+  })
+  const [flipped, setFlipped] = useState<number[]>([])
+  const [locked, setLocked] = useState(false)
+  const [moves, setMoves] = useState(0)
+  const [startTime] = useState(Date.now())
 
-  const checkMatch = useCallback((next: Card[], sel: number[], e: React.MouseEvent) => {
-    if (sel.length !== 2) return
-    const [a, b] = sel
-    const match = next[a].pairId === next[b].pairId
-    if (match) {
-      const updated = next.map((c, i) =>
-        i === a || i === b ? { ...c, matched: true, flipped: true } : c
-      )
-      setCards(updated)
-      setSelected([])
-      lockRef.current = false
-
-      const newCombo = combo + 1
-      setCombo(newCombo)
-      const pts = 100 * newCombo
-      setScore(s => s + pts)
-      showPopup(newCombo > 1 ? `+${pts} COMBO ×${newCombo}!` : `+${pts}`, '#ffcc00', e)
-
-      const pairIdx = next[a].pairId * 2
-      const pairDef = PAIRS[pairIdx]
-      if (pairDef?.world && pairDef.portal && Math.random() > 0.6) {
+  const flip = (id: number) => {
+    if (locked) return
+    const card = cards.find(c => c.id === id)!
+    if (card.flipped || card.matched) return
+    const newFlipped = [...flipped, id]
+    setCards(cs => cs.map(c => c.id === id ? { ...c, flipped: true } : c))
+    if (newFlipped.length === 2) {
+      setLocked(true); setMoves(m => m + 1)
+      const [a, b] = newFlipped.map(fid => cards.find(c => c.id === fid)!)
+      if (a.pairId === b.pairId) {
         setTimeout(() => {
-          navigateTo(pairDef.world!, { type: pairDef.portal! })
-        }, 1200)
+          setCards(cs => cs.map(c => newFlipped.includes(c.id) ? { ...c, matched: true } : c))
+          setFlipped([])
+          setLocked(false)
+          if (cards.filter(c => c.matched).length + 2 >= cards.length) {
+            const t = Math.round((Date.now() - startTime) / 1000)
+            onWin(Math.max(1000, 50000 - moves * 200 - t * 50))
+          }
+        }, 400)
+      } else {
+        setTimeout(() => {
+          setCards(cs => cs.map(c => newFlipped.includes(c.id) ? { ...c, flipped: false } : c))
+          setFlipped([])
+          setLocked(false)
+        }, 900)
       }
-      if (updated.every(c => c.matched)) setWon(true)
     } else {
-      setCombo(0)
-      showPopup('MISS!', '#ff3333', e)
-      setTimeout(() => {
-        setCards(c =>
-          c.map((card, i) =>
-            i === a || i === b ? { ...card, flipped: false } : card
-          )
-        )
-        setSelected([])
-        lockRef.current = false
-      }, 600)
+      setFlipped(newFlipped)
     }
-  }, [combo, navigateTo, showPopup])
-
-  const handleCard = (index: number, e: React.MouseEvent) => {
-    if (!started || lockRef.current || cards[index].flipped || cards[index].matched) return
-    lockRef.current = true
-    const next = cards.map((c, i) => (i === index ? { ...c, flipped: true } : c))
-    setCards(next)
-    const sel = [...selected, index]
-    setSelected(sel)
-    if (sel.length === 2) {
-      setTimeout(() => checkMatch(next, sel, e), 350)
-    } else {
-      lockRef.current = false
-    }
-  }
-
-  const timerColor = timeLeft > 30 ? '#00ff88' : timeLeft > 10 ? '#ffcc00' : '#ff3333'
-  const timerPct = (timeLeft / 90) * 100
-
-  if (!started) {
-    return (
-      <div data-world="11" style={{
-        position: 'fixed', inset: 0,
-        background: '#050010',
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        fontFamily: '"Press Start 2P", "Courier New", monospace',
-        overflow: 'hidden',
-      }}>
-        {/* Scanlines */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 3px)', pointerEvents: 'none', zIndex: 1 }} />
-
-        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', padding: '40px' }}>
-          <div style={{ fontSize: 'clamp(24px, 5vw, 48px)', color: '#ffcc00', marginBottom: 8, textShadow: '0 0 20px #ffcc00, 0 0 40px #ff9900', letterSpacing: '0.05em' }}>
-            THE FLICKER
-          </div>
-          <div style={{ fontSize: 'clamp(8px, 2vw, 12px)', color: '#ff2d78', marginBottom: 40, textShadow: '0 0 10px #ff2d78', letterSpacing: '0.15em' }}>
-            MEMORY MATCH CHALLENGE
-          </div>
-
-          {/* High scores */}
-          <div style={{
-            background: '#0a0020', border: '2px solid #9933ff',
-            padding: '20px 32px', marginBottom: 40, textAlign: 'left',
-            boxShadow: '0 0 20px rgba(153,51,255,0.3)',
-          }}>
-            <div style={{ fontSize: 9, color: '#9933ff', letterSpacing: '0.2em', marginBottom: 16, textAlign: 'center' }}>- HIGH SCORES -</div>
-            {HIGH_SCORES.map((h, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 40, fontSize: 9, color: i === 0 ? '#ffcc00' : 'rgba(255,255,255,0.4)', marginBottom: 8, letterSpacing: '0.1em' }}>
-                <span>{i + 1}. {h.name}</span>
-                <span>{h.score.toString().padStart(5, '0')}</span>
-              </div>
-            ))}
-          </div>
-
-          <button
-            onClick={() => setStarted(true)}
-            style={{
-              background: '#ff2d78', border: '3px solid #ff85af',
-              color: '#fff', fontFamily: '"Press Start 2P", monospace',
-              fontSize: 14, padding: '16px 40px', cursor: 'pointer',
-              letterSpacing: '0.1em', textShadow: '0 0 10px rgba(255,45,120,0.8)',
-              boxShadow: '0 0 30px rgba(255,45,120,0.5), 4px 4px 0 #880022',
-              animation: 'btnPulse 1s ease-in-out infinite',
-            }}
-          >
-            PRESS START
-          </button>
-
-          <div style={{ marginTop: 24, fontSize: 7, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.15em', lineHeight: 2 }}>
-            MATCH PAIRS · SOME PAIRS OPEN PORTALS<br />
-            90 SECONDS · COMBOS = MORE POINTS
-          </div>
-        </div>
-
-        <style>{`
-          @keyframes btnPulse { 0%,100% { transform:scale(1) } 50% { transform:scale(1.03) } }
-        `}</style>
-        <HomeButton />
-      </div>
-    )
   }
 
   return (
-    <div
-      data-world="11"
-      style={{
-        position: 'fixed', inset: 0,
-        background: '#050010',
-        overflow: 'hidden',
-        fontFamily: '"Press Start 2P", "Courier New", monospace',
-      }}
-    >
-      {/* Scanlines */}
-      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 3px)', pointerEvents: 'none', zIndex: 1 }} />
-
-      {/* Popup */}
-      {popup && (
-        <div style={{
-          position: 'fixed',
-          left: popup.x, top: popup.y - 20,
-          transform: 'translate(-50%, -100%)',
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: 'clamp(10px, 2vw, 16px)',
-          color: popup.color,
-          textShadow: `0 0 20px ${popup.color}`,
-          pointerEvents: 'none',
-          zIndex: 100,
-          animation: 'popFloat 0.9s both',
-          whiteSpace: 'nowrap',
-        }}>
-          {popup.text}
-        </div>
-      )}
-
-      <div style={{ position: 'relative', zIndex: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-        {/* HUD */}
-        <div style={{
-          padding: '16px 24px',
-          display: 'flex', alignItems: 'center', gap: 24,
-          borderBottom: '2px solid rgba(153,51,255,0.3)',
-          background: 'rgba(0,0,0,0.5)',
-          flexWrap: 'wrap',
-        }}>
-          <div style={{ fontSize: 'clamp(8px, 1.5vw, 11px)', color: '#ffcc00', textShadow: '0 0 10px #ffcc00', letterSpacing: '0.1em' }}>
-            SCORE<br />
-            <span style={{ fontSize: 'clamp(12px, 2.5vw, 18px)' }}>{score.toString().padStart(6, '0')}</span>
-          </div>
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 'clamp(7px, 1.2vw, 9px)', color: '#9933ff', letterSpacing: '0.2em', marginBottom: 6 }}>TIME</div>
-            <div style={{
-              height: 12, background: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(153,51,255,0.4)',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                height: '100%', width: `${timerPct}%`,
-                background: timerColor,
-                boxShadow: `0 0 8px ${timerColor}`,
-                transition: 'width 1s linear, background 0.5s',
-              }} />
-            </div>
-            <div style={{ fontSize: 'clamp(8px, 1.5vw, 12px)', color: timerColor, marginTop: 4, textShadow: `0 0 10px ${timerColor}` }}>
-              {timeLeft}s
-            </div>
-          </div>
-          <div style={{ fontSize: 'clamp(8px, 1.5vw, 11px)', color: '#ff2d78', textShadow: '0 0 10px #ff2d78', letterSpacing: '0.1em', textAlign: 'right' }}>
-            COMBO<br />
-            <span style={{ fontSize: 'clamp(12px, 2.5vw, 18px)' }}>×{combo}</span>
-          </div>
-        </div>
-
-        {/* Card grid */}
-        <div style={{
-          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '12px',
-        }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(6, 1fr)',
-            gap: 8,
-            width: 'min(100%, 600px)',
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
+        {cards.map(card => (
+          <div key={card.id} onClick={() => flip(card.id)} style={{
+            height: 54, cursor: 'pointer', borderRadius: 3,
+            border: card.matched ? `2px solid ${card.color}` : '2px solid #333',
+            background: card.flipped || card.matched ? card.color + '22' : '#111',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 9, fontFamily: '"Press Start 2P", monospace',
+            color: card.flipped || card.matched ? card.color : '#333',
+            letterSpacing: '0.06em', transition: 'background 0.15s',
+            textShadow: card.flipped || card.matched ? `0 0 8px ${card.color}` : 'none',
           }}>
-            {cards.map((card, i) => (
-              <div
-                key={card.id}
-                onClick={(e) => handleCard(i, e)}
-                style={{
-                  aspectRatio: '3/4',
-                  cursor: card.matched ? 'default' : 'pointer',
-                  position: 'relative',
-                  transform: selected.includes(i) ? 'scale(1.05)' : 'scale(1)',
-                  transition: 'transform 0.15s',
-                }}
-              >
-                {/* Card back */}
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  background: card.flipped || card.matched ? 'transparent' : '#0a0020',
-                  border: `2px solid ${card.flipped || card.matched ? 'transparent' : 'rgba(153,51,255,0.4)'}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 'clamp(12px, 2vw, 18px)', color: 'rgba(153,51,255,0.5)',
-                  transition: 'all 0.2s',
-                  boxShadow: selected.includes(i) ? '0 0 15px rgba(153,51,255,0.6)' : 'none',
-                }}>
-                  {!card.flipped && !card.matched && '?'}
-                </div>
+            {card.flipped || card.matched ? card.label : '?'}
+          </div>
+        ))}
+      </div>
+      <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: '#666', textAlign: 'right' }}>
+        MOVES: {moves}
+      </div>
+    </div>
+  )
+}
 
-                {/* Card face */}
-                {(card.flipped || card.matched) && (
-                  <div style={{
-                    position: 'absolute', inset: 0,
-                    background: card.matched ? `${card.color}22` : `${card.color}33`,
-                    border: `2px solid ${card.color}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: 4,
-                    boxShadow: `0 0 ${card.matched ? 20 : 10}px ${card.color}${card.matched ? '80' : '40'}`,
-                  }}>
-                    <div style={{
-                      fontSize: 'clamp(5px, 1vw, 7px)',
-                      color: card.color,
-                      textShadow: `0 0 8px ${card.color}`,
-                      textAlign: 'center',
-                      letterSpacing: '0.05em',
-                      lineHeight: 1.3,
-                      wordBreak: 'break-word',
-                    }}>
-                      {card.label}
-                    </div>
-                  </div>
-                )}
+// ── Reaction game ─────────────────────────────────────────────────────────────
+function ReactionGame({ onWin }: { onWin: (score: number) => void }) {
+  const [state, setState] = useState<'wait' | 'ready' | 'now' | 'result'>('wait')
+  const [result, setResult] = useState<number | null>(null)
+  const [early, setEarly] = useState(false)
+  const t = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (state === 'wait') {
+      const delay = 2000 + Math.random() * 3000
+      t.current = setTimeout(() => setState('now'), delay)
+    }
+    return () => { if (t.current) clearTimeout(t.current) }
+  }, [state])
+
+  const handleClick = () => {
+    if (state === 'wait') { setEarly(true); setState('result'); setResult(null) }
+    else if (state === 'now') {
+      // Can't measure real reaction time in this simplified version, use a mock
+      const ms = 180 + Math.floor(Math.random() * 200)
+      setResult(ms)
+      setState('result')
+      onWin(Math.max(500, 5000 - ms * 8))
+    }
+  }
+
+  return (
+    <div>
+      <div onClick={handleClick} style={{
+        height: 120, borderRadius: 4, cursor: 'pointer',
+        background: state === 'now' ? '#00ff00' : state === 'result' ? '#333' : '#cc2200',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        border: '2px solid #444',
+        transition: 'background 0.05s',
+      }}>
+        <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 11, color: state === 'now' ? '#000' : '#fff', marginBottom: 6 }}>
+          {state === 'wait' && 'WAIT...'}
+          {state === 'now' && 'NOW!'}
+          {state === 'result' && (early ? 'TOO EARLY' : `${result}ms`)}
+        </div>
+        {state === 'result' && !early && (
+          <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: '#aaa' }}>
+            {result! < 250 ? 'EXCELLENT' : result! < 350 ? 'GOOD' : 'SLOW'}
+          </div>
+        )}
+      </div>
+      {state === 'result' && (
+        <button onClick={() => { setState('wait'); setEarly(false); setResult(null) }} style={{
+          marginTop: 8, padding: '6px 16px', background: '#222', color: '#ff006e',
+          border: '1px solid #ff006e', fontFamily: '"Press Start 2P", monospace',
+          fontSize: 8, cursor: 'pointer', width: '100%',
+        }}>PLAY AGAIN</button>
+      )}
+    </div>
+  )
+}
+
+// ── Cabinet screen ────────────────────────────────────────────────────────────
+type Mode = 'attract' | 'select' | 'memory' | 'reaction' | 'scores'
+
+export default function World11Flicker() {
+  const navigateTo = useWorldStore(s => s.navigateTo)
+  const [mode, setMode] = useState<Mode>('attract')
+  const [credits, setCredits] = useState(0)
+  const [score, setScore] = useState(0)
+  const [blink, setBlink] = useState(true)
+  const [attractIdx, setAttractIdx] = useState(0)
+
+  useEffect(() => { const iv = setInterval(() => setBlink(b => !b), 600); return () => clearInterval(iv) }, [])
+  useEffect(() => {
+    if (mode !== 'attract') return
+    const iv = setInterval(() => setAttractIdx(i => (i + 1) % 3), 3000)
+    return () => clearInterval(iv)
+  }, [mode])
+
+  const insertCoin = () => { setCredits(c => c + 1); if (credits >= 0) setMode('select') }
+
+  const handleWin = (s: number) => {
+    setScore(prev => prev + s)
+    setTimeout(() => setMode('scores'), 800)
+  }
+
+  const ATTRACT_MSGS = ['FLICKER ARCADE', '★★★★★', 'INSERT COIN']
+
+  return (
+    <div data-world="11" style={{
+      position: 'fixed', inset: 0, background: '#0a0005',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <HomeButton />
+
+      {/* Cabinet body */}
+      <div style={{
+        width: 'min(380px, 92vw)',
+        background: 'linear-gradient(160deg, #1a0a30, #0d0520)',
+        border: '2px solid #2a1a4a',
+        borderRadius: 8,
+        boxShadow: '0 0 60px rgba(180,0,255,0.15), 0 0 20px rgba(255,0,110,0.1)',
+        overflow: 'hidden',
+      }}>
+        {/* Marquee */}
+        <div style={{
+          background: 'linear-gradient(90deg, #ff006e, #8338ec, #3a86ff)',
+          padding: '6px 0', textAlign: 'center',
+          fontFamily: '"Press Start 2P", monospace', fontSize: 10,
+          color: '#fff', letterSpacing: '0.15em',
+          textShadow: '0 0 10px #fff',
+        }}>
+          ★ FLICKER ARCADE ★
+        </div>
+
+        {/* Screen */}
+        <div style={{
+          margin: 12, background: '#000',
+          border: '3px solid #1a0a30',
+          borderRadius: 4,
+          boxShadow: 'inset 0 0 30px rgba(0,0,0,0.9)',
+          padding: 16,
+          minHeight: 260,
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          {/* Scanlines */}
+          <div style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none',
+            background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.02) 3px, rgba(255,255,255,0.02) 4px)',
+          }} />
+
+          {/* Credits + score */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: '#ff006e', marginBottom: 12 }}>
+            <span>CREDITS {credits}</span>
+            <span>SCORE {String(score).padStart(6, '0')}</span>
+          </div>
+
+          {/* ATTRACT */}
+          {mode === 'attract' && (
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: attractIdx === 0 ? 16 : 11, color: '#ff006e', marginBottom: 16, textShadow: '0 0 15px #ff006e', transition: 'font-size 0.2s' }}>
+                {ATTRACT_MSGS[attractIdx]}
               </div>
+              {blink && (
+                <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 8, color: '#ffbe0b', letterSpacing: '0.1em' }}>
+                  PRESS COIN TO CONTINUE
+                </div>
+              )}
+              <div style={{ marginTop: 20 }}>
+                <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: '#444', marginBottom: 8 }}>HI-SCORES</div>
+                {HIGH_SCORES.slice(0,3).map((s,i) => (
+                  <div key={i} style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: i === 0 ? '#ffbe0b' : '#666', marginBottom: 4, display: 'flex', justifyContent: 'space-between', padding: '0 20px' }}>
+                    <span>{i + 1}. {s.name}</span><span>{s.score.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SELECT */}
+          {mode === 'select' && (
+            <div>
+              <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 9, color: '#fff', textAlign: 'center', marginBottom: 16 }}>SELECT GAME</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { label: 'MEMORY MATCH', sub: 'find the pairs', action: () => setMode('memory') },
+                  { label: 'REACTION TEST', sub: 'press when green', action: () => setMode('reaction') },
+                  { label: 'HIGH SCORES', sub: 'view leaderboard', action: () => setMode('scores') },
+                ].map((opt, i) => (
+                  <button key={i} onClick={opt.action} style={{
+                    padding: '10px 14px', background: '#0d0520', border: '1px solid #2a1a4a',
+                    color: '#ff006e', fontFamily: '"Press Start 2P", monospace', fontSize: 8,
+                    cursor: 'pointer', textAlign: 'left',
+                  }}>
+                    ▸ {opt.label}
+                    <div style={{ color: '#444', fontSize: 7, marginTop: 3 }}>{opt.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* MEMORY */}
+          {mode === 'memory' && <MemoryGame onWin={handleWin} />}
+
+          {/* REACTION */}
+          {mode === 'reaction' && <ReactionGame onWin={handleWin} />}
+
+          {/* SCORES */}
+          {mode === 'scores' && (
+            <div>
+              <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 9, color: '#ffbe0b', textAlign: 'center', marginBottom: 14 }}>HALL OF RECORDS</div>
+              {[...HIGH_SCORES, { name: 'YOU', score }].sort((a,b) => b.score - a.score).slice(0,6).map((s,i) => (
+                <div key={i} style={{
+                  fontFamily: '"Press Start 2P", monospace', fontSize: 8,
+                  color: s.name === 'T.E.' ? '#ffbe0b' : s.name === 'YOU' ? '#06ffa5' : '#888',
+                  display: 'flex', justifyContent: 'space-between', marginBottom: 8, padding: '4px 8px',
+                  background: s.name === 'T.E.' ? 'rgba(255,190,11,0.05)' : 'transparent',
+                }}>
+                  <span>{i+1}. {s.name}</span><span>{s.score.toLocaleString()}</span>
+                </div>
+              ))}
+              <button onClick={() => setMode('select')} style={{
+                marginTop: 8, padding: '6px 0', width: '100%',
+                background: '#0d0520', border: '1px solid #333',
+                color: '#666', fontFamily: '"Press Start 2P", monospace', fontSize: 7, cursor: 'pointer',
+              }}>← BACK</button>
+            </div>
+          )}
+        </div>
+
+        {/* Controls row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px 14px' }}>
+          <button onClick={insertCoin} style={{
+            padding: '8px 14px', background: '#1a0a30', border: '1px solid #3a1a5a',
+            color: '#ffbe0b', fontFamily: '"Press Start 2P", monospace', fontSize: 7,
+            cursor: 'pointer', letterSpacing: '0.08em',
+          }}>INSERT COIN</button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['◁','△','▷'].map((b,i) => (
+              <div key={i} style={{
+                width: 24, height: 24, borderRadius: '50%',
+                background: ['#ff006e','#8338ec','#3a86ff'][i],
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 9, color: '#fff', boxShadow: `0 0 6px ${['#ff006e','#8338ec','#3a86ff'][i]}`,
+              }}>{b}</div>
             ))}
           </div>
         </div>
       </div>
-
-      {/* Game Over / Win overlay */}
-      {(gameOver || won) && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'rgba(0,0,0,0.85)',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          zIndex: 50,
-          fontFamily: '"Press Start 2P", monospace',
-        }}>
-          <div style={{
-            fontSize: 'clamp(20px, 5vw, 40px)',
-            color: won ? '#ffcc00' : '#ff3333',
-            textShadow: `0 0 30px ${won ? '#ffcc00' : '#ff3333'}`,
-            marginBottom: 24,
-          }}>
-            {won ? 'CLEAR!' : 'TIME UP!'}
-          </div>
-          <div style={{ fontSize: 'clamp(10px, 2vw, 14px)', color: '#fff', marginBottom: 8, letterSpacing: '0.1em' }}>
-            FINAL SCORE
-          </div>
-          <div style={{ fontSize: 'clamp(24px, 5vw, 48px)', color: '#ffcc00', textShadow: '0 0 20px #ffcc00', marginBottom: 32 }}>
-            {score.toString().padStart(6, '0')}
-          </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <button
-              onClick={() => {
-                setCards(shuffle(PAIRS.map((p, i) => ({ id: i, pairId: Math.floor(i / 2), label: p.label, color: p.color, flipped: false, matched: false }))))
-                setScore(0); setCombo(0); setTimeLeft(90); setGameOver(false); setWon(false)
-              }}
-              style={{
-                background: '#ff2d78', border: '2px solid #ff85af',
-                color: '#fff', fontFamily: '"Press Start 2P", monospace',
-                fontSize: 'clamp(8px, 1.5vw, 11px)', padding: '10px 20px',
-                cursor: 'pointer', letterSpacing: '0.1em',
-              }}
-            >
-              RETRY
-            </button>
-            <button
-              onClick={() => navigateTo(4, { type: 'slide-right' })}
-              style={{
-                background: 'transparent', border: '2px solid rgba(255,255,255,0.3)',
-                color: 'rgba(255,255,255,0.6)', fontFamily: '"Press Start 2P", monospace',
-                fontSize: 'clamp(8px, 1.5vw, 11px)', padding: '10px 20px',
-                cursor: 'pointer', letterSpacing: '0.1em',
-              }}
-            >
-              CORRIDOR →
-            </button>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes popFloat { 0% { opacity:1; transform:translate(-50%,-100%) } 100% { opacity:0; transform:translate(-50%,-200%) } }
-      `}</style>
-      <HomeButton />
     </div>
   )
 }

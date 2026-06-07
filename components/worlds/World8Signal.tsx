@@ -1,234 +1,234 @@
 'use client'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { useWorldStore } from '@/lib/world-store'
+import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
 import HomeButton from './HomeButton'
-import { projects } from '@/lib/data/projects'
-import { runs } from '@/lib/data/runs'
 
-function GlitchChar({ char }: { char: string }) {
-  const [glitch, setGlitch] = useState(false)
-  const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ█▓▒░01'
-  const [display, setDisplay] = useState(char)
+// ── The decoded transmission payload ─────────────────────────────────────────
+const SEGMENTS = [
+  { id: 0, text: 'SURVEY ORIGIN: T.EMDUR', color: '#4af', waveSeeds: [0.8,0.2,0.9,0.1,0.7,0.3,0.8,0.4] },
+  { id: 1, text: 'POSITION: 40.0150°N 105.2705°W', color: '#fa4', waveSeeds: [0.3,0.7,0.1,0.9,0.4,0.6,0.2,0.8] },
+  { id: 2, text: 'FREQUENCY: 88.7 MHz', color: '#4fa', waveSeeds: [0.5,0.5,0.8,0.2,0.6,0.4,0.9,0.1] },
+  { id: 3, text: 'OBJECT COUNT: 47 [UNVERIFIED]', color: '#f4a', waveSeeds: [0.1,0.9,0.3,0.7,0.2,0.8,0.5,0.5] },
+  { id: 4, text: 'STATUS: OBSERVATION ACTIVE', color: '#af4', waveSeeds: [0.6,0.4,0.7,0.3,0.8,0.2,0.1,0.9] },
+  { id: 5, text: 'NOTE: YOU ARE BEING OBSERVED', color: '#a4f', waveSeeds: [0.4,0.6,0.5,0.5,0.1,0.9,0.7,0.3] },
+]
+const CORRECT_ORDER = [0, 1, 2, 3, 4, 5]
 
+// ── Waveform segment drawn on canvas ─────────────────────────────────────────
+function WaveSegment({ seeds, color, clarity, w = 140, h = 40 }: {
+  seeds: number[]; color: string; clarity: number; w?: number; h?: number
+}) {
+  const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
-    const iv = setInterval(() => {
-      if (Math.random() < 0.05) {
-        setGlitch(true)
-        setDisplay(CHARS[Math.floor(Math.random() * CHARS.length)])
-        setTimeout(() => { setGlitch(false); setDisplay(char) }, 80)
-      }
-    }, 200)
-    return () => clearInterval(iv)
-  }, [char])
-
-  return <span style={{ color: glitch ? 'rgba(255,100,100,0.8)' : 'inherit' }}>{display}</span>
+    const c = ref.current; if (!c) return
+    const ctx = c.getContext('2d')!
+    c.width = w; c.height = h
+    ctx.clearRect(0, 0, w, h)
+    ctx.fillStyle = '#0a0f0a'; ctx.fillRect(0, 0, w, h)
+    // Noise floor
+    for (let x = 0; x < w; x++) {
+      const noise = (Math.random() - 0.5) * (1 - clarity) * h * 0.7
+      const y = h / 2 + noise
+      ctx.fillStyle = `rgba(80,140,80,${0.3 + Math.random() * 0.2})`
+      ctx.fillRect(x, y, 1, 1)
+    }
+    // Signal
+    ctx.beginPath()
+    ctx.strokeStyle = color
+    ctx.globalAlpha = 0.3 + clarity * 0.7
+    ctx.lineWidth = 1.5
+    ctx.shadowColor = color; ctx.shadowBlur = clarity * 8
+    for (let i = 0; i < seeds.length; i++) {
+      const x0 = (i / seeds.length) * w
+      const x1 = ((i + 1) / seeds.length) * w
+      const y0 = h / 2 + (seeds[i] - 0.5) * h * 0.8
+      const y1 = h / 2 + (seeds[(i + 1) % seeds.length] - 0.5) * h * 0.8
+      i === 0 ? ctx.moveTo(x0, y0) : ctx.lineTo(x0, y0)
+      ctx.lineTo(x1, y1)
+    }
+    ctx.stroke()
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0
+    // Grid
+    ctx.strokeStyle = 'rgba(0,100,0,0.15)'; ctx.lineWidth = 0.5
+    for (let y = 0; y <= h; y += h / 4) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke() }
+    for (let x = 0; x <= w; x += w / 4) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke() }
+  }, [seeds, color, clarity, w, h])
+  return <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block', imageRendering: 'pixelated' }} />
 }
 
-function GlitchText({ text, intensity = 1 }: { text: string; intensity?: number }) {
-  return <span>{text.split('').map((c, i) => Math.random() < intensity * 0.3 ? <GlitchChar key={i} char={c} /> : <span key={i}>{c}</span>)}</span>
-}
-
-export default function World8Signal() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
-  const [progress, setProgress] = useState(0)
-  const [cleared, setCleared] = useState(false)
-  const [hiddenInput, setHiddenInput] = useState('')
-  const rafRef = useRef(0)
-  const startRef = useRef(Date.now())
-
-  // Progress bar: 4 minutes to fill (240s)
-  useEffect(() => {
-    if (cleared) return
-    const tick = () => {
-      const elapsed = (Date.now() - startRef.current) / 1000
-      const p = Math.min(100, (elapsed / 240) * 100)
-      setProgress(p)
-      if (p < 100) rafRef.current = requestAnimationFrame(tick)
-      else setCleared(true)
-    }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [cleared])
-
-  // Hidden button: type IMMEDIATE ACCESS
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      const next = (hiddenInput + e.key.toUpperCase()).slice(-16)
-      setHiddenInput(next)
-      if (next.includes('IMMEDIATEACCESS') || next.includes('IMMEDIATE ACCESS')) {
-        setCleared(true)
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [hiddenInput])
-
-  const intensity = cleared ? 0 : Math.max(0, 1 - progress / 100)
-
+// ── Draggable slot ────────────────────────────────────────────────────────────
+function Slot({ seg, idx, onDrop, isCorrect }: {
+  seg: typeof SEGMENTS[number] | null; idx: number; onDrop: (from: number, to: number) => void; isCorrect: boolean
+}) {
+  const [dragOver, setDragOver] = useState(false)
   return (
     <div
-      data-world="8"
+      onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={e => { e.preventDefault(); setDragOver(false); const from = parseInt(e.dataTransfer.getData('idx')); onDrop(from, idx) }}
       style={{
-        position: 'fixed', inset: 0,
-        background: '#050505',
-        fontFamily: '"Space Mono", monospace',
-        overflow: 'hidden',
+        height: 52, border: `1px solid ${isCorrect ? '#4af' : dragOver ? '#6a6' : '#1a3a1a'}`,
+        background: isCorrect ? 'rgba(64,170,255,0.06)' : dragOver ? 'rgba(80,160,80,0.12)' : 'rgba(0,30,0,0.5)',
+        borderRadius: 3, overflow: 'hidden', transition: 'border-color 0.15s, background 0.15s',
+        position: 'relative',
       }}
     >
-      {/* Noise overlay */}
-      {!cleared && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none',
-          opacity: intensity * 0.4,
-          background: `repeating-linear-gradient(
-            0deg,
-            rgba(255,0,0,0.02) 0px,
-            transparent 2px,
-            transparent 4px,
-            rgba(0,255,0,0.01) 4px,
-            transparent 6px
-          )`,
-          animation: 'scanlines 0.1s linear infinite',
-        }} />
-      )}
-
-      {/* Progress bar */}
-      {!cleared && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, height: 3, zIndex: 20, background: 'rgba(255,255,255,0.04)',
-        }}>
-          <div style={{ height: '100%', width: `${progress}%`, background: 'rgba(255,100,100,0.6)', transition: 'width 0.3s' }} />
-          <div style={{ position: 'absolute', top: 8, right: 16, fontFamily: '"Space Mono", monospace', fontSize: 9, color: 'rgba(255,100,100,0.5)', letterSpacing: '0.1em' }}>
-            CLEARING INTERFERENCE: {progress.toFixed(1)}%
+      {seg ? (
+        <div
+          draggable
+          onDragStart={e => { e.dataTransfer.setData('idx', String(idx)) }}
+          style={{ width: '100%', height: '100%', cursor: 'grab', display: 'flex', alignItems: 'center', gap: 8 }}
+        >
+          <div style={{ flex: 1, height: '100%' }}>
+            <WaveSegment seeds={seg.waveSeeds} color={seg.color} clarity={isCorrect ? 1 : 0.35} />
           </div>
+          {isCorrect && (
+            <div style={{ fontFamily: 'monospace', fontSize: 9, color: seg.color, whiteSpace: 'nowrap', paddingRight: 8, letterSpacing: '0.06em' }}>
+              {seg.text}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: 9, color: 'rgba(80,140,80,0.2)', letterSpacing: '0.15em' }}>
+          — SLOT {idx + 1} —
         </div>
       )}
+    </div>
+  )
+}
 
-      {/* Hidden button (partially legible) */}
-      {!cleared && (
-        <div style={{
-          position: 'fixed', bottom: 40, left: '50%', transform: 'translateX(-50%)',
-          zIndex: 20, cursor: 'pointer',
-        }} onClick={() => setCleared(true)}>
-          <div style={{
-            fontFamily: '"Space Mono", monospace', fontSize: 12,
-            color: 'rgba(255,255,255,0.15)', letterSpacing: '0.3em',
-            filter: `blur(${intensity * 1.5}px)`,
-            border: '1px solid rgba(255,255,255,0.05)',
-            padding: '8px 24px',
-          }}>
-            [ {intensity > 0.7 ? '__ __' : intensity > 0.4 ? 'IM__ __TE' : 'IMMEDIATE'} AC{intensity > 0.5 ? '__' : 'CESS'} ]
-          </div>
-          <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.06)', textAlign: 'center', marginTop: 4, letterSpacing: '0.2em' }}>
-            OR TYPE IT
-          </div>
-        </div>
-      )}
+// ── Main ──────────────────────────────────────────────────────────────────────
+export default function World8Signal() {
+  const navigateTo = useWorldStore(s => s.navigateTo)
+  // Scrambled initial order
+  const [order, setOrder] = useState<(number | null)[]>(() => {
+    const shuffled = [...CORRECT_ORDER].sort(() => Math.random() - 0.5)
+    return shuffled
+  })
+  const [phase, setPhase] = useState<'lab' | 'decoding' | 'complete'>('lab')
+  const [decodeProgress, setDecodeProgress] = useState(0)
 
-      {/* Portfolio content */}
+  const correctSlots = order.map((id, i) => id === CORRECT_ORDER[i])
+  const correctCount = correctSlots.filter(Boolean).length
+  const clarity = correctCount / SEGMENTS.length
+
+  const handleDrop = (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return
+    setOrder(prev => {
+      const next = [...prev]
+      ;[next[fromIdx], next[toIdx]] = [next[toIdx], next[fromIdx]]
+      return next
+    })
+  }
+
+  // Auto-decode when all correct
+  useEffect(() => {
+    if (correctCount < SEGMENTS.length) return
+    setPhase('decoding')
+    let p = 0
+    const iv = setInterval(() => {
+      p += 1.2
+      setDecodeProgress(Math.min(p, 100))
+      if (p >= 100) { clearInterval(iv); setPhase('complete') }
+    }, 40)
+    return () => clearInterval(iv)
+  }, [correctCount])
+
+  const mono: React.CSSProperties = { fontFamily: 'monospace' }
+
+  return (
+    <div data-world="8" style={{
+      position: 'fixed', inset: 0,
+      background: '#030a03',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: 16,
+    }}>
+      <HomeButton />
+
+      {/* Monitor frame */}
       <div style={{
-        position: 'absolute', inset: 0, overflowY: 'auto',
-        filter: cleared ? 'none' : `blur(${intensity * 2}px) contrast(${1 + intensity * 0.5})`,
-        transition: 'filter 1s',
-        opacity: cleared ? 1 : 0.3 + progress / 100 * 0.7,
-        padding: '60px 48px',
+        width: 'min(560px, 94vw)',
+        background: '#0d1a0d',
+        border: '1px solid #1a3a1a',
+        borderRadius: 4,
+        padding: 20,
+        boxShadow: '0 0 60px rgba(0,80,0,0.2)',
       }}>
-        {/* Name */}
-        <div style={{ marginBottom: 48 }}>
-          <h1 style={{ fontSize: 'clamp(2.5rem, 8vw, 6rem)', fontWeight: 700, color: '#fff', letterSpacing: '-0.02em', lineHeight: 0.9, marginBottom: 16 }}>
-            {cleared ? 'TYLER EMDUR' : <GlitchText text="TYLER EMDUR" intensity={intensity} />}
-          </h1>
-          <div style={{ fontFamily: '"Space Mono", monospace', fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.15em' }}>
-            SOFTWARE ENGINEER · BOULDER, CO · BUILDER OF THINGS
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14, ...mono }}>
+          <div style={{ fontSize: 10, color: '#4af', letterSpacing: '0.2em' }}>SIGNAL RECONSTRUCTION — UNIT 08</div>
+          <div style={{ fontSize: 9, color: 'rgba(80,200,80,0.4)' }}>
+            CLARITY: {Math.round(clarity * 100)}%
           </div>
         </div>
 
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', marginBottom: 48 }} />
-
-        {/* About */}
-        <div style={{ marginBottom: 48, maxWidth: 680 }}>
-          <div style={{ fontSize: 9, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.25)', marginBottom: 16, textTransform: 'uppercase' }}>About</div>
-          <p style={{ fontSize: 15, lineHeight: 2, color: 'rgba(255,255,255,0.6)', fontFamily: '"Space Mono", monospace' }}>
-            I build web applications, interactive experiences, and things that feel like something. Currently in Boulder, CO. Running trails, shipping code.
-          </p>
-          <p style={{ fontSize: 15, lineHeight: 2, color: 'rgba(255,255,255,0.6)', fontFamily: '"Space Mono", monospace', marginTop: 16 }}>
-            Stack: Next.js, TypeScript, Three.js, Python. I care about how things feel, not just whether they work.
-          </p>
+        {/* Clarity meter */}
+        <div style={{ height: 3, background: '#0a1a0a', borderRadius: 2, marginBottom: 16, overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', background: `hsl(${120 + clarity * 60},80%,55%)`,
+            width: `${clarity * 100}%`, transition: 'width 0.3s, background 0.3s',
+            boxShadow: `0 0 8px hsl(${120 + clarity * 60},80%,55%)`,
+          }} />
         </div>
 
-        {/* Projects */}
-        <div style={{ marginBottom: 48 }}>
-          <div style={{ fontSize: 9, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.25)', marginBottom: 16, textTransform: 'uppercase' }}>Projects</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-            {projects.slice(0, 4).map(p => (
-              <div key={p.id} style={{ border: '1px solid rgba(255,255,255,0.07)', padding: 20 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 6, letterSpacing: '0.05em' }}>{p.title}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', lineHeight: 1.7, marginBottom: 12 }}>{p.description}</div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {p.tech?.slice(0, 3).map(tag => (
-                    <span key={tag} style={{ fontFamily: '"Space Mono", monospace', fontSize: 9, color: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.1)', padding: '2px 6px', letterSpacing: '0.08em' }}>{tag}</span>
-                  ))}
+        {/* Instruction */}
+        <div style={{ fontSize: 9, color: 'rgba(80,200,80,0.45)', ...mono, letterSpacing: '0.12em', marginBottom: 12 }}>
+          {phase === 'lab' && 'DRAG SEGMENTS TO RECONSTRUCT TRANSMISSION · ORDER IS SIGNIFICANT'}
+          {phase === 'decoding' && `DECODING... ${Math.round(decodeProgress)}%`}
+          {phase === 'complete' && 'TRANSMISSION RECOVERED'}
+        </div>
+
+        {/* Slots */}
+        {phase !== 'complete' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {order.map((segId, i) => (
+              <Slot
+                key={i}
+                idx={i}
+                seg={segId !== null ? SEGMENTS[segId] : null}
+                onDrop={handleDrop}
+                isCorrect={correctSlots[i]}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Decoding bar */}
+        {phase === 'decoding' && (
+          <div style={{ height: 2, background: '#0a1a0a', borderRadius: 1, marginTop: 12, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: '#4af', width: `${decodeProgress}%`, transition: 'width 0.08s' }} />
+          </div>
+        )}
+
+        {/* Complete — show full message */}
+        {phase === 'complete' && (
+          <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 16 }}>
+              {SEGMENTS.map((seg, i) => (
+                <div key={i} style={{
+                  padding: '6px 10px', background: 'rgba(0,20,0,0.8)',
+                  border: `1px solid ${seg.color}33`,
+                  fontFamily: 'monospace', fontSize: 11, color: seg.color,
+                  letterSpacing: '0.08em',
+                  animation: `fadeIn 0.4s ease ${i * 0.15}s both`,
+                }}>
+                  {seg.text}
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Running */}
-        <div style={{ marginBottom: 48 }}>
-          <div style={{ fontSize: 9, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.25)', marginBottom: 16, textTransform: 'uppercase' }}>Running</div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {runs.slice(0, 3).map(r => (
-              <div key={r.id} style={{ border: '1px solid rgba(255,255,255,0.06)', padding: '14px 18px', minWidth: 200 }}>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 4 }}>{r.name}</div>
-                <div style={{ fontFamily: '"Space Mono", monospace', fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>{r.distance_mi} mi · {r.date}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Contact */}
-        <div style={{ marginBottom: 80 }}>
-          <div style={{ fontSize: 9, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.25)', marginBottom: 16, textTransform: 'uppercase' }}>Contact</div>
-          <div style={{ fontFamily: '"Space Mono", monospace', fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>healthreinvented@gmail.com</div>
-          <div style={{ marginTop: 12, display: 'flex', gap: 16 }}>
-            {[
-              { label: 'GitHub', href: 'https://github.com/tyler-emdur' },
-              { label: 'LinkedIn', href: 'https://linkedin.com/in/tyler-emdur' },
-            ].map(link => (
-              <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer"
-                style={{ fontFamily: '"Space Mono", monospace', fontSize: 10, color: 'rgba(255,255,255,0.3)', textDecoration: 'none', letterSpacing: '0.1em', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 2 }}>
-                {link.label}
-              </a>
-            ))}
-          </div>
-        </div>
-
-        {/* Go to World 9 */}
-        {cleared && (
-          <div style={{ marginBottom: 40, textAlign: 'center' }}>
+              ))}
+            </div>
             <button
-              onClick={() => navigateTo(9, { type: 'expand-white', origin: { x: window.innerWidth / 2, y: window.innerHeight / 2 } })}
+              onClick={() => navigateTo(1 as WorldId, { type: 'fold' as PortalType })}
               style={{
-                background: 'none', border: '1px solid rgba(255,255,255,0.2)',
-                color: 'rgba(255,255,255,0.4)',
-                fontFamily: '"Space Mono", monospace', fontSize: 10, padding: '10px 28px',
-                cursor: 'pointer', letterSpacing: '0.2em',
+                width: '100%', padding: '10px 0', background: 'rgba(64,170,255,0.1)',
+                border: '1px solid #4af', color: '#4af', fontFamily: 'monospace',
+                fontSize: 10, letterSpacing: '0.2em', cursor: 'pointer',
               }}
-            >
-              CONTINUE →
-            </button>
+            >ARCHIVE AND EXIT</button>
           </div>
         )}
       </div>
 
-      <style>{`
-        @keyframes scanlines {
-          from { background-position: 0 0; }
-          to { background-position: 0 6px; }
-        }
-      `}</style>
-      <HomeButton />
+      <style>{`@keyframes fadeIn { from { opacity:0; transform:translateX(-8px) } to { opacity:1; transform:translateX(0) } }`}</style>
     </div>
   )
 }
