@@ -11,6 +11,8 @@ export interface UniverseObject {
   lore?: string
   region: string
   href?: string
+  worldId?: number
+  worldPortal?: string
   position: [number, number, number]
   color: string
   size?: number
@@ -37,7 +39,7 @@ export const REGIONS: RegionDef[] = [
       { id: 'proj-digger', label: 'Digger / Ear Index', type: 'planet', description: 'Music discovery engine disguised as a misplaced library card.', lore: 'Shelf mark: 2024. Some songs are filed under weather.', region: 'projects', href: '/build#digger', position: [900, 150, 20], color: '#60A5FA', size: 28 , visible: 'always' },
       { id: 'proj-website', label: 'This Universe, Unfortunately', type: 'planet', description: 'The interface you are standing in, pretending to be evidence.', lore: 'Recursive object. Please do not alphabetize.', region: 'projects', href: '/build#website', position: [990, 210, -15], color: '#93C5FD', size: 18, visible: 'always' },
       { id: 'proj-faraday', label: 'Faraday / Wrong Antenna', type: 'planet', description: 'Unknown signal origin. The answer arrives before the question.', lore: 'Appeared without record. Keeps receipts in orbit.', region: 'projects', href: '/build#faraday', position: [820, 80, 30], color: '#1D4ED8', size: 22, visible: 'always' },
-      { id: 'proj-hidden-station', label: 'Station Null, Office Hours', type: 'station', description: 'Abandoned relay full of forms nobody requested.', lore: 'Decommissioned 2019. Still accepts appointments.', region: 'projects', href: '/build#null', position: [1050, 120, -40], color: '#BFDBFE', size: 12, visible: { visited: 4 } },
+      { id: 'proj-hidden-station', label: 'Station Null, Office Hours', type: 'station', description: 'Abandoned relay full of forms nobody requested.', lore: 'Decommissioned 2019. Still accepts appointments.', region: 'projects', href: '/build#null', worldId: 7, worldPortal: 'cursor-flood', position: [1050, 120, -40], color: '#BFDBFE', size: 12, visible: { visited: 4 } },
     ]
   },
   {
@@ -50,7 +52,7 @@ export const REGIONS: RegionDef[] = [
       { id: 'run-pikes', label: 'Pikes Peak Receipt', type: 'planet', description: '14,115 ft. A vertical errand with lungs as optional paperwork.', lore: 'Elevation logged, then immediately misplaced.', region: 'running', href: '/run#pikes', position: [-700, -100, 25], color: '#F97316', size: 30, visible: 'always' },
       { id: 'run-boulder', label: 'Boulder Marathon / Long Sentence', type: 'planet', description: '26.2 miles written by the legs and edited by the hills.', lore: 'First marathon. Coordinates keep correcting themselves.', region: 'running', href: '/run#boulder', position: [-620, -180, -10], color: '#FB923C', size: 22, visible: 'always' },
       { id: 'run-golden', label: 'Golden Gate 25K, Side B', type: 'planet', description: 'A trail object with dust, rocks, and one suspicious breadcrumb.', region: 'running', href: '/run#golden', position: [-790, -60, 15], color: '#FED7AA', size: 18, visible: 'always' },
-      { id: 'run-signal', label: 'Signal-04 / Shoe Radio', type: 'signal', description: 'Active transponder. Pulse matches a race cadence, or a microwave.', region: 'running', href: '/run', position: [-680, -200, 40], color: '#F97316', size: 8, visible: { visited: 2 } },
+      { id: 'run-signal', label: 'Signal-04 / Shoe Radio', type: 'signal', description: 'Active transponder. Pulse matches a race cadence, or a microwave.', region: 'running', href: '/run', worldId: 5, worldPortal: 'rotate', position: [-680, -200, 40], color: '#F97316', size: 8, visible: { visited: 2 } },
       { id: 'run-season', label: 'Season 2025, Unreliable Calendar', type: 'anomaly', description: 'Temporal anomaly. Data still incoming, mostly sideways.', region: 'running', href: '/run#2025', position: [-820, -150, -30], color: '#FDBA74', size: 15, visible: { visited: 6 } },
     ]
   },
@@ -64,7 +66,7 @@ export const REGIONS: RegionDef[] = [
       { id: 'arch-core', label: 'Archive Core / Drawer 0', type: 'station', description: 'Central storage, except it remembers things in the wrong order.', lore: 'Do not approach during low-power autobiography.', region: 'archives', href: '/archive', position: [-500, 550, 0], color: '#B45309', size: 25, visible: 'always' },
       { id: 'arch-frag-1', label: 'Memory-001, Wet Label', type: 'fragment', description: 'Recovered. Partially corrupted. Smells like old CSS.', region: 'archives', href: '/archive#001', position: [-560, 610, 20], color: '#92400E', size: 10, visible: 'always' },
       { id: 'arch-frag-2', label: 'Memory-047 / Still Warm', type: 'fragment', description: 'High integrity, low context. Timestamp claims 2020.', region: 'archives', href: '/archive#047', position: [-440, 490, -15], color: '#78350F', size: 10, visible: 'always' },
-      { id: 'arch-wormhole', label: '??? / Tiny Exit Interview', type: 'wormhole', description: 'Unstable aperture. Destination has not agreed to be named.', region: 'archives', href: '/archive#deep', position: [-580, 500, 35], color: '#FDE68A', size: 14, visible: { needs: ['proj-digger', 'run-pikes', 'arch-core', 'explore-mt-elbert', 'lab-collider'] } },
+      { id: 'arch-wormhole', label: '??? / Tiny Exit Interview', type: 'wormhole', description: 'Unstable aperture. Destination has not agreed to be named.', region: 'archives', href: '/archive#deep', worldId: 2, worldPortal: 'scatter', position: [-580, 500, 35], color: '#FDE68A', size: 14, visible: { needs: ['proj-digger', 'run-pikes', 'arch-core', 'explore-mt-elbert', 'lab-collider'] } },
     ]
   },
   {
@@ -91,8 +93,8 @@ export const REGIONS: RegionDef[] = [
       { id: 'lab-synth', label: 'Color Synth, No Key', type: 'anomaly', description: 'Generative hue field. Reacts to presence and bad posture.', region: 'lab', href: '/lab#synth', position: [130, 760, -20], color: '#C084FC', size: 18, visible: 'always' },
       { id: 'lab-distort', label: 'Grid Distort / Office Carpet', type: 'anomaly', description: 'Field distortion engine. High energy output, low administrative clarity.', region: 'lab', href: '/lab#grid', position: [-40, 640, 25], color: '#7C3AED', size: 16, visible: 'always' },
       { id: 'lab-collider2', label: 'Type Collider, Loud Margin', type: 'anomaly', description: 'Language physics experiment. Click to repel meaning.', region: 'lab', href: '/lab#type', position: [100, 660, -30], color: '#DDD6FE', size: 14, visible: 'always' },
-      { id: 'lab-quantum', label: 'Quantum Gate / Maybe Door', type: 'wormhole', description: 'Activated only by sequence input, gossip, or typo.', lore: 'Up up down down left right left right. Then pretend nothing happened.', region: 'lab', href: '/lab#quantum', position: [-20, 760, 40], color: '#F0ABFC', size: 10, visible: { visited: 8 } },
-      { id: 'lab-echo', label: 'ECHO / Borrowed Mouth', type: 'station', description: 'Experimental. Broadcasting on all frequencies and one spoon.', region: 'lab', href: '/lab#echo', position: [180, 700, 10], color: '#E879F9', size: 12, visible: { time: 120000 } },
+      { id: 'lab-quantum', label: 'Quantum Gate / Maybe Door', type: 'wormhole', description: 'Activated only by sequence input, gossip, or typo.', lore: 'Up up down down left right left right. Then pretend nothing happened.', region: 'lab', href: '/lab#quantum', worldId: 3, worldPortal: 'expand-white', position: [-20, 760, 40], color: '#F0ABFC', size: 10, visible: { visited: 8 } },
+      { id: 'lab-echo', label: 'ECHO / Borrowed Mouth', type: 'station', description: 'Experimental. Broadcasting on all frequencies and one spoon.', region: 'lab', href: '/lab#echo', worldId: 8, worldPortal: 'fold', position: [180, 700, 10], color: '#E879F9', size: 12, visible: { time: 120000 } },
     ]
   },
 ]

@@ -531,16 +531,14 @@ html[data-world="0"] {
 html[data-world="0"] #cur-dot,
 html[data-world="0"] #cur-ring { display: none; }
 
-/* World 1: Calm entry — real cursor, allow scroll */
+/* World 1: Three.js universe — lock scroll, hide custom cursor (canvas handles interaction) */
 html[data-world="1"] {
   cursor: auto;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 html[data-world="1"] body {
-  overflow-y: auto;
-  cursor: auto;
-  background: #0f0e0c;
+  overflow: hidden;
+  background: #00000d;
 }
 html[data-world="1"] #cur-dot,
 html[data-world="1"] #cur-ring { display: none; }

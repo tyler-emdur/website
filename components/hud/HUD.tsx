@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUniverseStore, getAllObjects, REGIONS, type UniverseObject } from '@/lib/universe-store'
+import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
 
 function pad(n: number, w = 5) { return String(Math.abs(Math.round(n))).padStart(w, '0') }
 
@@ -106,16 +107,23 @@ function DiscoveryNotification() {
 function ObjectPanel() {
   const router = useRouter()
   const { selectedId, selectObject, mode } = useUniverseStore()
+  const navigateTo = useWorldStore(s => s.navigateTo)
   const [transitioning, setTransitioning] = useState(false)
 
   const allObjects = getAllObjects()
   const obj = allObjects.find(o => o.id === selectedId)
 
   const handleEnter = useCallback(() => {
-    if (!obj?.href) return
+    if (!obj) return
+    if (obj.worldId != null) {
+      setTransitioning(true)
+      setTimeout(() => navigateTo(obj.worldId as WorldId, { type: (obj.worldPortal ?? 'fold') as PortalType }), 400)
+      return
+    }
+    if (!obj.href) return
     setTransitioning(true)
     setTimeout(() => router.push(obj.href!), 600)
-  }, [obj, router])
+  }, [obj, router, navigateTo])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -146,7 +154,7 @@ function ObjectPanel() {
         </div>
 
         <div className="hud-panel-actions">
-          {obj.href && (
+          {(obj.href || obj.worldId != null) && (
             <button className="hud-btn-enter" onClick={handleEnter}>
               ENTER
               <span className="hud-btn-key">⏎</span>
