@@ -51,11 +51,12 @@ export default function World0Surface() {
           marginTop: 28,
           fontFamily: 'Georgia, serif',
           fontSize: 13,
-          color: hovered ? 'rgba(28,26,23,0.5)' : 'rgba(28,26,23,0.22)',
-          letterSpacing: '0.12em',
+          color: hovered ? 'rgba(28,26,23,0.55)' : 'rgba(28,26,23,0.35)',
+          letterSpacing: '0.18em',
           transition: 'color 0.6s ease',
+          textTransform: 'lowercase',
         }}>
-          come in
+          click to enter
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import GlitchOverlay from '@/components/universe/effects/GlitchOverlay'
 import KonamiEgg from '@/components/universe/effects/KonamiEgg'
 import HiddenTerminal from '@/components/universe/effects/HiddenTerminal'
 import AbstractIndex from '@/components/universe/effects/AbstractIndex'
+import AmbientTransmissions from '@/components/universe/effects/AmbientTransmissions'
 
 const UniverseCanvas = dynamic(() => import('./UniverseCanvas'), { ssr: false })
 
@@ -27,6 +28,7 @@ export default function UniverseRoot() {
       <GlitchOverlay />
       <KonamiEgg />
       <HiddenTerminal />
+      <AmbientTransmissions />
     </div>
   )
 }

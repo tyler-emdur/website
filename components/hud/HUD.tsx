@@ -144,7 +144,12 @@ function ObjectPanel() {
       {transitioning && <div className="hud-transition" />}
 
       <div className="hud-panel">
-        <div className="hud-panel-type">{obj.type.toUpperCase()} · {region?.designation ?? 'UNKNOWN'}</div>
+        <div className="hud-panel-type">
+          {obj.type.toUpperCase()} · {region?.designation ?? 'UNKNOWN'}
+          {obj.worldId != null && (
+            <span style={{ marginLeft: 10, color: 'rgba(253,224,71,0.7)', letterSpacing: '0.1em' }}>▼ DEEP</span>
+          )}
+        </div>
         <h2 className="hud-panel-name">{obj.label}</h2>
         <p className="hud-panel-desc">{obj.description}</p>
         {obj.lore && <p className="hud-panel-lore">{obj.lore}</p>}
@@ -169,43 +174,13 @@ function ObjectPanel() {
   )
 }
 
-function DiscoveryLog() {
-  const discoveredIds = useUniverseStore(s => s.discoveredIds)
-  const total = getAllObjects().length
-
-  return (
-    <div className="hud-log">
-      <div className="hud-label">DISCOVERIES</div>
-      <div className="hud-value">{discoveredIds.length} / {total}</div>
-      <div className="hud-log-bar">
-        <div className="hud-log-fill" style={{ width: `${(discoveredIds.length / total) * 100}%` }} />
-      </div>
-    </div>
-  )
-}
-
-function Instructions() {
-  const { selectedId } = useUniverseStore()
-  if (selectedId) return null
-  return (
-    <div className="hud-instructions">
-      DRAG TO NAVIGATE &nbsp;·&nbsp; SCROLL TO ZOOM &nbsp;·&nbsp; CLICK TO DISCOVER
-    </div>
-  )
-}
-
 export default function HUD() {
   return (
     <div className="hud-root">
       <CoordinateDisplay />
       <RegionProximity />
-      <DiscoveryLog />
       <DiscoveryNotification />
       <ObjectPanel />
-      <Instructions />
-
-      {/* Version stamp */}
-      <div className="hud-version">TE-UNIVERSE v0.1 · {new Date().getFullYear()}</div>
     </div>
   )
 }

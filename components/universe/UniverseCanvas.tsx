@@ -6,7 +6,7 @@ import UniverseScene from './UniverseScene'
 export default function UniverseCanvas() {
   return (
     <Canvas
-      camera={{ position: [0, 0, 1200], fov: 60, near: 1, far: 8000 }}
+      camera={{ position: [0, 0, 900], fov: 60, near: 1, far: 8000 }}
       style={{ background: '#00000d' }}
       dpr={[1, 1.5]}
       gl={{ antialias: true, alpha: false }}
