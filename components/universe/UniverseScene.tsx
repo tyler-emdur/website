@@ -26,8 +26,10 @@ export default function UniverseScene() {
   return (
     <>
       {/* Ambient stars — multiple layers for depth */}
-      <Stars radius={3000} depth={600} count={10000} factor={5} saturation={0.3} fade speed={0.4} />
-      <Stars radius={800} depth={200} count={3000} factor={3} saturation={0.1} fade speed={0.1} />
+      <Stars radius={3000} depth={600} count={12000} factor={5} saturation={0.3} fade speed={0.4} />
+      <Stars radius={800} depth={200} count={4000} factor={3} saturation={0.1} fade speed={0.1} />
+      {/* Dense star cluster — upper right, asymmetric, creates contrast with voids */}
+      <Stars radius={400} depth={80} count={2200} factor={2} saturation={0.05} fade speed={0.05} />
 
       {/* Lighting */}
       <ambientLight intensity={0.08} />
