@@ -63,6 +63,17 @@ interface WorldState {
   _pendingWorld: WorldId | null
 }
 
+function loadReturnWorld(): WorldId {
+  if (typeof window === 'undefined') return 0
+  try {
+    const raw = localStorage.getItem('te-return-world')
+    if (raw === null) return 0
+    localStorage.removeItem('te-return-world')
+    const id = parseInt(raw)
+    return (isNaN(id) ? 0 : id) as WorldId
+  } catch { return 0 }
+}
+
 function loadVisited(): WorldId[] {
   if (typeof window === 'undefined') return []
   try {
@@ -90,7 +101,7 @@ function saveSecrets(secrets: string[]) {
 }
 
 export const useWorldStore = create<WorldState>((set, get) => ({
-  current: 0,
+  current: typeof window !== 'undefined' ? loadReturnWorld() : 0,
   previous: null,
   visited: typeof window !== 'undefined' ? loadVisited() : [],
   portalActive: false,

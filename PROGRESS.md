@@ -97,9 +97,15 @@ Particle field. Mouse moves particles. Wait 47s → W1. Click cursor → W3. Scr
 **Identity:** Three.js impossible machine, slowly learned
 **Interaction:** drag to pan, scroll to zoom, click objects to discover
 
-47 catalogued objects across 5 regions. PortalDirectory unlocks after 3 discoveries. Survey markers, corner terminal with `OPERATOR T.EMDUR`. Glitch overlay can flash `DESIGNATION: TYLER EMDUR`. Objects have clinical/archival descriptions (no humor). GiantStructures fills background with ancient rings, megastructures, debris fields at 700–2100 unit scale.
+47 catalogued objects across 5 regions. PortalDirectory unlocks after 3 discoveries. Survey markers, corner terminal with `OPERATOR T.EMDUR`. Glitch overlay can flash `DESIGNATION: TYLER EMDUR`. Objects have clinical/archival descriptions (no humor). GiantStructures fills background with ancient rings, megastructures, debris fields at 700–2100 unit scale. Background layer includes: AbsorptionBody (solid black sphere — stars disappear behind it, no explanation), GhostOrbitRings (5 orbital path rings with no center body), AncientSurveyGrid (9×13 line grid at z=-1500, deep background), AncientCrossbeam (3600-unit structural element partially off-screen), DustVeil (diagonal particle band cutting across scene), Monolith (solid black rectangle, slightly off-vertical), NestedGyroscope (3 interlocked rings at orthogonal axes), FragmentedRingCluster (3 rings at impossible angles), IsolatedAnomalyField (180 particles in dead space with no nearby structure), ColossalArtifact (corner joint + 3 beams ~5600 units long extending off-screen in all directions).
 
 Connection system: coordinates `40.0150°N 105.2705°W` in AmbientTransmissions, frequency 88.7 in gate lore, `SURVEY TE-∅` throughout.
+
+**Object distribution (5 regions, ~47 objects):** Projects has `planet`/`anomaly`/`station` (mechanical feel). Running has `planet`/`fragment`/`signal` (geological feel) + TerrainDebris particle cluster. Explore has `planet`/`station`/`anomaly`/`wormhole` + SurveyStakes (9 abandoned survey markers). Archives has `station`/`fragment`/`wormhole` (no planets — corrupted record feel). Lab has `anomaly`/`station`/`wormhole`/`signal`/`fragment` (experimental chaos, no planets).
+
+**Portal concourse replaced:** Two perfect concentric rings + 16 evenly spaced spokes removed. Replaced with 8 asymmetric orbital arc fragments at different positions/tilts/arc lengths + 2 drifting isolated rings + 2 orphan path lines (go from nowhere to nowhere).
+
+**BackToUniverse fixed:** `<a href="/">` caused full page reload → Zustand store reset to `current: 0` (welcome screen). Fix: `e.preventDefault()` + `useWorldStore.setState({ current: 1 })` direct store update + `localStorage.setItem('te-return-world', '1')` flag + `router.push('/')` soft navigation. `world-store.ts` reads the flag on module init via `loadReturnWorld()` to cover hard-reload cases.
 
 ---
 
@@ -288,11 +294,11 @@ These recurring elements create continuity without shared visual style:
 
 | Hash | Description |
 |------|-------------|
+| `b3f70f1` | Universe redesign pass: replace hub-and-spoke with orbital fragments, add 10 background structures |
 | `e80a05f` | Rebuild 7 worlds as radically different Meow Wolf experiences |
 | `c838dc3` | Strip internet-humor tone from Universe — replace with archival/clinical voice |
 | `701a1bc` | (prior universe redesign pass) |
 | `a8e5c0d` | Fix game and portals |
-| `087aaad` | Strip HUD to bare text, surface portals, fix start screen |
 
 ---
 

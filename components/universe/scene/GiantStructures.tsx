@@ -467,6 +467,49 @@ function IsolatedAnomalyField() {
   )
 }
 
+// ─── COLOSSAL ARTIFACT ───────────────────────────────────────────────────────
+// The corner of something incomprehensibly large.
+// Three beams meet at a joint. Each extends beyond the visible region.
+// No label. No context. No classification.
+
+function ColossalArtifact() {
+  const joint: [number, number, number] = [1050, 1220, -260]
+  return (
+    <group>
+      {/* Corner joint */}
+      <mesh position={joint}>
+        <boxGeometry args={[100, 100, 100]} />
+        <meshBasicMaterial color="#030810" wireframe transparent opacity={0.55} depthWrite={false} />
+      </mesh>
+      {/* Beam extending right — off screen */}
+      <mesh position={[joint[0] + 2800, joint[1], joint[2]]}>
+        <boxGeometry args={[5600, 62, 62]} />
+        <meshBasicMaterial color="#040a14" wireframe transparent opacity={0.45} depthWrite={false} />
+      </mesh>
+      {/* Beam extending up — off screen */}
+      <mesh position={[joint[0], joint[1] + 2800, joint[2]]}>
+        <boxGeometry args={[62, 5600, 62]} />
+        <meshBasicMaterial color="#040a14" wireframe transparent opacity={0.40} depthWrite={false} />
+      </mesh>
+      {/* Beam extending into depth — off screen */}
+      <mesh position={[joint[0], joint[1], joint[2] - 4000]}>
+        <boxGeometry args={[62, 62, 8000]} />
+        <meshBasicMaterial color="#040a14" wireframe transparent opacity={0.32} depthWrite={false} />
+      </mesh>
+      {/* Secondary rib on horizontal beam */}
+      <mesh position={[joint[0] + 1600, joint[1] - 280, joint[2]]}>
+        <boxGeometry args={[3200, 40, 40]} />
+        <meshBasicMaterial color="#060c18" wireframe transparent opacity={0.28} depthWrite={false} />
+      </mesh>
+      {/* Vertical rib on vertical beam */}
+      <mesh position={[joint[0] - 240, joint[1] + 1400, joint[2]]}>
+        <boxGeometry args={[40, 2800, 40]} />
+        <meshBasicMaterial color="#060c18" wireframe transparent opacity={0.24} depthWrite={false} />
+      </mesh>
+    </group>
+  )
+}
+
 export default function GiantStructures() {
   return (
     <group>
@@ -487,6 +530,7 @@ export default function GiantStructures() {
       <Monolith />
       <FragmentedRingCluster />
       <IsolatedAnomalyField />
+      <ColossalArtifact />
       <DebrisField />
       <GalaxySmear position={[3000, 1000, -4000]}  count={800} color="#100820" spread={1800} />
       <GalaxySmear position={[-4000, -800, -5000]} count={600} color="#081018" spread={2200} />
