@@ -21,11 +21,12 @@ uniform float uHovered;
 varying vec3 vNormal;
 varying float vDist;
 void main() {
-  float pulse = sin(uTime * 2.2 + vDist * 4.0) * 0.18 + 0.82;
-  vec3 light = normalize(vec3(2.0, 1.5, 3.0));
-  float diff = max(0.0, dot(vNormal, light)) * 0.55 + 0.45;
-  vec3 col = uColor * diff * pulse * (0.65 + uHovered * 0.6);
-  gl_FragColor = vec4(col, 0.88);
+  float pulse = sin(uTime * 0.65) * 0.12 + 0.88;
+  vec3 light = normalize(vec3(1.0, 1.0, 2.0));
+  float diff = max(0.0, dot(vNormal, light)) * 0.4 + 0.6;
+  vec3 col = uColor * diff * pulse * (0.45 + uHovered * 0.55);
+  // Archived objects are very dim
+  gl_FragColor = vec4(col, 0.18 + uHovered * 0.65);
 }
 `
 
@@ -46,8 +47,9 @@ varying vec3 vNormal;
 varying vec3 vViewPos;
 void main() {
   float fresnel = dot(normalize(vNormal), normalize(vViewPos));
-  float rim = pow(clamp(1.0 - fresnel, 0.0, 1.0), 2.0);
-  gl_FragColor = vec4(uColor, rim * (0.25 + uHovered * 0.3));
+  float rim = pow(clamp(1.0 - fresnel, 0.0, 1.0), 3.0);
+  // Extremely faint glow
+  gl_FragColor = vec4(uColor, rim * (0.04 + uHovered * 0.18));
 }
 `
 
@@ -61,10 +63,11 @@ export default function Fragment({ obj }: { obj: UniverseObject }) {
     vertexShader: VERT,
     fragmentShader: FRAG,
     uniforms: {
-      uColor: { value: new Color(obj.color).multiplyScalar(0.7) },
+      uColor: { value: new Color(obj.color).multiplyScalar(0.4) }, // Faded color
       uTime: { value: 0 },
       uHovered: { value: 0 },
     },
+    transparent: true,
   }), [obj.color])
 
   const glowMat = useMemo(() => new ShaderMaterial({

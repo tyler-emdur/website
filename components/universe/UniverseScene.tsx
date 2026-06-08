@@ -16,20 +16,24 @@ import RunningRegion from './regions/RunningRegion'
 import ArchivesRegion from './regions/ArchivesRegion'
 import ExploreRegion from './regions/ExploreRegion'
 import LabRegion from './regions/LabRegion'
+import ForgottenRegion from './regions/ForgottenRegion'
 import OriginAnomaly from './objects/OriginAnomaly'
 import CometSystem from './scene/CometSystem'
 import VoidObjects from './scene/VoidObjects'
 import PortalConcourse from './scene/PortalConcourse'
 import GiantStructures from './scene/GiantStructures'
+import SignalLayer from './scene/SignalLayer'
+import CartographyLayer from './scene/CartographyLayer'
+import GhostRemnants from './scene/GhostRemnants'
 
 export default function UniverseScene() {
   return (
     <>
-      {/* Ambient stars — multiple layers for depth */}
-      <Stars radius={3000} depth={600} count={12000} factor={5} saturation={0.3} fade speed={0.4} />
-      <Stars radius={800} depth={200} count={4000} factor={3} saturation={0.1} fade speed={0.1} />
-      {/* Dense star cluster — upper right, asymmetric, creates contrast with voids */}
-      <Stars radius={400} depth={80} count={2200} factor={2} saturation={0.05} fade speed={0.05} />
+      {/* Expanded ambient stars to cover the massive scale */}
+      <Stars radius={12000} depth={4000} count={24000} factor={8} saturation={0.3} fade speed={0.35} />
+      <Stars radius={4000} depth={1500} count={8000} factor={4} saturation={0.1} fade speed={0.08} />
+      {/* Dense star cluster */}
+      <Stars radius={1800} depth={600} count={4000} factor={3} saturation={0.05} fade speed={0.03} />
 
       {/* Lighting */}
       <ambientLight intensity={0.08} />
@@ -48,8 +52,15 @@ export default function UniverseScene() {
       {/* Defined portal lanes */}
       <PortalConcourse />
 
+      {/* Overlapping intelligence layers */}
+      <SignalLayer />
+      <CartographyLayer />
+
       {/* Giant background structures — scale + mystery */}
       <GiantStructures />
+
+      {/* Ghost remnants — wireframe outlines of things that no longer exist */}
+      <GhostRemnants />
 
       {/* Void objects — scattered between regions */}
       <VoidObjects />
@@ -60,6 +71,7 @@ export default function UniverseScene() {
       <ArchivesRegion />
       <ExploreRegion />
       <LabRegion />
+      <ForgottenRegion />
 
       {/* Post processing */}
       <EffectComposer>

@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useMemo, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Mesh, ShaderMaterial, Color, AdditiveBlending } from 'three'
+import { Group, Mesh, ShaderMaterial, Color, AdditiveBlending } from 'three'
 import { useUniverseStore, type UniverseObject } from '@/lib/universe-store'
 
 const RING_VERT = `
@@ -30,6 +30,7 @@ interface SignalProps {
 }
 
 export default function Signal({ obj }: SignalProps) {
+  const groupRef = useRef<Group>(null)
   const ref1 = useRef<Mesh>(null)
   const ref2 = useRef<Mesh>(null)
   const ref3 = useRef<Mesh>(null)
@@ -66,9 +67,12 @@ export default function Signal({ obj }: SignalProps) {
     const p2 = ((t + PERIOD / 3) % PERIOD) / PERIOD
     const p3 = ((t + (PERIOD * 2) / 3) % PERIOD) / PERIOD
 
-    if (mat1) { mat1.uniforms.uPhase.value = p1; mat1.uniforms.uAlpha.value = hovered ? 1.4 : 0.8 }
-    if (mat2) { mat2.uniforms.uPhase.value = p2; mat2.uniforms.uAlpha.value = hovered ? 1.4 : 0.8 }
-    if (mat3) { mat3.uniforms.uPhase.value = p3; mat3.uniforms.uAlpha.value = hovered ? 1.4 : 0.8 }
+    // 12-second cycle of fading in and out of existence
+    const signalAlpha = Math.max(0, Math.min(1, Math.sin((t / 12) * Math.PI * 2) * 1.6 + 0.4))
+
+    if (mat1) { mat1.uniforms.uPhase.value = p1; mat1.uniforms.uAlpha.value = (hovered ? 1.4 : 0.8) * signalAlpha }
+    if (mat2) { mat2.uniforms.uPhase.value = p2; mat2.uniforms.uAlpha.value = (hovered ? 1.4 : 0.8) * signalAlpha }
+    if (mat3) { mat3.uniforms.uPhase.value = p3; mat3.uniforms.uAlpha.value = (hovered ? 1.4 : 0.8) * signalAlpha }
 
     const rings = [ref1, ref2, ref3]
     const phases = [p1, p2, p3]
@@ -82,13 +86,28 @@ export default function Signal({ obj }: SignalProps) {
     if (coreRef.current) {
       const pulse = Math.sin(t * 4) * 0.15 + 1
       coreRef.current.scale.setScalar(pulse)
+      const coreMat = coreRef.current.material as any
+      if (coreMat) {
+        coreMat.opacity = signalAlpha
+      }
+    }
+
+    // Dynamic coordinates for void-drifter beacon
+    if (groupRef.current) {
+      if (obj.id === 'void-drifter') {
+        groupRef.current.position.x = obj.position[0] + Math.sin(t * 0.015) * 650
+        groupRef.current.position.y = obj.position[1] + Math.cos(t * 0.009) * 450
+        groupRef.current.position.z = obj.position[2] + Math.sin(t * 0.006) * 100
+      } else {
+        groupRef.current.position.set(...obj.position)
+      }
     }
   })
 
   if (!visible) return null
 
   return (
-    <group position={obj.position}>
+    <group ref={groupRef} position={obj.position}>
       {/* Pulsing rings */}
       {[mat1, mat2, mat3].map((mat, i) => (
         <mesh key={i} ref={[ref1, ref2, ref3][i]} material={mat}
@@ -107,7 +126,7 @@ export default function Signal({ obj }: SignalProps) {
         onClick={(e) => { e.stopPropagation(); selectObject(obj) }}
       >
         <sphereGeometry args={[size * 0.3, 16, 16]} />
-        <meshBasicMaterial color={obj.color} />
+        <meshBasicMaterial color={obj.color} transparent opacity={1} />
       </mesh>
     </group>
   )

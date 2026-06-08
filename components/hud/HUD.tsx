@@ -104,6 +104,32 @@ function DiscoveryNotification() {
   )
 }
 
+function getClassificationStamp(obj: UniverseObject) {
+  if (obj.id.startsWith('forgotten-')) return 'LOST'
+  if (obj.id === 'void-dark-anomaly') return 'DO NOT CATALOG'
+  switch (obj.type) {
+    case 'anomaly': return 'CORRUPTED'
+    case 'fragment': return 'ARCHIVED'
+    case 'signal': return 'UNRESOLVED'
+    case 'wormhole': return 'UNKNOWN'
+    case 'station': return 'STABLE'
+    default: return 'CLASSIFIED'
+  }
+}
+
+function redact(text?: string, isUnstable = false) {
+  if (!text) return ''
+  if (!isUnstable) return text
+  const words = text.split(' ')
+  return words.map((w, i) => {
+    // 20% chance to redact word if it's an unstable/corrupted object
+    if (Math.sin(i * 4.3 + w.length) > 0.6) {
+      return '██████'
+    }
+    return w
+  }).join(' ')
+}
+
 function ObjectPanel() {
   const router = useRouter()
   const { selectedId, selectObject, mode } = useUniverseStore()
@@ -137,6 +163,21 @@ function ObjectPanel() {
   if (!obj || mode === 'exploring') return null
 
   const region = REGIONS.find(r => r.id === obj.region)
+  const stamp = getClassificationStamp(obj)
+  
+  const stampColor = () => {
+    switch (stamp) {
+      case 'CORRUPTED': return '#ef4444'
+      case 'LOST': return '#f59e0b'
+      case 'ARCHIVED': return '#b45309'
+      case 'UNRESOLVED': return '#10b981'
+      case 'UNKNOWN': return '#a855f7'
+      case 'DO NOT CATALOG': return '#dc2626'
+      default: return 'rgba(255,255,255,0.4)'
+    }
+  }
+
+  const isUnstable = obj.type === 'anomaly' || obj.id.startsWith('forgotten-') || stamp === 'DO NOT CATALOG'
 
   return (
     <>
@@ -149,13 +190,29 @@ function ObjectPanel() {
           {obj.worldId != null && (
             <span style={{ marginLeft: 10, color: 'rgba(253,224,71,0.7)', letterSpacing: '0.1em' }}>▼ DEEP</span>
           )}
+          <span style={{
+            display: 'inline-block',
+            padding: '1px 5px',
+            fontSize: '8px',
+            letterSpacing: '0.1em',
+            border: `1px dashed ${stampColor()}`,
+            color: stampColor(),
+            background: 'rgba(0,0,0,0.5)',
+            marginLeft: '10px',
+            fontWeight: 'bold',
+            lineHeight: 1.2
+          }}>
+            {stamp}
+          </span>
         </div>
         <h2 className="hud-panel-name">{obj.label}</h2>
-        <p className="hud-panel-desc">{obj.description}</p>
-        {obj.lore && <p className="hud-panel-lore">{obj.lore}</p>}
+        <p className="hud-panel-desc">{redact(obj.description, isUnstable)}</p>
+        {obj.lore && <p className="hud-panel-lore">{redact(obj.lore, isUnstable)}</p>}
 
         <div className="hud-panel-coords">
-          {obj.position[0].toFixed(0)} / {obj.position[1].toFixed(0)} / {obj.position[2].toFixed(0)}
+          X:{(obj.position[0] > 0 ? '+' : '') + obj.position[0].toFixed(0)} / 
+          Y:{(obj.position[1] > 0 ? '+' : '') + obj.position[1].toFixed(0)} / 
+          Z:{(obj.position[2] > 0 ? '+' : '') + obj.position[2].toFixed(0)}
         </div>
 
         <div className="hud-panel-actions">
@@ -181,6 +238,24 @@ export default function HUD() {
       <RegionProximity />
       <DiscoveryNotification />
       <ObjectPanel />
+      
+      {/* Exploration guide footer */}
+      <div style={{
+        position: 'fixed',
+        bottom: 12,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        fontFamily: 'var(--font-mono)',
+        fontSize: '7px',
+        letterSpacing: '0.24em',
+        color: 'rgba(255,255,255,0.18)',
+        textAlign: 'center',
+        pointerEvents: 'none',
+        textTransform: 'uppercase',
+        width: '100%'
+      }}>
+        [ drag map to pan · scroll to zoom · click objects to inspect · wait to reveal connections ]
+      </div>
     </div>
   )
 }

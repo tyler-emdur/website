@@ -39,37 +39,32 @@ const PROCESSES = [
   ` 012  s1  S+   ${(Math.random()*100).toFixed(2)} terminal.sh`,
 ]
 
-const FORTUNES = [
-  'The best time to plant a tree was 20 years ago. The second best time is in this terminal.',
-  'You have been in this universe for longer than the architects intended.',
-  'Not all who wander are lost. Some are just zoomed in too far.',
-  'The signal you are looking for is between the stars you already know.',
-  'If you are reading this, you found the part that was not meant to be found.',
-  'Elevation changes everything. So does zoom level.',
-  'A wormhole is just a door that forgot which room it leads to.',
-  'Some objects are only visible after enough time has passed. Keep looking.',
-  'Error: fortune not found. This IS the fortune.',
-  'Reduce, reuse, recurse.',
+const ARCHIVE_RECORDS = [
+  'RECORD 904 // Core temperature decaying. Delta: -0.04/hr.',
+  'RECORD 112 // Signal reacquisition failed in SECTOR 04-Δ. Retrying...',
+  'RECORD 047 // Multiple duplicate frames detected during index sync.',
+  'RECORD 887 // FM transmitter frequency drifting. Resonance detected at 88.7 MHz.',
+  'RECORD 009 // White room coordinate boundaries confirmed stable. Exit vector locked.',
+  'RECORD 309 // Diagnostic warning: 47 files remain unprocessed. Access restricted.',
+  'RECORD 404 // Trace heavy isotope levels in SECTOR 02-B path: elevated.',
+  'RECORD 104 // Gravity lens anomaly at coordinates [-2500, 1800, -1200] is expanding.',
 ]
 
-const WEATHER_PHRASES = [
-  '⛅  partly cloudy, 62°F, Boulder, CO',
-  '🌤  mostly clear, 58°F, Boulder, CO',
-  '🌧  light rain, 49°F, Boulder, CO',
-  '❄️  snow advisory, 31°F, Boulder, CO',
-  '🌞  sunny and warm, 74°F, Boulder, CO',
-  '💨  windy, 55°F, Boulder, CO — expect bad hair day',
+const VOID_READOUTS = [
+  'SENSOR DETECT // BARO: 0.00 PSI | GRAVITY: +0.02g | RAD: 42 mSv/h',
+  'SENSOR DETECT // BARO: 0.00 PSI | GRAVITY: -0.14g | RAD: 12 mSv/h',
+  'SENSOR DETECT // BARO: 0.00 PSI | GRAVITY: NOMINAL | RAD: 104 mSv/h',
+  'SENSOR DETECT // BARO: 0.00 PSI | GRAVITY: FLUCTUATING | RAD: 88 mSv/h',
 ]
 
-const MUSIC_TRACKS = [
-  'Khruangbin — People Everywhere (Still Alive)',
-  'Tame Impala — Eventually',
-  'Mac DeMarco — Chamber of Reflection',
-  'FKJ — Ylang Ylang',
-  'Hiatus Kaiyote — Laputa',
-  'Unknown Mortal Orchestra — Multi-Love',
-  'Bon Iver — Holocene',
-  'Fleet Foxes — White Winter Hymnal',
+const INTERCEPTED_TRACKS = [
+  'INTERCEPT // FREQ: 94.2MHz - Khruangbin — People Everywhere (Still Alive)',
+  'INTERCEPT // FREQ: 88.7MHz - Tame Impala — Eventually',
+  'INTERCEPT // FREQ: 101.5MHz - Mac DeMarco — Chamber of Reflection',
+  'INTERCEPT // FREQ: 92.0MHz - FKJ — Ylang Ylang',
+  'INTERCEPT // FREQ: 96.6MHz - Hiatus Kaiyote — Laputa',
+  'INTERCEPT // FREQ: 89.1MHz - Unknown Mortal Orchestra — Multi-Love',
+  'INTERCEPT // FREQ: 90.8MHz - Bon Iver — Holocene',
 ]
 
 type Line = { text: string; cls?: string }
@@ -88,10 +83,10 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
       R('  goto [name]  navigate to a sector'),
       R('  scan         scan the universe'),
       R('  status       sector status report'),
-      R('  weather      local conditions'),
+      R('  weather      void sensor readouts'),
       R('  time         current time, multiple zones'),
-      R('  music        last known listening'),
-      R('  fortune      unsolicited wisdom'),
+      R('  music        audio band intercepts'),
+      R('  fortune      archived record entries'),
       R('  ascii        banner'),
       R('  ls           list sectors'),
       R('  pwd          current path'),
@@ -178,7 +173,7 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
       R(`DISCOVERED: ${discoveredIds.length} / ${getAllObjects().length}`),
       R(`UNDISCOVERED: ${getAllObjects().length - discoveredIds.length}`),
       R(''),
-      R('ANOMALIES: present · WORMHOLES: sealed · COMETS: in transit', 'dim'),
+      R('ANOMALIES: present · WORMHOLES: sealed · COMETS: active', 'dim'),
     ],
 
     status: [
@@ -186,16 +181,17 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
       R('────────────────────────'),
       R('SECTOR 01-A  PROJECTS      ■ ONLINE'),
       R('SECTOR 02-B  RUNNING       ■ ONLINE'),
-      R('SECTOR 03-Ω  ARCHIVES      ▲ DEGRADED — some records corrupted'),
+      R('SECTOR 03-Ω  ARCHIVES      ▲ DEGRADED — database fault detected'),
       R('SECTOR 04-Δ  EXPLORE       ■ ONLINE'),
-      R('SECTOR 05-Ψ  LAB           ▲ UNSTABLE — experiments in progress'),
+      R('SECTOR 05-Ψ  LAB           ▲ UNSTABLE — experimental cycles running'),
+      R('SECTOR 06-∅  UNMAPPED      ▲ UNVERIFIED — signal leak detected'),
       R('ORIGIN       TE-∅          ■ NOMINAL'),
       R(''),
       R('COMET NETWORK: active · SIGNAL RELAY: broadcasting', 'dim'),
       R('WORMHOLE ARCHIVE-DEEP: sealed · requires 6 discoveries', 'dim'),
     ],
 
-    weather: [R(WEATHER_PHRASES[Math.floor(Math.random() * WEATHER_PHRASES.length)], 'cy')],
+    weather: [R(VOID_READOUTS[Math.floor(Math.random() * VOID_READOUTS.length)], 'cy')],
 
     time: [
       R('CURRENT TIME', 'hi'),
@@ -207,14 +203,14 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
     ],
 
     music: [
-      R('LAST KNOWN LISTENING', 'hi'),
+      R('INTERCEPTED TRANSMISSIONS', 'hi'),
       R('────────────────────────'),
-      R(MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)], 'cy'),
+      R(INTERCEPTED_TRACKS[Math.floor(Math.random() * INTERCEPTED_TRACKS.length)], 'cy'),
       R(''),
-      R('← taste varies. check Digger for the real picture.', 'dim'),
+      R('← source frequency drifting · check Digger for details', 'dim'),
     ],
 
-    fortune: [R(FORTUNES[Math.floor(Math.random() * FORTUNES.length)], 'cy')],
+    fortune: [R(ARCHIVE_RECORDS[Math.floor(Math.random() * ARCHIVE_RECORDS.length)], 'cy')],
 
     ascii: ASCII_TYLER.trim().split('\n').map(l => R(l, 'hi')),
 
@@ -250,129 +246,116 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
       R('[q] to stop watching, but there is no q', 'dim'),
     ],
 
-    sudo: [R('no.', 'er')],
+    sudo: [R('ACCESS PRIVILEGE VIOLATION // ACTION LOGGED', 'er')],
 
-    vi:   [R('you opened vim. there is no :q here.', 'er'), R('there is no escape.', 'er')],
-    vim:  [R('you opened vim. there is no :q here.', 'er'), R('there is no escape.', 'er')],
-    emacs:[R('emacs started. it will finish eventually.', 'dim'), R('(probably)', 'dim')],
-    nano: [R('this is not nano. this is a universe.', 'dim')],
+    vi:   [R('ERROR: WRITE PRIVILEGE DENIED', 'er'), R('Terminal is in read-only archive mode.', 'dim')],
+    vim:  [R('ERROR: WRITE PRIVILEGE DENIED', 'er'), R('Terminal is in read-only archive mode.', 'dim')],
+    emacs:[R('ERROR: EXECUTE PRIVILEGE DENIED', 'er')],
+    nano: [R('ERROR: WRITE PRIVILEGE DENIED', 'er')],
 
-    exit: [R('there is no exit.', 'er'), R('press ESC to close the terminal. not the universe.', 'dim')],
+    exit: [R('press ESC to close terminal overlay.', 'dim')],
 
-    meow:   [R('🐈', 'hi'), R('yes.', 'cy')],
-    hello:  [R('hello.', 'hi')],
-    hi:     [R('hey.', 'hi')],
-    hey:    [R('hi.', 'hi')],
-    ping:   [R('pong.', 'cy'), R('latency: 0ms (local universe)', 'dim')],
-    yes:    [R('noted.', 'dim')],
-    no:     [R('also noted.', 'dim')],
-    maybe:  [R('classic.', 'dim')],
+    meow:   [R('INTERCEPT // Unresolved audio pattern detected: "meow"', 'cy')],
+    hello:  [R('RECEPTION ACKNOWLEDGED', 'hi')],
+    hi:     [R('RECEPTION ACKNOWLEDGED', 'hi')],
+    hey:    [R('RECEPTION ACKNOWLEDGED', 'hi')],
+    ping:   [R('pong.', 'cy'), R('ping-trip: 0.12ms (local origin loopback)', 'dim')],
+    yes:    [R('input logged.', 'dim')],
+    no:     [R('input logged.', 'dim')],
+    maybe:  [R('indifference registered.', 'dim')],
 
     cowsay: [
-      R('  _____________', 'dim'),
-      R(' < moo. explore. >', 'cy'),
-      R('  -------------', 'dim'),
-      R('        \\   ^__^', 'dim'),
-      R('         \\  (oo)\\_______', 'dim'),
-      R('            (__)\\       )\\/\\', 'dim'),
-      R('                ||----w |', 'dim'),
-      R('                ||     ||', 'dim'),
+      R('ERROR: GRAPHIC GENERATOR OFFLINE', 'er'),
+      R('Unsanctioned telemetry detected at Sector 06-∅.', 'dim'),
     ],
 
     date: [R(new Date().toString(), 'cy')],
 
-    echo: [R('I am not a parrot.', 'dim')],
+    echo: [R('ERROR: RECURSIVE ECHO BLOCKED', 'er')],
 
     'git log': [
       R('commit 7f3a291  (HEAD -> main, origin/main)', 'hi'),
       R('Author: Tyler Emdur <tyler@tyleremdur.com>'),
       R('Date:   ' + new Date().toDateString()),
       R(''),
-      R('    make it weirder'),
+      R('    restructure coordinate bounds and cataloging rules'),
       R(''),
       R('commit 1c8e044'),
-      R('    add comet system + fix signal renderers'),
+      R('    integrate signal concourse and cartography grids'),
       R(''),
       R('commit 2b91fa8'),
-      R('    universe v0.1 — five sectors, discovery system'),
+      R('    universe core v0.1 — initialize sector sync'),
       R(''),
       R('commit 0000001'),
-      R('    init — blank canvas, uncertain future', 'dim'),
+      R('    init archive database --blank grid', 'dim'),
     ],
 
     'git blame': [
-      R('tyler (2026) all of it', 'cy'),
+      R('operator: tyler-emdur (2026)', 'cy'),
     ],
 
     'npm install': [
-      R('added 47,823 packages, and audited 47,824 packages in 3s', 'dim'),
-      R(''),
-      R('3 packages are looking for funding', 'dim'),
-      R('  run `npm fund` for details', 'dim'),
-      R(''),
-      R('found 0 vulnerabilities', 'cy'),
+      R('ERROR: WRITE PERMISSION DENIED -- lockfile is read-only', 'er'),
     ],
 
     'brew install': [
-      R('==> Downloading universe from apple silicon', 'dim'),
-      R('Already poured: universe (HEAD)', 'cy'),
+      R('ERROR: ACCESS LEVEL 0 IS NOT AUTHORIZED TO INSTALL PACKAGE ARTIFACTS', 'er'),
     ],
 
     python: [
-      R('Python 3.12.0 (universe build)', 'dim'),
+      R('Python 3.12.0 (restricted execution environment)', 'dim'),
       R('>>> import tyler', 'cy'),
-      R('>>> tyler.hello()', 'cy'),
-      R("'hey'", 'hi'),
+      R('>>> tyler.status()', 'cy'),
+      R("'operational'", 'hi'),
     ],
 
     node: [
-      R('Welcome to Node.js v22.0.0.', 'dim'),
-      R('Type ".help" for more information.', 'dim'),
+      R('Welcome to Node.js v22.0.0 (sandboxed)', 'dim'),
       R('> require("./universe")', 'cy'),
-      R('{ version: "0.1.0", sectors: 5, wormholes: 2 }', 'hi'),
+      R('{ status: "active", sectors: 6, unmapped: 1 }', 'hi'),
     ],
 
     decode: [
-      R('DECODING...', 'dim'),
+      R('DECODING SECURE HEADER...', 'dim'),
       R(''),
       R('T·Y·L·E·R ·/· E·M·D·U·R', 'cy'),
       R(''),
       R('01010100 01111001 01101100 01100101 01110010', 'dim'),
       R('01000101 01101101 01100100 01110101 01110010', 'dim'),
       R(''),
-      R('nothing hidden here. or maybe everything is.', 'dim'),
+      R('Header decrypted. System identity: OPERATOR.', 'cy'),
     ],
 
     map: [
       R('UNIVERSE MAP (schematic)', 'hi'),
       R(''),
-      R('          [LAB]', 'pk'),
-      R('            |'),
-      R('[ARCHIVES] [TE-∅] [PROJECTS]'),
-      R('            |'),
-      R('         [EXPLORE]'),
-      R('            |'),
-      R('         [RUNNING]'),
+      R('               [LAB]', 'pk'),
+      R('                 |'),
+      R('     [ARCHIVES] [TE-∅] [PROJECTS]'),
+      R('                 |'),
+      R('              [EXPLORE]'),
+      R('                 |'),
+      R('              [RUNNING]'),
+      R('    [SECTOR 06-∅]', 'dim'),
       R(''),
-      R('drag to navigate · scroll to zoom', 'dim'),
+      R('drag map to pan · scroll to zoom', 'dim'),
     ],
 
     unlocked: getAllObjects().filter(o => discoveredIds.includes(o.id)).length === 0
-      ? [R('nothing discovered yet.', 'er'), R('go click things.', 'dim')]
+      ? [R('no telemetry logged yet.', 'er'), R('explore coordinate nodes.', 'dim')]
       : [
-          R(`DISCOVERED (${getAllObjects().filter(o => discoveredIds.includes(o.id)).length}):`, 'hi'),
+          R(`DISCOVERED TELEMETRY (${getAllObjects().filter(o => discoveredIds.includes(o.id)).length}):`, 'hi'),
           ...getAllObjects()
             .filter(o => discoveredIds.includes(o.id))
             .map(o => R(`  · ${o.label}`, 'cy')),
         ],
 
     secret: [
-      R('you found the help text for the secret command.', 'cy'),
+      R('SURVEY ANOMALIES LOG:', 'cy'),
       R(''),
-      R('try: ↑↑↓↓←→←→BA', 'hi'),
-      R('or: keep exploring until hidden objects appear.', 'dim'),
-      R('or: spend 2 minutes in explore sector.', 'dim'),
-      R('or: discover 8 objects to unlock lab-quantum.', 'dim'),
+      R('  1. Spend 90 seconds observing SECTOR 04-Δ to unlock beacon.'),
+      R('  2. Search coordinates [-2500, 1800, -1200] for gravitational null-void.'),
+      R('  3. Sector 06-∅ remains hidden at coordinates [-2400, -1800, 500].'),
     ],
 
     morse: null,

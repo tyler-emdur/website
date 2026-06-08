@@ -6,7 +6,7 @@ import { useUniverseStore } from '@/lib/universe-store'
 
 const PAN_SPEED = 1.4
 const ZOOM_MIN = 55
-const ZOOM_MAX = 2600
+const ZOOM_MAX = 9000
 const LERP = 0.065
 const IDLE_BOB_AMPLITUDE = 8
 const IDLE_BOB_SPEED = 0.15

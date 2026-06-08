@@ -15,9 +15,12 @@ void main() {
   vNormal = normal;
   vPos = position;
 
-  // Morph vertices
-  float n = hash(position + uTime * 0.3) * 2.0 - 1.0;
-  vec3 displaced = position + normal * n * 0.25;
+  // Step-wise glitch time rather than smooth morphing
+  float glitchTime = floor(uTime * 8.0) / 8.0;
+  float hasGlitch = step(0.78, hash(vec3(glitchTime, 1.4, 0.9)));
+  
+  float n = hash(position + glitchTime * 1.5) * 2.0 - 1.0;
+  vec3 displaced = position + normal * n * 0.58 * hasGlitch;
 
   gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
 }
@@ -30,10 +33,20 @@ uniform float uHovered;
 varying vec3 vNormal;
 varying vec3 vPos;
 
+float hash2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
 void main() {
-  float pulse = sin(uTime * 2.0 + length(vPos) * 3.0) * 0.5 + 0.5;
-  vec3 col = uColor * (0.5 + pulse * 0.5 + uHovered * 0.5);
-  float alpha = 0.7 + pulse * 0.3;
+  float glitchTime = floor(uTime * 8.0) / 8.0;
+  float noiseFlash = step(0.92, hash2(vec2(glitchTime, vPos.x)));
+  float pulse = sin(uTime * 4.0 + length(vPos) * 1.8) * 0.5 + 0.5;
+  
+  vec3 col = uColor * (0.35 + pulse * 0.5 + uHovered * 0.75);
+  
+  if (noiseFlash > 0.5) {
+    col = vec3(0.1, 0.1, 0.1) + (1.0 - col) * 0.8; // chromatic invert flash
+  }
+  
+  float alpha = (0.4 + pulse * 0.4) * (0.8 + uHovered * 0.2);
   gl_FragColor = vec4(col, alpha);
 }
 `
@@ -82,9 +95,11 @@ export default function Anomaly({ obj }: AnomalyProps) {
     mat.uniforms.uHovered.value += ((hovered ? 1 : 0) - mat.uniforms.uHovered.value) * 0.1
     solidMat.uniforms.uHovered.value = mat.uniforms.uHovered.value
 
-    meshRef.current.rotation.x = t * 0.3
-    meshRef.current.rotation.y = t * 0.5
-    meshRef.current.rotation.z = t * 0.2
+    // Add jittery rotation
+    const jitter = Math.sin(t * 18.0) * 0.005
+    meshRef.current.rotation.x = t * 0.2 + jitter
+    meshRef.current.rotation.y = t * 0.35
+    meshRef.current.rotation.z = t * 0.15 - jitter
   })
 
   if (!visible) return null

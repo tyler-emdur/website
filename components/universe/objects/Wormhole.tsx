@@ -44,6 +44,8 @@ interface WormholeProps { obj: UniverseObject }
 
 export default function Wormhole({ obj }: WormholeProps) {
   const meshRef = useRef<any>(null)
+  const wire1Ref = useRef<any>(null)
+  const wire2Ref = useRef<any>(null)
   const [hovered, setHovered] = useState(false)
   const { selectObject, isVisible } = useUniverseStore()
   const visible = isVisible(obj)
@@ -63,10 +65,19 @@ export default function Wormhole({ obj }: WormholeProps) {
   }), [obj.color])
 
   useFrame((state) => {
-    mat.uniforms.uTime.value = state.clock.elapsedTime
+    const t = state.clock.elapsedTime
+    mat.uniforms.uTime.value = t
     mat.uniforms.uHovered.value += ((hovered ? 1 : 0) - mat.uniforms.uHovered.value) * 0.1
     if (meshRef.current) {
-      meshRef.current.rotation.z = state.clock.elapsedTime * 0.2
+      meshRef.current.rotation.z = t * 0.12
+    }
+    if (wire1Ref.current) {
+      wire1Ref.current.rotation.x = t * 0.35
+      wire1Ref.current.rotation.y = t * 0.2
+    }
+    if (wire2Ref.current) {
+      wire2Ref.current.rotation.y = -t * 0.28
+      wire2Ref.current.rotation.z = t * 0.18
     }
   })
 
@@ -75,6 +86,7 @@ export default function Wormhole({ obj }: WormholeProps) {
 
   return (
     <group position={obj.position}>
+      {/* 2D Spiral distortion backdrop */}
       <mesh
         ref={meshRef}
         material={mat}
@@ -82,7 +94,47 @@ export default function Wormhole({ obj }: WormholeProps) {
         onPointerLeave={() => setHovered(false)}
         onClick={(e) => { e.stopPropagation(); selectObject(obj) }}
       >
-        <planeGeometry args={[size * 3.5, size * 3.5, 1, 1]} />
+        <planeGeometry args={[size * 3.8, size * 3.8, 1, 1]} />
+      </mesh>
+
+      {/* Solid Black occluding core silhouette */}
+      <mesh>
+        <sphereGeometry args={[size * 0.62, 16, 16]} />
+        <meshBasicMaterial color="#000000" depthWrite={true} />
+      </mesh>
+
+      {/* Outer Impossible Wireframe 1 — Octahedron */}
+      <mesh
+        ref={wire1Ref}
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+        onClick={(e) => { e.stopPropagation(); selectObject(obj) }}
+      >
+        <octahedronGeometry args={[size * 0.95, 0]} />
+        <meshBasicMaterial
+          color={obj.color}
+          wireframe
+          transparent
+          opacity={0.15 + (hovered ? 0.35 : 0)}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* Outer Impossible Wireframe 2 — Icosahedron */}
+      <mesh
+        ref={wire2Ref}
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+        onClick={(e) => { e.stopPropagation(); selectObject(obj) }}
+      >
+        <icosahedronGeometry args={[size * 1.25, 0]} />
+        <meshBasicMaterial
+          color={obj.color}
+          wireframe
+          transparent
+          opacity={0.08 + (hovered ? 0.22 : 0)}
+          depthWrite={false}
+        />
       </mesh>
     </group>
   )
