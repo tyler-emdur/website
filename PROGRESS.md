@@ -118,10 +118,10 @@ Dark ocean gradient. 18 deep objects at different depths. Objects fade back to b
 ---
 
 ### World 3 — The Broadcast ★ REBUILT
-**Identity:** late-night cable television, physical CRT set in a dark room
+**Identity:** late-night cable television, physical CRT set in a dark room — not a website showing a TV model, but the experience of staring at a monitor in darkness
 **Interaction:** channel knob (▲▼ buttons or arrow keys), brief static burst on channel change
 
-Physical wood-cabinet TV. CRT scanlines overlay. Vignette. Green power LED.
+Physical aged-plastic cabinet ("VERITAS SYSTEMS VT-14A"). Near-black room (#030201) with warm TV glow radiating outward via radial gradient. Floating dust particles in the screen beam. CRT layers stacked: phosphor noise canvas (6% screen blend), improved scanlines, curved-edge mask (simulates barrel distortion), chromatic edge fringe (subtle red/blue), glass glare highlight (135° diagonal), glass surface edge reflection. Screen runs `screen-flicker` CSS animation. Occasional glitch events: horizontal roll (bright line sweeps downward), brightness flash, horizontal tear — each scheduled randomly every 9–31s. Cabinet has aged warm-cream gradient, faint scratch lines via CSS repeat-gradient, "SERVICE REQUIRED" sticker, 9-bar speaker grille, worn channel buttons. SecurityChannel (CH 66) now has per-camera hardware identity: CAM A-1 (cold blue, low contrast, archive feed, occasional timestamp anomaly), SRV-02 (green phosphor monochrome, surveillance crosshair, tight scanlines), CAM-03 (dirty lens vignette from corners, warm cast, random interference bar), FEED-04 (overexposed center glow, amber tint, pulsing signal source, occasional feed freeze + "NO RECORD" label). Uneasy effects: CAM 01 shows negative timestamp for one frame, CAM 03 shows "INTERFERENCE DETECTED" when bar appears, CAM 04 freezes for 2–7s every 18–53s, any cam can show an anomalous label for ~80ms.
 
 | CH | Content |
 |----|---------|
@@ -294,6 +294,7 @@ These recurring elements create continuity without shared visual style:
 
 | Hash | Description |
 |------|-------------|
+| latest | W3 full CRT/atmosphere overhaul: room glow, dust, phosphor noise, glitch events, per-cam security personalities |
 | `b3f70f1` | Universe redesign pass: replace hub-and-spoke with orbital fragments, add 10 background structures |
 | `e80a05f` | Rebuild 7 worlds as radically different Meow Wolf experiences |
 | `c838dc3` | Strip internet-humor tone from Universe — replace with archival/clinical voice |
