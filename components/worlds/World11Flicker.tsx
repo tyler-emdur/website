@@ -1,6 +1,5 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
 // ── High scores ──────────────────────────────────────────────────────────────
@@ -99,11 +98,12 @@ function ReactionGame({ onWin }: { onWin: (score: number) => void }) {
   const [result, setResult] = useState<number | null>(null)
   const [early, setEarly] = useState(false)
   const t = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const greenAt = useRef<number>(0)
 
   useEffect(() => {
     if (state === 'wait') {
       const delay = 2000 + Math.random() * 3000
-      t.current = setTimeout(() => setState('now'), delay)
+      t.current = setTimeout(() => { greenAt.current = Date.now(); setState('now') }, delay)
     }
     return () => { if (t.current) clearTimeout(t.current) }
   }, [state])
@@ -111,8 +111,7 @@ function ReactionGame({ onWin }: { onWin: (score: number) => void }) {
   const handleClick = () => {
     if (state === 'wait') { setEarly(true); setState('result'); setResult(null) }
     else if (state === 'now') {
-      // Can't measure real reaction time in this simplified version, use a mock
-      const ms = 180 + Math.floor(Math.random() * 200)
+      const ms = Date.now() - greenAt.current
       setResult(ms)
       setState('result')
       onWin(Math.max(500, 5000 - ms * 8))
@@ -154,7 +153,6 @@ function ReactionGame({ onWin }: { onWin: (score: number) => void }) {
 type Mode = 'attract' | 'select' | 'memory' | 'reaction' | 'scores'
 
 export default function World11Flicker() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
   const [mode, setMode] = useState<Mode>('attract')
   const [credits, setCredits] = useState(0)
   const [score, setScore] = useState(0)

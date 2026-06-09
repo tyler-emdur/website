@@ -1,7 +1,7 @@
 'use client'
 import { create } from 'zustand'
 
-export type UniverseMode = 'exploring' | 'approaching' | 'focused' | 'entering'
+export type UniverseMode = 'exploring' | 'focused'
 
 export interface UniverseObject {
   id: string
@@ -16,7 +16,7 @@ export interface UniverseObject {
   position: [number, number, number]
   color: string
   size?: number
-  visible: 'always' | { visited: number } | { needs: string[] } | { time: number }
+  visible: 'always' | { visited: number } | { time: number }
 }
 
 export interface RegionDef {
@@ -70,7 +70,7 @@ export const REGIONS: RegionDef[] = [
       { id: 'arch-frag-1',    label: 'DATA-MEM-001',        type: 'fragment', description: 'Recovered index block. System header matches master log. Format: corrupted.', region: 'archives', href: '/archive#001', position: [-1310, 1420, -280],  color: '#92400E', size: 10, visible: 'always' },
       { id: 'arch-frag-2',    label: 'DATA-MEM-047',        type: 'fragment', description: 'Fossilized code block. Creation date: 2020. Read access: unrestricted.', region: 'archives', href: '/archive#047', position: [-1090, 1180, -320], color: '#78350F', size: 10, visible: 'always' },
       { id: 'arch-wormhole',  label: 'APERTURE-3-A',        type: 'wormhole', description: 'Unstable gravitational tear. Target destination: unregistered. Mass draw: extreme.', region: 'archives', worldId: 2, worldPortal: 'scatter', position: [-1340, 1200, -260],  color: '#FDE68A', size: 45, visible: 'always' },
-      { id: 'arch-wormhole-2','label': 'RIFT-03',           type: 'wormhole', description: 'Interface terminal gate. System status: active. Access control: bypassed.', region: 'archives', worldId: 12, worldPortal: 'nothing', position: [-1240, 1150, -230],  color: '#22C55E', size: 32, visible: { visited: 2 } },
+      { id: 'arch-wormhole-2', label: 'RIFT-03',            type: 'wormhole', description: 'Interface terminal gate. System status: active. Access control: bypassed.', region: 'archives', worldId: 12, worldPortal: 'nothing', position: [-1240, 1150, -230],  color: '#22C55E', size: 32, visible: { visited: 2 } },
       { id: 'arch-frag-3',    label: 'DATA-MEM-113',        type: 'fragment', description: 'Orphan data fragment. Internal pointer is broken. Arrived via out-of-band transmission.', region: 'archives', href: '/archive#113', position: [-1160, 1410, -290],  color: '#92400E', size: 8,  visible: { visited: 3 } },
     ]
   },
@@ -147,8 +147,8 @@ export const VOID_OBJECTS: UniverseObject[] = [
   { id: 'void-frag-1',   label: '∞',          type: 'fragment', description: 'Transmission fragment. Reply: pending. Origin: unknown.',             region: 'void', position: [-120, -130, -10], color: '#737373', size: 7,  visible: 'always' },
   { id: 'void-frag-2',   label: 'DEBRIS-07',  type: 'fragment', description: 'Cataloged as significant. Significance unspecified.',                  region: 'void', position: [140,  120,  15],  color: '#525252', size: 5,  visible: { visited: 2 } },
   { id: 'void-signal-1', label: '⬥ DRIFT',    type: 'signal',   description: 'Unanchored signal. Trajectory: unresolved.',                          region: 'void', position: [120,  -160, 20],  color: '#A3A3A3', size: 6,  visible: { time: 15000 } },
-  { id: 'void-anomaly-1','label': 'ANOMALY-X', type: 'anomaly',  description: 'Classification failure. No matching type. Entry suspended.',          region: 'void', position: [-160, 150,  30],  color: '#6B7280', size: 12, visible: { time: 40000 } },
-  { id: 'void-station-1','label': 'RELAY-00',  type: 'station',  description: 'Decommissioned. Still receiving. Not transmitting.',                  region: 'void', position: [20,   0,   -20],  color: '#9CA3AF', size: 10, visible: { visited: 4 } },
+  { id: 'void-anomaly-1', label: 'ANOMALY-X',  type: 'anomaly',  description: 'Classification failure. No matching type. Entry suspended.',          region: 'void', position: [-160, 150,  30],  color: '#6B7280', size: 12, visible: { time: 40000 } },
+  { id: 'void-station-1', label: 'RELAY-00',   type: 'station',  description: 'Decommissioned. Still receiving. Not transmitting.',                  region: 'void', position: [20,   0,   -20],  color: '#9CA3AF', size: 10, visible: { visited: 4 } },
   { id: 'void-dark-anomaly', label: 'CLASSIFIED-NULL-VOID', type: 'anomaly', description: 'Massive gravitational anomaly. Light absorption: 100%. Boundary detection: failed.', lore: 'Do not approach. Sensor feedback returns zero values. All telemetry lost beyond boundary.', region: 'void', position: [-2500, 1800, -1200], color: '#000000', size: 160, visible: 'always' },
   { id: 'void-drifter', label: 'DRIFT-BEACON', type: 'signal', description: 'Slow moving telemetry source. Pathway shifts coordinate points. Signal frequency: 12.4Hz.', lore: 'Visual lock: unstable. Telemetry drift computed at 4.2 units/hr.', region: 'void', position: [400, 400, 0], color: '#A3A3A3', size: 8, visible: 'always' },
 ]
@@ -204,7 +204,8 @@ export const useUniverseStore = create<UniverseStore>((set, get) => ({
   visitStartTime: Date.now(),
   recentDiscovery: null,
 
-  flyTo: (pos, lookAt = [0, 0, 0]) => set({ cameraTarget: pos, lookTarget: lookAt }),
+  flyTo: (pos, lookAt) => set({ cameraTarget: pos, lookTarget: lookAt ?? pos }),
+
 
   selectObject: (obj) => {
     if (!obj) {
@@ -214,8 +215,9 @@ export const useUniverseStore = create<UniverseStore>((set, get) => ({
     const { discover, discoveredIds } = get()
     if (!discoveredIds.includes(obj.id)) discover(obj)
     set({ selectedId: obj.id, mode: 'focused' })
+    const offset = Math.max(120, (obj.size ?? 20) * 5)
     get().flyTo(
-      [obj.position[0], obj.position[1], obj.position[2] + 120],
+      [obj.position[0], obj.position[1], obj.position[2] + offset],
       [obj.position[0], obj.position[1], obj.position[2]]
     )
   },
@@ -238,7 +240,6 @@ export const useUniverseStore = create<UniverseStore>((set, get) => ({
     const { discoveredIds, visitStartTime } = get()
     const v = obj.visible
     if ('visited' in v) return discoveredIds.length >= v.visited
-    if ('needs' in v) return v.needs.every(id => discoveredIds.includes(id))
     if ('time' in v) return Date.now() - visitStartTime >= v.time
     return false
   },

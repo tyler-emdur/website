@@ -1,16 +1,10 @@
 'use client'
 import { Stars } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
+import { EffectComposer, Bloom, Vignette, ChromaticAberration, Noise, Scanline } from '@react-three/postprocessing'
+import { BlendFunction } from 'postprocessing'
+import * as THREE from 'three'
 import CameraRig from './camera/CameraRig'
-
-function CameraSync() {
-  const { camera } = useThree()
-  useFrame(() => {
-    ;(window as any).__universeCamera = { x: camera.position.x, y: camera.position.y, z: camera.position.z }
-  })
-  return null
-}
 import ProjectsRegion from './regions/ProjectsRegion'
 import RunningRegion from './regions/RunningRegion'
 import ArchivesRegion from './regions/ArchivesRegion'
@@ -25,19 +19,38 @@ import GiantStructures from './scene/GiantStructures'
 import SignalLayer from './scene/SignalLayer'
 import CartographyLayer from './scene/CartographyLayer'
 import GhostRemnants from './scene/GhostRemnants'
+import { useProximityStore } from '@/lib/proximity-system'
+
+// Syncs 3D camera position into Zustand store so HTML overlays can read it without window hacks
+function CameraSync() {
+  const { camera } = useThree()
+  const setCameraPos = useProximityStore(s => s.setCameraPos)
+  useFrame(() => {
+    // Store camera position on window for legacy compatibility — overlays read this
+    ;(window as any).__universeCamera = {
+      x: camera.position.x,
+      y: camera.position.y,
+      z: camera.position.z,
+    }
+    // New proximity system
+    setCameraPos([camera.position.x, camera.position.y, camera.position.z])
+  })
+  return null
+}
 
 export default function UniverseScene() {
   return (
     <>
+      <color attach="background" args={['#000']} />
+      
+      {/* Very faint ambient light so things aren't completely pitch black */}
+      <ambientLight intensity={0.02} />
+
       {/* Expanded ambient stars to cover the massive scale */}
       <Stars radius={12000} depth={4000} count={24000} factor={8} saturation={0.3} fade speed={0.35} />
       <Stars radius={4000} depth={1500} count={8000} factor={4} saturation={0.1} fade speed={0.08} />
       {/* Dense star cluster */}
       <Stars radius={1800} depth={600} count={4000} factor={3} saturation={0.05} fade speed={0.03} />
-
-      {/* Lighting */}
-      <ambientLight intensity={0.08} />
-      <pointLight position={[0, 0, 500]} intensity={1.5} color="#ffffff" />
 
       {/* Camera controller + sync */}
       <CameraRig />
@@ -52,6 +65,19 @@ export default function UniverseScene() {
       {/* Defined portal lanes */}
       <PortalConcourse />
 
+      {/* 
+        The world is organized into distinct "regions" / zones 
+        Each has its own Nebula backdrop and objects.
+      */}
+      <group>
+        <ProjectsRegion />
+        <ArchivesRegion />
+        <LabRegion />
+        <ExploreRegion />
+        <RunningRegion />
+        <ForgottenRegion />
+      </group>
+
       {/* Overlapping intelligence layers */}
       <SignalLayer />
       <CartographyLayer />
@@ -65,18 +91,13 @@ export default function UniverseScene() {
       {/* Void objects — scattered between regions */}
       <VoidObjects />
 
-      {/* Galaxy regions */}
-      <ProjectsRegion />
-      <RunningRegion />
-      <ArchivesRegion />
-      <ExploreRegion />
-      <LabRegion />
-      <ForgottenRegion />
-
       {/* Post processing */}
       <EffectComposer>
         <Bloom intensity={1.4} luminanceThreshold={0.15} luminanceSmoothing={0.9} mipmapBlur />
-        <Vignette offset={0.3} darkness={0.85} />
+        <Noise opacity={0.08} blendFunction={BlendFunction.OVERLAY} />
+        <ChromaticAberration blendFunction={BlendFunction.NORMAL} offset={new THREE.Vector2(0.0015, 0.0015)} />
+        <Scanline density={1.5} opacity={0.05} />
+        <Vignette offset={0.3} darkness={0.85} eskil={false} />
       </EffectComposer>
     </>
   )

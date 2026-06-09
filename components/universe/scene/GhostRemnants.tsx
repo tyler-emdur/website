@@ -2,6 +2,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { noise3D } from '@/lib/universe-noise'
 
 // Wireframe outlines of things that no longer exist.
 // No interaction. No label. Just presence.
@@ -40,8 +41,23 @@ function Ghost({ pos, type, r, phase }: (typeof GHOSTS)[0]) {
 
   useFrame((state) => {
     if (!ref.current) return
+    const t = state.clock.elapsedTime
     // Slow breathing — period ~35s with phase offsets so they're never all visible at once
-    mat.opacity = (Math.sin(state.clock.elapsedTime * 0.18 + phase) * 0.5 + 0.5) * 0.068
+    mat.opacity = (Math.sin(t * 0.18 + phase) * 0.5 + 0.5) * 0.15
+
+    // Add noise-driven positional drift
+    const driftX = noise3D(t * 0.05, pos[1] * 0.01, pos[2] * 0.01) * 80
+    const driftY = noise3D(pos[0] * 0.01, t * 0.05, pos[2] * 0.01) * 80
+    const driftZ = noise3D(pos[0] * 0.01, pos[1] * 0.01, t * 0.05) * 80
+
+    ref.current.position.set(pos[0] + driftX, pos[1] + driftY, pos[2] + driftZ)
+
+    // Phase shift jump - occasionally "teleport" a small distance if noise spikes
+    const phaseShift = noise3D(t * 0.2 + phase, phase * 2.0, phase * 3.0)
+    if (phaseShift > 0.85) {
+      ref.current.position.x += (phaseShift - 0.85) * 200
+      ref.current.position.z += (phaseShift - 0.85) * 200
+    }
   })
 
   return (

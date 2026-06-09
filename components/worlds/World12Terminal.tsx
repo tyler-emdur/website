@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
+import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
 interface Line {
@@ -8,25 +8,11 @@ interface Line {
   text: string
 }
 
-const WORLDS: Record<string, { id: WorldId; portal: PortalType }> = {
-  depth: { id: 2, portal: 'scatter' },
-  broadcast: { id: 3, portal: 'expand-white' },
-  corridor: { id: 4, portal: 'slide-right' },
-  field: { id: 5, portal: 'rotate' },
-  document: { id: 6, portal: 'nothing' },
-  mall: { id: 7, portal: 'cursor-flood' },
-  signal: { id: 8, portal: 'fold' },
-  contact: { id: 9, portal: 'expand-white' },
-  loop: { id: 10, portal: 'vortex' },
-  flicker: { id: 11, portal: 'scatter' },
-  terminal: { id: 12, portal: 'nothing' },
-  spiral: { id: 13, portal: 'vortex' },
-  pixel: { id: 14, portal: 'chromatic' },
-  dial: { id: 15, portal: 'chromatic' },
-  index: { id: 16, portal: 'fold' },
-  universe: { id: 1, portal: 'fold' },
-  surface: { id: 0, portal: 'door' },
-}
+const KNOWN_WORLDS = [
+  'depth', 'broadcast', 'corridor', 'field', 'document',
+  'mall', 'signal', 'contact', 'loop', 'flicker',
+  'terminal', 'spiral', 'pixel', 'dial', 'universe',
+]
 
 const FILES = [
   'readme.txt',
@@ -39,11 +25,25 @@ const FILES = [
   '.hidden/exit',
 ]
 
+const PRESET_HISTORY = [
+  'ls /worlds',
+  'cd boulder && stay',
+  'grep -r "frequency 88.7" ./universe',
+  'cat do_not_open',
+  'ping depth',
+  'run marathon --distance=26.2 --year=2024',
+  'ship portfolio.next --prod',
+  'sleep 3h',
+  'wake',
+  'dig deeper',
+  '[this line intentionally left blank]',
+]
+
 export default function World12Terminal() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
+  const sessionStart = useWorldStore(s => s.sessionStart)
   const [lines, setLines] = useState<Line[]>([
     { type: 'out', text: 'wormhole OS v0.∞ — type "help" or get lost' },
-    { type: 'out', text: '47 objects detected in parent universe. 17 worlds mounted.' },
+    { type: 'out', text: '47 objects detected in parent universe. 15 worlds mounted.' },
     { type: 'out', text: '' },
   ])
   const [input, setInput] = useState('')
@@ -77,10 +77,14 @@ export default function World12Terminal() {
     if (verb === 'help') {
       append([
         { type: 'out', text: 'commands:' },
-        { type: 'out', text: '  ls · cat <file> · cd <world> · wormhole · whoami · clear' },
-        { type: 'out', text: '  worlds: depth broadcast corridor field document mall signal' },
-        { type: 'out', text: '          contact loop flicker spiral pixel dial index universe surface' },
-        { type: 'out', text: '  secret: try "sudo rm -rf /" or "exit"' },
+        { type: 'out', text: '  ls · cat <file> · whoami · clear · ping <world>' },
+        { type: 'out', text: '  ps · history · man <subject> · uptime · date · uname' },
+        { type: 'out', text: '  echo <anything> · top · glitch · wormhole' },
+        { type: 'out', text: '' },
+        { type: 'out', text: 'worlds: depth broadcast corridor field document mall signal' },
+        { type: 'out', text: '        contact loop flicker spiral pixel dial universe' },
+        { type: 'out', text: '' },
+        { type: 'out', text: 'note: direct traversal currently sealed' },
       ])
       return
     }
@@ -102,13 +106,24 @@ export default function World12Terminal() {
         append([
           { type: 'out', text: 'you are inside the interface.' },
           { type: 'out', text: 'the interface is inside you.' },
-          { type: 'out', text: 'type cd <world> to traverse.' },
+          { type: 'out', text: 'traversal is sealed. ping a world to confirm it exists.' },
         ])
       } else if (file === 'wormhole.map') {
         append([
           { type: 'out', text: 'N→E→S→W→?  (loop)' },
           { type: 'out', text: '∞→13→∞→11→∞  (spiral/flicker)' },
           { type: 'out', text: 'all paths converge at origin TE-∅' },
+        ])
+      } else if (file === 'depth.log') {
+        append([
+          { type: 'out', text: '[DEPTH LOG — SECTOR 02]' },
+          { type: 'out', text: '  00.0m : surface entry' },
+          { type: 'out', text: '  10.3m : pressure nominal' },
+          { type: 'out', text: '  22.7m : first signal detected · 88.7' },
+          { type: 'out', text: '  40.0m : doors visible on sonar' },
+          { type: 'out', text: '  61.4m : room 47 confirmed' },
+          { type: 'out', text: '  88.7m : something heard' },
+          { type: 'out', text: '  ∞     : [recording stopped]' },
         ])
       } else if (file === 'infinite.worlds') {
         append([
@@ -119,16 +134,24 @@ export default function World12Terminal() {
       } else if (file === 'pixel.rom') {
         append([
           { type: 'out', text: '8-bit cartridge detected. colors: TOO MANY.' },
-          { type: 'out', text: 'type: cd pixel' },
+          { type: 'out', text: 'warp zones present. most are decorative.' },
         ])
       } else if (file === 'dial.frequencies') {
         append([
-          { type: 'out', text: '88.8 depth · 91.1 pixel · 94.7 loop · 97.5 index' },
-          { type: 'out', text: 'fake stations exist. trust nothing.' },
+          { type: 'out', text: '88.8 depth · 91.1 pixel · 94.7 loop · 99.0 endpoint' },
+          { type: 'out', text: 'fake stations exist. trust nothing below 88.8.' },
+          { type: 'out', text: 'the broadcast at 88.7 does not appear on this dial.' },
+          { type: 'out', text: 'it appears everywhere else.' },
         ])
       } else if (file === 'do_not_open') {
-        append([{ type: 'err', text: 'permission denied. opening anyway...' }])
-        setTimeout(() => navigateTo(6, { type: 'nothing' }), 800)
+        append([{ type: 'err', text: 'permission denied.' }])
+        setTimeout(() => append([{ type: 'err', text: '[you tried anyway. noted.]' }]), 600)
+      } else if (file === '.hidden/exit') {
+        append([
+          { type: 'out', text: "there's no exit file here." },
+          { type: 'out', text: 'there is a ← universe button in the corner.' },
+          { type: 'out', text: 'that is the exit.' },
+        ])
       } else {
         append([{ type: 'err', text: `cat: ${file}: no such file` }])
       }
@@ -136,25 +159,28 @@ export default function World12Terminal() {
     }
 
     if (verb === 'cd' && parts[1]) {
-      const target = WORLDS[parts[1]]
-      if (target) {
-        append([{ type: 'out', text: `entering ${parts[1]}...` }])
-        setTimeout(() => navigateTo(target.id, { type: target.portal }), 500)
+      append([{ type: 'err', text: `cd: traversal sealed. use "ping ${parts[1]}" to confirm it exists.` }])
+      return
+    }
+
+    if (verb === 'ping' && parts[1]) {
+      const known = KNOWN_WORLDS.includes(parts[1])
+      if (known) {
+        append([
+          { type: 'out', text: `PING ${parts[1]}.world: transmitting...` },
+          { type: 'out', text: `reply from ${parts[1]}: world confirmed. sealed. cannot enter from here.` },
+        ])
       } else {
-        append([{ type: 'err', text: `cd: ${parts[1]}: not a mounted world` }])
+        append([{ type: 'err', text: `ping: ${parts[1]}: no route to world` }])
       }
       return
     }
 
     if (verb === 'wormhole') {
-      const keys = Object.keys(WORLDS).filter(k => k !== 'terminal' && k !== 'universe')
-      const pick = keys[Math.floor(Math.random() * keys.length)]
-      const target = WORLDS[pick]
       append([
-        { type: 'out', text: 'opening random aperture...' },
-        { type: 'out', text: `destination: ${pick}` },
+        { type: 'err', text: 'wormhole: aperture sealed.' },
+        { type: 'err', text: 'reason: inter-world traversal disabled.' },
       ])
-      setTimeout(() => navigateTo(target.id, { type: 'vortex' }), 700)
       return
     }
 
@@ -167,25 +193,137 @@ export default function World12Terminal() {
       return
     }
 
+    if (verb === 'ps') {
+      append([
+        { type: 'out', text: 'USER       PID   STAT  COMMAND' },
+        { type: 'out', text: 'te         001   S     falling.exe' },
+        { type: 'out', text: 'te         002   S     portfolio.next --watching' },
+        { type: 'out', text: 'te         004   S     signal.monitor --freq=88.7' },
+        { type: 'out', text: 'te         007   Z     [THE_DECISION] <defunct>' },
+        { type: 'out', text: 'te         013   R     loop.worker --room=10' },
+        { type: 'out', text: 'te         ∞     S     memory.persist --never-exits' },
+      ])
+      return
+    }
+
+    if (verb === 'history') {
+      append(PRESET_HISTORY.map((h, i) => ({
+        type: 'out' as const,
+        text: `  ${String(i + 1).padStart(3)} ${h}`,
+      })))
+      return
+    }
+
+    if (verb === 'man') {
+      const subject = parts[1] || ''
+      if (!subject) {
+        append([{ type: 'err', text: 'man: what manual page do you want?' }])
+        return
+      }
+      if (subject === 'tyler' || subject === 'te') {
+        append([
+          { type: 'out', text: 'TYLER(1)               User Commands               TYLER(1)' },
+          { type: 'out', text: '' },
+          { type: 'out', text: 'NAME' },
+          { type: 'out', text: '     tyler — software engineer; builder; runner' },
+          { type: 'out', text: '' },
+          { type: 'out', text: 'SYNOPSIS' },
+          { type: 'out', text: '     tyler [build] [ship] [run] [repeat]' },
+          { type: 'out', text: '' },
+          { type: 'out', text: 'DESCRIPTION' },
+          { type: 'out', text: '     tyler operates in Boulder, CO. builds software.' },
+          { type: 'out', text: '     runs trails. ships things before they are perfect.' },
+          { type: 'out', text: '' },
+          { type: 'out', text: '     relocated from the midwest: 2022.' },
+          { type: 'out', text: '     first marathon: oct 2024. 3:41:22.' },
+          { type: 'out', text: '     current altitude: 5430 ft.' },
+          { type: 'out', text: '' },
+          { type: 'out', text: 'ENVIRONMENT' },
+          { type: 'out', text: '     FREQ=88.7' },
+          { type: 'out', text: '     COORDS=40.0150N,105.2705W' },
+          { type: 'out', text: '     STATUS=actively building' },
+          { type: 'out', text: '' },
+          { type: 'out', text: 'SEE ALSO' },
+          { type: 'out', text: '     depth(2), signal(8), spiral(13), contact(9)' },
+          { type: 'out', text: '' },
+          { type: 'out', text: 'BUGS' },
+          { type: 'out', text: '     will keep going past the point of reasonable effort.' },
+          { type: 'out', text: '' },
+          { type: 'out', text: 'TYLER(1)               Tyler Emdur               TYLER(1)' },
+        ])
+      } else {
+        append([{ type: 'err', text: `man: no entry for ${subject}. try "man tyler".` }])
+      }
+      return
+    }
+
+    if (verb === 'uptime') {
+      const secs = Math.floor((Date.now() - sessionStart) / 1000)
+      const m = Math.floor(secs / 60)
+      const s = secs % 60
+      append([
+        { type: 'out', text: `up ${m}m ${s}s since session start` },
+        { type: 'out', text: 'load: 1 project, 1 person, 0 regrets' },
+      ])
+      return
+    }
+
+    if (verb === 'date') {
+      append([
+        { type: 'err', text: '[WRONG DATE: this system does not track time accurately]' },
+        { type: 'out', text: '[KNOWN TIME: 11:59]' },
+        { type: 'out', text: '[KNOWN FACT: it is always 11:59 in room 10]' },
+      ])
+      return
+    }
+
+    if (verb === 'uname') {
+      append([{ type: 'out', text: 'wormhole OS v0.∞ (wormhole-kernel) #1 SMP [DATE UNKNOWN] x86_undefined' }])
+      return
+    }
+
+    if (verb === 'top') {
+      append([
+        { type: 'out', text: 'top — processes ordered by depth' },
+        { type: 'out', text: '' },
+        { type: 'out', text: '  TASK          CPU%   MEM    STATUS' },
+        { type: 'out', text: '  falling.exe    99.9%  ∞MB    running' },
+        { type: 'out', text: '  thinking       87.3%  ---    zombie' },
+        { type: 'out', text: '  88.7 monitor   12.0%  small  sleeping' },
+        { type: 'out', text: '  letting_go      4.1%  ---    waiting' },
+        { type: 'out', text: '' },
+        { type: 'out', text: '  press q to quit  (q does nothing here)' },
+      ])
+      return
+    }
+
+    if (verb === 'echo') {
+      const rest = raw.trim().slice(5).trim()
+      if (rest) {
+        append([
+          { type: 'out', text: rest },
+          { type: 'out', text: '(noted.)' },
+        ])
+      } else {
+        append([{ type: 'out', text: '' }])
+      }
+      return
+    }
+
     if (verb === 'exit' || cmd === 'sudo rm -rf /') {
-      append([{ type: 'out', text: 'nice try. routing to spiral instead.' }])
-      setTimeout(() => navigateTo(13, { type: 'vortex' }), 600)
+      append([{ type: 'out', text: 'nice try. nowhere to route to from here.' }])
+      append([{ type: 'out', text: 'use ← universe to leave.' }])
       return
     }
 
     if (verb === 'glitch') {
       glitchCount.current++
-      if (glitchCount.current >= 3) {
-        append([{ type: 'out', text: 'signal breach. redirecting.' }])
-        setTimeout(() => navigateTo(8, { type: 'fold' }), 500)
-      } else {
-        append([{ type: 'err', text: `#${glitchCount.current} static... keep going` }])
-      }
+      append([{ type: 'err', text: `#${glitchCount.current} static... signal goes nowhere` }])
       return
     }
 
     append([{ type: 'err', text: `${verb}: command not found. type help.` }])
-  }, [append, navigateTo])
+  }, [append, sessionStart])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

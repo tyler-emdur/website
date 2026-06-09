@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
+import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
 const TILE = 20
@@ -56,16 +56,16 @@ const LEVEL = [
   '################################################################################################################################',
 ]
 
-const WARPS: Record<string, { world: WorldId; portal: PortalType; label: string }> = {
-  '1': { world: 7, portal: 'chromatic', label: 'MALL' },
-  '2': { world: 3, portal: 'chromatic', label: 'TV' },
-  '3': { world: 13, portal: 'vortex', label: 'SPIRAL' },
-  '4': { world: 11, portal: 'scatter', label: 'FLICKER' },
-  '5': { world: 10, portal: 'vortex', label: 'LOOP' },
-  '6': { world: 15, portal: 'chromatic', label: 'DIAL' },
-  '7': { world: 4, portal: 'slide-right', label: 'HALL' },
-  '8': { world: 16, portal: 'fold', label: 'INDEX' },
-  '9': { world: 1, portal: 'fold', label: 'UNIVERSE' },
+const WARPS: Record<string, { label: string }> = {
+  '1': { label: 'MALL' },
+  '2': { label: 'TV' },
+  '3': { label: 'SPIRAL' },
+  '4': { label: 'FLICKER' },
+  '5': { label: 'LOOP' },
+  '6': { label: 'DIAL' },
+  '7': { label: 'HALL' },
+  '8': { label: '???' },
+  '9': { label: 'UNIVERSE' },
 }
 
 interface Mover { x: number; y: number; dir: number; minX: number; maxX: number }
@@ -113,7 +113,6 @@ function parseLevel() {
 const LEVEL_DATA = parseLevel()
 
 export default function World14Pixel() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
   const findSecret = useWorldStore(s => s.findSecret)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const keysRef = useRef<Record<string, boolean>>({})
@@ -133,10 +132,11 @@ export default function World14Pixel() {
     const w = WARPS[id]
     if (!w) return
     warpLock.current = true
-    setMsg(`WARP → ${w.label}`)
+    const wrongSign = WRONG_SIGNS[parseInt(id) % WRONG_SIGNS.length]
+    setMsg(`[ ${w.label} ] — ${wrongSign}`)
     findSecret(`pixel-warp-${id}`)
-    setTimeout(() => navigateTo(w.world, { type: w.portal, color: '#FF006E' }), 400)
-  }, [navigateTo, findSecret])
+    setTimeout(() => { warpLock.current = false; setMsg('') }, 2000)
+  }, [findSecret])
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {

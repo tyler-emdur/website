@@ -10,6 +10,7 @@ const ZOOM_MAX = 9000
 const LERP = 0.065
 const IDLE_BOB_AMPLITUDE = 8
 const IDLE_BOB_SPEED = 0.15
+const FRICTION = 0.88 // Momentum friction
 
 export default function CameraRig() {
   const { camera, gl } = useThree()
@@ -22,6 +23,7 @@ export default function CameraRig() {
   const dragActive = useRef(false)
   const lastPointer = useRef({ x: 0, y: 0 })
   const panOffset = useRef({ x: 0, y: 0 })
+  const velocity = useRef({ x: 0, y: 0 })
   const idleTime = useRef(0)
 
   // Sync store → local targets
@@ -42,6 +44,7 @@ export default function CameraRig() {
     const onDown = (e: PointerEvent) => {
       if (mode !== 'exploring') return
       dragActive.current = true
+      velocity.current = { x: 0, y: 0 }
       lastPointer.current = { x: e.clientX, y: e.clientY }
       canvas.setPointerCapture(e.pointerId)
     }
@@ -53,13 +56,9 @@ export default function CameraRig() {
       lastPointer.current = { x: e.clientX, y: e.clientY }
 
       const zoomFactor = camera.position.z / 600
-      panOffset.current.x -= dx * PAN_SPEED * zoomFactor
-      panOffset.current.y += dy * PAN_SPEED * zoomFactor
-
-      targetPos.current.x = panOffset.current.x
-      targetPos.current.y = panOffset.current.y
-      targetLook.current.x = panOffset.current.x
-      targetLook.current.y = panOffset.current.y
+      // Add to velocity instead of directly translating
+      velocity.current.x -= dx * PAN_SPEED * zoomFactor * 0.15
+      velocity.current.y += dy * PAN_SPEED * zoomFactor * 0.15
 
       idleTime.current = 0
     }
@@ -91,6 +90,29 @@ export default function CameraRig() {
   useFrame((state) => {
     idleTime.current += state.clock.getDelta()
 
+    // Apply momentum
+    if (mode === 'exploring') {
+      panOffset.current.x += velocity.current.x
+      panOffset.current.y += velocity.current.y
+      
+      targetPos.current.x = panOffset.current.x
+      targetPos.current.y = panOffset.current.y
+      targetLook.current.x = panOffset.current.x
+      targetLook.current.y = panOffset.current.y
+
+      velocity.current.x *= FRICTION
+      velocity.current.y *= FRICTION
+    }
+
+    // Dynamic FOV based on mode and speed
+    const speed = Math.sqrt(velocity.current.x ** 2 + velocity.current.y ** 2)
+    const targetFov = mode === 'focused' ? 35 : Math.min(90, 50 + speed * 0.2)
+    const cameraObj = camera as any
+    if (cameraObj.fov) {
+      cameraObj.fov += (targetFov - cameraObj.fov) * 0.05
+      cameraObj.updateProjectionMatrix()
+    }
+
     // Idle bob when not dragging and exploring
     let bobY = 0
     if (mode === 'exploring' && !dragActive.current) {
@@ -102,6 +124,12 @@ export default function CameraRig() {
     camera.position.x += (targetPos.current.x - camera.position.x) * LERP
     camera.position.y += (targetPos.current.y + bobY - camera.position.y) * LERP
     camera.position.z += (targetPos.current.z - camera.position.z) * LERP
+
+    // Collision avoidance buffer: prevent flying exactly through origin
+    if (mode === 'exploring' && camera.position.z < 200 && Math.abs(camera.position.x) < 50 && Math.abs(camera.position.y) < 50) {
+      targetPos.current.x += 10
+      targetPos.current.y -= 10
+    }
 
     // Lerp look-at
     currentLook.current.lerp(targetLook.current, LERP)

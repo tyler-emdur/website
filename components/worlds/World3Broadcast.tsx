@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
+import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
 const CHANNELS = [2, 4, 7, 9, 13, 22, 44, 66, 88]
@@ -523,20 +523,83 @@ function SecurityChannel() {
 }
 
 // ── Portal (88) ───────────────────────────────────────────────────────────────
-function PortalChannel({ onNavigate }: { onNavigate: () => void }) {
+const CH88_TRANSMISSION = [
+  'signal confirmed.',
+  'this is not a scheduled broadcast.',
+  '',
+  'origin: field station · boulder co',
+  'coordinates: 40.0150°N  105.2705°W',
+  'altitude: 5430 ft',
+  '',
+  'you are not supposed to be on this frequency.',
+  'neither are we.',
+  '',
+  'there is no portal.',
+  'there was never a portal.',
+  '',
+  'there is only the signal',
+  'and the decision to keep listening.',
+  '',
+  '— T.E.',
+]
+
+function PortalChannel() {
   const [count, setCount] = useState(5)
+  const [lineIdx, setLineIdx] = useState(0)
+  const [charIdx, setCharIdx] = useState(0)
+  const [displayed, setDisplayed] = useState<string[]>([])
+  const [curLine, setCurLine] = useState('')
+
   useEffect(() => {
     const iv = setInterval(() => setCount(c => {
-      if (c <= 1) { clearInterval(iv); onNavigate(); return 0 }
+      if (c <= 1) { clearInterval(iv); return 0 }
       return c - 1
     }), 1000)
     return () => clearInterval(iv)
-  }, [onNavigate])
+  }, [])
+
+  // Start transmission after countdown
+  useEffect(() => {
+    if (count !== 0) return
+    let li = 0, ci = 0
+    const iv = setInterval(() => {
+      const line = CH88_TRANSMISSION[li]
+      if (line === undefined) { clearInterval(iv); return }
+      if (ci < line.length) {
+        setCurLine(line.slice(0, ci + 1))
+        ci++
+      } else {
+        setDisplayed(prev => [...prev, line])
+        setCurLine('')
+        setLineIdx(li + 1)
+        li++; ci = 0
+      }
+    }, 40)
+    return () => clearInterval(iv)
+  }, [count])
+
   return (
-    <div style={{ width:'100%', height:'100%', background:'#000', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontFamily:'monospace' }}>
-      <div style={{ color:'rgba(34,197,94,0.8)', fontSize:'clamp(8px,1.2vw,13px)', letterSpacing:'0.2em', marginBottom:8 }}>FREQUENCY 88.7</div>
-      <div style={{ color:'rgba(255,255,255,0.15)', fontSize:'clamp(6px,0.9vw,9px)', letterSpacing:'0.3em', marginBottom:20 }}>SIGNAL ACQUIRED</div>
-      <div style={{ color:'rgba(255,255,255,0.5)', fontSize:'clamp(7px,1vw,10px)' }}>ROUTING IN {count}...</div>
+    <div style={{ width:'100%', height:'100%', background:'#000', display:'flex', flexDirection:'column', fontFamily:'monospace', padding:'8px 10px', overflow:'hidden' }}>
+      <div style={{ color:'rgba(34,197,94,0.7)', fontSize:'clamp(7px,1.1vw,11px)', letterSpacing:'0.25em', marginBottom:4 }}>FREQUENCY 88.7</div>
+      <div style={{ flex:1, borderTop:'1px solid rgba(34,197,94,0.15)', paddingTop:6, overflowY:'hidden' }}>
+        {count > 0 ? (
+          <div style={{ color:'rgba(255,255,255,0.4)', fontSize:'clamp(7px,1vw,10px)', letterSpacing:'0.1em', marginTop:4 }}>
+            ROUTING IN {count}...
+          </div>
+        ) : (
+          <div>
+            {displayed.map((l, i) => (
+              <div key={i} style={{ color: l.startsWith('—') ? 'rgba(34,197,94,0.5)' : l === '' ? undefined : 'rgba(200,240,200,0.7)', fontSize:'clamp(6px,0.9vw,9px)', lineHeight:1.9, minHeight:'1.2em', letterSpacing:'0.04em' }}>{l}</div>
+            ))}
+            {lineIdx < CH88_TRANSMISSION.length && (
+              <div style={{ color:'rgba(200,240,200,0.7)', fontSize:'clamp(6px,0.9vw,9px)', lineHeight:1.9 }}>
+                {curLine}<span style={{ opacity:0.5, animation:'txBlink 0.5s step-end infinite' }}>█</span>
+              </div>
+            )}
+            <style>{`@keyframes txBlink{0%,100%{opacity:0.5}50%{opacity:0}}`}</style>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -571,7 +634,6 @@ function DustParticles() {
 
 // ── Main world ───────────────────────────────────────────────────────────────
 export default function World3Broadcast() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
   const [chIdx, setChIdx] = useState(1)
   const [switching, setSwitching] = useState(false)
   const [glitch, setGlitch] = useState<GlitchType>('none')
@@ -624,7 +686,7 @@ export default function World3Broadcast() {
       case 22: return <KidsChannel />
       case 44: return <TestPattern />
       case 66: return <SecurityChannel />
-      case 88: return <PortalChannel onNavigate={() => navigateTo(15 as WorldId, { type: 'chromatic' as PortalType })} />
+      case 88: return <PortalChannel />
       default: return <StaticScreen />
     }
   }

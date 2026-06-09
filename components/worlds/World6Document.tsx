@@ -170,12 +170,12 @@ function Pin({ color }: { color: string }) {
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 
 export default function World6Document() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
   const [items, setItems] = useState<PinItem[]>(INITIAL_ITEMS.map(i => ({ ...i, unredacted: false })))
   const [dragging, setDragging] = useState<string | null>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [focused, setFocused] = useState<string | null>(null)
   const [revealProgress, setRevealProgress] = useState<Record<string, number>>({})
+  const [expandedCard, setExpandedCard] = useState<PinItem | null>(null)
   const boardRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
@@ -193,13 +193,10 @@ export default function World6Document() {
         }
         return { ...prev, [id]: Math.min(cur, 5) }
       })
+    } else if (item?.type === 'redacted' && item.unredacted) {
+      setExpandedCard(item)
     }
-    if (item?.unredacted && item.worldId) {
-      navigateTo(item.worldId as Parameters<typeof navigateTo>[0], {
-        type: item.portal as Parameters<typeof navigateTo>[1]['type'],
-      })
-    }
-  }, [items, navigateTo])
+  }, [items])
 
   // Drag
   const handleMouseDown = useCallback((id: string, e: React.MouseEvent) => {
@@ -435,6 +432,47 @@ export default function World6Document() {
           )
         })}
       </div>
+
+      {/* Expanded card overlay */}
+      {expandedCard && (
+        <div
+          onClick={() => setExpandedCard(null)}
+          style={{
+            position: 'absolute', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.75)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#f5f0e8',
+              padding: '32px 36px',
+              maxWidth: 480, width: '90vw',
+              maxHeight: '80vh', overflowY: 'auto',
+              boxShadow: '0 20px 80px rgba(0,0,0,0.8)',
+              fontFamily: '"Unna", Georgia, serif',
+              position: 'relative',
+            }}
+          >
+            {expandedCard.title && (
+              <div style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.2em', marginBottom: 16, textTransform: 'uppercase' }}>
+                {expandedCard.title} · UNREDACTED
+              </div>
+            )}
+            <div style={{ fontSize: 12, lineHeight: 2.1, color: 'rgba(0,0,0,0.75)', whiteSpace: 'pre-wrap' }}>
+              {expandedCard.body}
+            </div>
+            <div style={{ marginTop: 24, fontFamily: 'monospace', fontSize: 8, color: 'rgba(0,0,0,0.25)', letterSpacing: '0.15em' }}>
+              CLEARANCE LEVEL: GRANTED · {new Date().toLocaleDateString()}
+            </div>
+            <div
+              onClick={() => setExpandedCard(null)}
+              style={{ marginTop: 12, fontFamily: 'monospace', fontSize: 8, color: 'rgba(0,0,0,0.3)', cursor: 'pointer', letterSpacing: '0.1em' }}
+            >[ close ]</div>
+          </div>
+        </div>
+      )}
 
       {/* Drag hint */}
       <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,160,60,0.2)', letterSpacing: '0.2em', pointerEvents: 'none' }}>

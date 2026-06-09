@@ -5,11 +5,11 @@ import HomeButton from './HomeButton'
 
 // ─── RADIO FREQUENCIES ──────────────────────────────────────────────────────
 
-const BANDS: { freq: number; label: string; content: string; worldId?: number; portal?: string }[] = [
+const BANDS: { freq: number; label: string; content: string }[] = [
   { freq: 72.4,  label: 'STATIC',       content: '░░▓░░▒░▓▒░░▓░░' },
   { freq: 80.0,  label: 'WEATHER',      content: 'BOULDER · CLEAR · 62°F · WIND 8mph NW · VISIBILITY: 10mi' },
-  { freq: 88.7,  label: '─ ─ ─',        content: 'FREQUENCY RECOGNIZED. SIGNAL ORIGIN: UNKNOWN. DO NOT ADJUST DIAL.', worldId: 15, portal: 'chromatic' },
-  { freq: 94.1,  label: 'BROADCAST',    content: 'you are listening to something that is not a radio station', worldId: 3, portal: 'expand-white' },
+  { freq: 88.7,  label: '─ ─ ─',        content: 'FREQUENCY RECOGNIZED. SIGNAL ORIGIN: UNKNOWN. COORDINATES: 40.0150°N 105.2705°W. DO NOT ADJUST DIAL. THIS FREQUENCY DOES NOT EXIST ON THIS BAND.' },
+  { freq: 94.1,  label: 'BROADCAST',    content: 'you are listening to something that is not a radio station. this has been playing for longer than the station has been operating. nobody knows who started it. nobody has turned it off.' },
   { freq: 101.5, label: 'STATIC',       content: '▒░░▓▒░░░░▒▓░▒░' },
   { freq: 107.3, label: 'STATION ID',   content: 'THIS IS SIGNAL RIDGE STATION. OPERATING SINCE 1993. OVER.' },
   { freq: 114.9, label: 'MORSE',        content: '·− −··· −−− ··− ·−·  ·−·−·−  ·−·· · − ·−·· ·' },
@@ -179,7 +179,6 @@ const MORSE_DECODED = 'ABOUT · LETTR'
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 
 export default function World5FieldStation() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
   const [time, setTime] = useState(new Date())
   const [freq, setFreq] = useState(101.5)
   const [notebookPage, setNotebookPage] = useState(0)
@@ -230,20 +229,15 @@ export default function World5FieldStation() {
     return () => clearTimeout(t)
   }, [onStation, station.freq]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleFreqNav = useCallback((e: React.MouseEvent) => {
-    if (station.worldId && onStation) {
-      navigateTo(station.worldId as Parameters<typeof navigateTo>[0], {
-        type: station.portal as Parameters<typeof navigateTo>[1]['type'],
-        origin: { x: e.clientX, y: e.clientY },
-      })
-    }
-  }, [station, onStation, navigateTo])
+  const handleFreqNav = useCallback(() => {
+    // navigation sealed
+  }, [])
 
   const handleHatch = useCallback(() => {
     const c = hatchClicks + 1
     setHatchClicks(c)
-    if (c >= 5) { setHatchOpen(true); setTimeout(() => navigateTo(6, { type: 'nothing' }), 800) }
-  }, [hatchClicks, navigateTo])
+    if (c >= 5) { setHatchOpen(true) }
+  }, [hatchClicks])
 
   const uptime = Math.floor((Date.now() - sessionStart.current) / 1000)
   const h = String(Math.floor(uptime / 3600)).padStart(2, '0')
@@ -305,10 +299,10 @@ export default function World5FieldStation() {
 
           {/* Maintenance hatch */}
           <div
-            onClick={handleHatch}
+            onClick={hatchOpen ? undefined : handleHatch}
             style={{
               background: 'rgba(10,8,4,0.9)', border: `1px solid rgba(100,80,30,${hatchOpen ? 0.8 : 0.15})`,
-              padding: '10px 14px', cursor: 'pointer', position: 'relative',
+              padding: '10px 14px', cursor: hatchOpen ? 'default' : 'pointer', position: 'relative',
               transition: 'border-color 0.3s',
             }}
           >
@@ -316,6 +310,25 @@ export default function World5FieldStation() {
             <div style={{ fontSize: 7, color: hatchOpen ? 'rgba(100,220,120,0.7)' : 'rgba(200,100,60,0.35)', marginTop: 4 }}>
               {hatchOpen ? '[ OPEN ]' : `[ LOCKED ${hatchClicks > 0 ? hatchClicks + '/5' : ''} ]`}
             </div>
+            {hatchOpen && (
+              <div style={{
+                marginTop: 10, paddingTop: 10,
+                borderTop: '1px solid rgba(100,80,30,0.2)',
+                fontFamily: '"Special Elite", Georgia, serif',
+                fontSize: 9, color: 'rgba(200,180,120,0.45)',
+                lineHeight: 2,
+              }}>
+                <div style={{ fontSize: 7, color: 'rgba(200,160,60,0.25)', letterSpacing: '0.15em', marginBottom: 6 }}>HIDDEN LOG — PAGE 47</div>
+                <div>[DAY 47]</div>
+                <div>conditions: clear. 3am start.</div>
+                <div>nothing to report.</div>
+                <div style={{ color: 'rgba(200,180,120,0.3)', fontStyle: 'italic' }}>(something to report.)</div>
+                <div>freq 88.7 confirmed again.</div>
+                <div>coordinates: 40.0150°N</div>
+                <div>the hum is consistent tonight.</div>
+                <div>leaving at dawn.</div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -400,15 +413,6 @@ export default function World5FieldStation() {
               )}
             </div>
 
-            {/* Navigate button when on special station */}
-            {onStation && station.worldId && transmission && !transmitting && (
-              <div
-                onClick={handleFreqNav}
-                style={{ marginTop: 10, padding: '8px', background: 'rgba(100,220,120,0.08)', border: '1px solid rgba(100,220,120,0.25)', cursor: 'pointer', textAlign: 'center', fontFamily: 'monospace', fontSize: 8, color: 'rgba(100,220,120,0.7)', letterSpacing: '0.15em' }}
-              >
-                FOLLOW SIGNAL →
-              </div>
-            )}
           </div>
 
           {/* Transmission log */}

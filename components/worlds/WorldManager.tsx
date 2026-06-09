@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { useWorldStore, getWorldLog } from '@/lib/world-store'
 import PortalTransition from './PortalTransition'
 import World0Surface from './World0Surface'
@@ -18,27 +18,25 @@ import World12Terminal from './World12Terminal'
 import World13Spiral from './World13Spiral'
 import World14Pixel from './World14Pixel'
 import World15Dial from './World15Dial'
-import World16Index from './World16Index'
 
-const WORLD_COMPONENTS = [
-  World0Surface,
-  World1Apartment,
-  World2Depth,
-  World3Broadcast,
-  World4Corridor,
-  World5FieldStation,
-  World6Document,
-  World7Mall,
-  World8Signal,
-  World9Contact,
-  World10Loop,
-  World11Flicker,
-  World12Terminal,
-  World13Spiral,
-  World14Pixel,
-  World15Dial,
-  World16Index,
-]
+const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
+  0: World0Surface,
+  1: World1Apartment,
+  2: World2Depth,
+  3: World3Broadcast,
+  4: World4Corridor,
+  5: World5FieldStation,
+  6: World6Document,
+  7: World7Mall,
+  8: World8Signal,
+  9: World9Contact,
+  10: World10Loop,
+  11: World11Flicker,
+  12: World12Terminal,
+  13: World13Spiral,
+  14: World14Pixel,
+  15: World15Dial,
+}
 
 function WorldConsoleSetup() {
   const store = useWorldStore()

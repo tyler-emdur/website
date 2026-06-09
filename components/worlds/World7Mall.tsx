@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useWorldStore, type PortalType, type WorldId } from '@/lib/world-store'
+import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
 // ─── STORE DATA ───────────────────────────────────────────────────────────────
@@ -15,12 +15,12 @@ const VEND_ITEMS = [
 ]
 
 const FOOD_ITEMS = [
-  { name: 'TIME SOUP', desc: 'approx. 12 minutes', price: '$3.50' },
-  { name: 'YESTERDAY', desc: 'out of stock', price: '$0.00' },
-  { name: 'STATIC LG', desc: 'complimentary', price: 'always' },
-  { name: 'DECISION', desc: 'takes ~3 business days', price: '$CONTACT' },
-  { name: 'THE ORIGINAL\nFEELING', desc: 'limited qty', price: 'ask cashier' },
-  { name: 'CERTAINTY FRIES', desc: 'see vending machine', price: 'N/A' },
+  { name: 'TIME SOUP', desc: 'approx. 12 minutes', price: '$3.50', responses: ['SERVING IN ~12 MINUTES\n(MINUTES ARE APPROXIMATE)', 'HOT. EXTREMELY HOT.\nCOOLING TIME: UNKNOWN', 'BROTH SOURCE: UNCONFIRMED\nFLAVOR: FAMILIAR', 'ORDER PLACED\nETA: WHENEVER'] },
+  { name: 'YESTERDAY', desc: 'out of stock', price: '$0.00', responses: ['OUT OF STOCK\nWAS IN STOCK YESTERDAY', 'SORRY. TRY TOMORROW.\n(TOMORROW IS ALSO YESTERDAY)', 'WE CHECKED THE BACK\nIT IS NOT THERE ANYMORE', 'NONE LEFT\nNEVER LEFT'] },
+  { name: 'STATIC LG', desc: 'complimentary', price: 'always', responses: ['░░▒▓█ DISPENSING █▓▒░░', 'ALWAYS IN STOCK\nALWAYS', 'COMPLIMENTARY\nNO RECEIPT REQUIRED', '░▒▓ ENJOY ▓▒░\nCHARGES MAY APPLY'] },
+  { name: 'DECISION', desc: 'takes ~3 business days', price: '$CONTACT', responses: ['ORDER PLACED\nESTIMATED DELIVERY: 3 BUSINESS DAYS\n(BUSINESS DAYS NOT GUARANTEED)', 'PROCESSING...\nSTILL PROCESSING', 'WE WILL REACH OUT\nWE WILL NOT REACH OUT', 'RECEIPT ISSUED\nDECISION STILL PENDING'] },
+  { name: 'THE ORIGINAL\nFEELING', desc: 'limited qty', price: 'ask cashier', responses: ['CASHIER UNAVAILABLE\nYOU ALREADY KNOW THE PRICE', 'LIMITED QTY: 1\nALREADY YOURS', 'CANNOT BE PURCHASED\nONLY REMEMBERED', 'ASK CASHIER\n(CASHIER DOES NOT KNOW EITHER)'] },
+  { name: 'CERTAINTY FRIES', desc: 'see vending machine', price: 'N/A', responses: ['SEE VENDING MACHINE\nVENDING MACHINE IS OUT', 'CRISPY. PROBABLY.\nFRYER STATUS: UNCERTAIN', 'N/A\n(NOT APPLICABLE / NOT AVAILABLE / NOT ANYMORE)', 'FOUND SOME IN BACK\nTHEY EXPIRED IN 2019'] },
 ]
 
 const MANNEQUIN_LINES = [
@@ -44,15 +44,6 @@ const PA_LINES = [
   'Frequency 88.7 is currently unavailable in this location.',
 ]
 
-const WARP_WORLDS: Array<{ world: 2 | 3 | 10 | 11 | 12 | 13 | 15; portal: PortalType; label: string }> = [
-  { world: 10, portal: 'vortex', label: 'LOOP' },
-  { world: 13, portal: 'vortex', label: 'SPIRAL' },
-  { world: 11, portal: 'scatter', label: 'FLICKER' },
-  { world: 3, portal: 'expand-white', label: 'BROADCAST' },
-  { world: 15, portal: 'chromatic', label: 'DIAL' },
-  { world: 12, portal: 'nothing', label: 'TERMINAL' },
-  { world: 2, portal: 'scatter', label: 'DEPTH' },
-]
 
 // ─── STORES ALONG THE CORRIDOR ─────────────────────────────────────────────
 // Each store: worldX position (0=center), worldZ depth, side, color, name
@@ -278,7 +269,7 @@ function drawStore(
 
 // ─── STORE INTERIOR OVERLAYS ──────────────────────────────────────────────
 
-function VendingInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type: PortalType }) => void }) {
+function VendingInterior() {
   const [vendIdx, setVendIdx] = useState<number | null>(null)
   const [vendResponse, setVendResponse] = useState('')
   const [vendPurchases, setVendPurchases] = useState(0)
@@ -304,39 +295,56 @@ function VendingInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type: P
         ))}
       </div>
       {vendPurchases >= 6 && (
-        <div onClick={() => navigateTo(13, { type: 'vortex' })}
-          style={{ padding: '10px', background: '#0d0008', border: '1px solid rgba(255,45,120,0.3)', cursor: 'pointer', textAlign: 'center', fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,133,175,0.6)', lineHeight: 1.8 }}>
-          ⚠ MACHINE C-7 MALFUNCTION<br /><span style={{ opacity: 0.5 }}>the spiral is visible from here</span>
+        <div
+          style={{ padding: '10px', background: '#0d0008', border: '1px solid rgba(255,45,120,0.3)', textAlign: 'center', fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,133,175,0.6)', lineHeight: 1.8 }}>
+          ⚠ MACHINE C-7 MALFUNCTION<br /><span style={{ opacity: 0.5 }}>exit sealed · use ← universe</span>
         </div>
       )}
     </div>
   )
 }
 
-function FoodInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type: PortalType }) => void }) {
+function FoodInterior() {
+  const [activeIdx, setActiveIdx] = useState<number | null>(null)
+  const [response, setResponse] = useState('')
+  const [orders, setOrders] = useState(0)
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', padding: 4 }}>
-      <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,204,102,0.6)', letterSpacing: '0.2em' }}>TODAY'S MENU · WHILE SUPPLIES LAST</div>
+      <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,204,102,0.6)', letterSpacing: '0.2em' }}>TODAY'S MENU · ORDERS: {orders}</div>
       <div style={{ background: '#110800', border: '1px solid rgba(255,149,0,0.2)', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {FOOD_ITEMS.map((item, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,149,0,0.1)' }}>
-            <div>
-              <div style={{ fontFamily: '"Arial Black", sans-serif', fontSize: 10, color: '#ffc066', lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>{item.name}</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,204,102,0.4)', fontStyle: 'italic' }}>{item.desc}</div>
+          <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid rgba(255,149,0,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontFamily: '"Arial Black", sans-serif', fontSize: 10, color: '#ffc066', lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>{item.name}</div>
+                <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,204,102,0.4)', fontStyle: 'italic' }}>{item.desc}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#ffc066' }}>{item.price}</span>
+                <button onClick={() => { const r = item.responses[Math.floor(Math.random() * item.responses.length)]; setActiveIdx(i); setResponse(r); setOrders(o => o + 1) }}
+                  style={{ background: '#d06000', border: 'none', color: '#fff', fontFamily: '"Arial Black", sans-serif', fontSize: 8, padding: '3px 10px', cursor: 'pointer' }}>
+                  ORDER
+                </button>
+              </div>
             </div>
-            <div style={{ fontFamily: 'monospace', fontSize: 10, color: '#ffc066' }}>{item.price}</div>
+            {activeIdx === i && (
+              <div style={{ marginTop: 6, fontFamily: 'monospace', fontSize: 8, color: '#ffc066', background: '#080400', padding: '6px 8px', border: '1px solid rgba(255,149,0,0.2)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                {response}
+              </div>
+            )}
           </div>
         ))}
       </div>
-      <div onClick={() => navigateTo(9, { type: 'expand-white' })}
-        style={{ padding: '12px', background: '#ffa500', cursor: 'pointer', textAlign: 'center', fontFamily: '"Arial Black", sans-serif', fontSize: 10, color: '#fff' }}>
-        CASHIER WINDOW →
-      </div>
+      {orders >= 5 && (
+        <div style={{ padding: '10px', background: '#0d0800', border: '1px solid rgba(255,149,0,0.3)', textAlign: 'center', fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,204,102,0.6)', lineHeight: 1.8 }}>
+          ⚠ SYSTEM NOTE: YOU HAVE ORDERED EVERYTHING<br /><span style={{ opacity: 0.5 }}>the cashier is watching · use ← universe</span>
+        </div>
+      )}
     </div>
   )
 }
 
-function MannequinInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type: PortalType }) => void }) {
+function MannequinInterior() {
   const [mannResponse, setMannResponse] = useState<{ idx: number; text: string } | null>(null)
   const mouseRef = useRef({ x: 0, y: 0 })
   const mannRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -394,15 +402,15 @@ function MannequinInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type:
           </div>
         ))}
       </div>
-      <div onClick={() => navigateTo(11, { type: 'scatter' })}
-        style={{ padding: '10px', background: '#00b4d8', cursor: 'pointer', textAlign: 'center', fontFamily: '"Arial Black", sans-serif', fontSize: 10, color: '#fff' }}>
-        FITTING ROOM ARCADE →
+      <div
+        style={{ padding: '10px', background: '#555', textAlign: 'center', fontFamily: '"Arial Black", sans-serif', fontSize: 10, color: '#ccc' }}>
+        FITTING ROOMS CLOSED
       </div>
     </div>
   )
 }
 
-function EscalatorInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type: PortalType }) => void }) {
+function EscalatorInterior() {
   const [escUsed, setEscUsed] = useState(0)
   const [escWarning, setEscWarning] = useState('')
   const handleEscalator = useCallback(() => {
@@ -410,10 +418,8 @@ function EscalatorInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type:
     setEscUsed(n)
     if (n === 1) { setEscWarning('CALIBRATING...'); return }
     if (n === 2) { setEscWarning('WARNING: DESTINATION UNCONFIRMED'); return }
-    const dest = WARP_WORLDS[Math.floor(Math.random() * WARP_WORLDS.length)]
-    setEscWarning(`DEPARTING → ${dest.label}`)
-    setTimeout(() => navigateTo(dest.world, { type: dest.portal }), 800)
-  }, [escUsed, navigateTo])
+    setEscWarning('ERROR: ALL EXITS SEALED')
+  }, [escUsed])
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 0' }}>
@@ -443,7 +449,6 @@ function EscalatorInterior({ navigateTo }: { navigateTo: (w: WorldId, o: { type:
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
 export default function World7Mall() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef(0)
   const [W, setW] = useState(0)
@@ -641,10 +646,10 @@ export default function World7Mall() {
             </div>
             {/* Store content */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-              {activeStore.interiorKey === 'vending' && <VendingInterior navigateTo={navigateTo} />}
-              {activeStore.interiorKey === 'food' && <FoodInterior navigateTo={navigateTo} />}
-              {activeStore.interiorKey === 'mannequins' && <MannequinInterior navigateTo={navigateTo} />}
-              {activeStore.interiorKey === 'escalator' && <EscalatorInterior navigateTo={navigateTo} />}
+              {activeStore.interiorKey === 'vending' && <VendingInterior />}
+              {activeStore.interiorKey === 'food' && <FoodInterior />}
+              {activeStore.interiorKey === 'mannequins' && <MannequinInterior />}
+              {activeStore.interiorKey === 'escalator' && <EscalatorInterior />}
             </div>
           </div>
         </div>

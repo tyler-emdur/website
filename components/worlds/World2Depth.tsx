@@ -84,10 +84,32 @@ function drawCreature(ctx: CanvasRenderingContext2D, x: number, y: number, alpha
   ctx.restore()
 }
 
+// ─── DOOR CONTENT ───────────────────────────────────────────────────────────
+
+interface DoorCard { title: string; text: string }
+
+const DOOR_CONTENT: Record<number, DoorCard> = {
+  5: {
+    title: 'BEFORE THE DECISION',
+    text: 'there was a moment before Boulder. before the altitude and the trails and the 3am altitude sickness. it\'s not as clear as it used to be.\n\nthis door remembers it better than you do.',
+  },
+  10: {
+    title: 'ROOM 47',
+    text: 'the room where the documents are kept. pinned observations, redacted names, running logs.\n\nthe committee meets here irregularly. entry is not restricted. it just feels that way.',
+  },
+  14: {
+    title: 'WHAT YOU WERE LOOKING FOR',
+    text: 'contact info is in world 9.\n\nrun the CAPTCHA. it gets strange in the middle. that\'s intentional. you\'ll get through.\n\nhealthreinvented@gmail.com',
+  },
+  17: {
+    title: 'THE LOOP',
+    text: 'room 10. everything restarts at 11:59.\n\nthe clock is always wrong. this has been noted. nobody has fixed the clock.\n\nthe clock is accurate about one thing: the feeling of the time.',
+  },
+}
+
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 
 export default function World2Depth() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const ringsRef = useRef<Ring[]>([])
   const objsRef = useRef<DeepObj[]>(
@@ -98,6 +120,7 @@ export default function World2Depth() {
   const [pressure, setPressure] = useState(1.0)
   const [pings, setPings] = useState(0)
   const [revealedDoors, setRevealedDoors] = useState<Set<number>>(new Set())
+  const [activeCard, setActiveCard] = useState<DoorCard | null>(null)
   const sizeRef = useRef({ W: 0, H: 0 })
 
   // depth creep
@@ -294,18 +317,15 @@ export default function World2Depth() {
     const { W, H } = sizeRef.current
     const mx = e.clientX, my = e.clientY
 
-    // Check if clicking a revealed door
+    // Check for door click first (revealed doors)
+    const dw = 44, dh = 66
     for (const obj of objsRef.current) {
-      if (obj.type !== 'door' || obj.glow < 0.2) continue
+      if (obj.type !== 'door' || obj.glow < 0.18) continue
       const ox = obj.nx * W, oy = obj.ny * H
-      if (Math.abs(mx - ox) < 28 && Math.abs(my - oy) < 40) {
-        if (obj.worldId != null && obj.portal) {
-          navigateTo(obj.worldId as Parameters<typeof navigateTo>[0], {
-            type: obj.portal as Parameters<typeof navigateTo>[1]['type'],
-            origin: { x: mx, y: my },
-          })
-          return
-        }
+      if (mx >= ox - dw / 2 - 10 && mx <= ox + dw / 2 + 10 &&
+          my >= oy - dh / 2 - 10 && my <= oy + dh / 2 + 24) {
+        const card = DOOR_CONTENT[obj.id]
+        if (card) { setActiveCard(card); return }
       }
     }
 
@@ -319,7 +339,7 @@ export default function World2Depth() {
       speed: 4 + depth * 0.01,
     })
     setPings(p => p + 1)
-  }, [navigateTo, depth])
+  }, [depth])
 
   const pingHint = pings === 0
 
@@ -375,6 +395,48 @@ export default function World2Depth() {
           <div style={{ color: 'rgba(0,220,180,0.4)' }}>{revealedDoors.size} DOOR{revealedDoors.size > 1 ? 'S' : ''} FOUND</div>
         )}
       </div>
+
+      {activeCard && (
+        <div
+          onClick={() => setActiveCard(null)}
+          style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,10,20,0.75)',
+            zIndex: 10,
+            cursor: 'pointer',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'rgba(0,12,24,0.97)',
+              border: '1px solid rgba(0,220,180,0.3)',
+              padding: '32px 36px',
+              maxWidth: 420,
+              width: '90vw',
+              fontFamily: 'monospace',
+              boxShadow: '0 0 60px rgba(0,180,160,0.12)',
+            }}
+          >
+            <div style={{
+              fontSize: 9, color: 'rgba(0,220,180,0.5)', letterSpacing: '0.25em',
+              marginBottom: 16,
+            }}>{activeCard.title}</div>
+            <div style={{
+              fontSize: 13, color: 'rgba(150,230,220,0.8)', lineHeight: 2.1,
+              whiteSpace: 'pre-line',
+            }}>{activeCard.text}</div>
+            <div
+              onClick={() => setActiveCard(null)}
+              style={{
+                marginTop: 28, fontSize: 9, color: 'rgba(0,180,160,0.4)',
+                letterSpacing: '0.2em', cursor: 'pointer',
+              }}
+            >[ close ]</div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes sonarPulse {

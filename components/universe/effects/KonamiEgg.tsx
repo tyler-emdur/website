@@ -1,12 +1,33 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useUniverseStore } from '@/lib/universe-store'
+import { getAllObjects } from '@/lib/universe-store'
 
 const SEQUENCE = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a']
+
+// The animation CSS, injected once via useEffect so it doesn't accumulate on remounts
+const MATRIX_KEYFRAMES = `
+@keyframes matrixDrop {
+  from { transform: translateY(-100vh); }
+  to   { transform: translateY(100vh); }
+}
+`
 
 export default function KonamiEgg() {
   const [progress, setProgress] = useState(0)
   const [activated, setActivated] = useState(false)
   const [phase, setPhase] = useState(0)
+  const styleRef = useRef<HTMLStyleElement | null>(null)
+  const { discover, flyTo } = useUniverseStore()
+
+  // Inject animation CSS once, clean up on unmount
+  useEffect(() => {
+    const el = document.createElement('style')
+    el.textContent = MATRIX_KEYFRAMES
+    document.head.appendChild(el)
+    styleRef.current = el
+    return () => { el.remove() }
+  }, [])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -28,14 +49,32 @@ export default function KonamiEgg() {
 
   useEffect(() => {
     if (!activated) return
+
+    // Actually unlock the quantum gate — discover the lab wormhole and fly there
+    const objs = getAllObjects()
+    const quantumGate = objs.find(o => o.id === 'lab-quantum')
+    if (quantumGate) {
+      discover(quantumGate)
+      // Fly toward it after a short delay (let the animation play first)
+      setTimeout(() => {
+        flyTo(
+          [quantumGate.position[0], quantumGate.position[1], quantumGate.position[2] + 300],
+          [quantumGate.position[0], quantumGate.position[1], quantumGate.position[2]]
+        )
+      }, 3000)
+    }
+
     const t = setInterval(() => setPhase(p => p + 1), 80)
     const done = setTimeout(() => { setActivated(false); setPhase(0) }, 5000)
     return () => { clearInterval(t); clearTimeout(done) }
-  }, [activated])
+  }, [activated, discover, flyTo])
 
   if (!activated) return null
 
   const chars = '01アイウエオ█▓▒░ΨΩΔ∞≠≈'
+  // Use phase to seed deterministic character selection
+  const getChar = (col: number, row: number) =>
+    chars[(col * 13 + row * 7 + phase) % chars.length]
 
   return (
     <div style={{
@@ -43,7 +82,7 @@ export default function KonamiEgg() {
       pointerEvents: 'none', overflow: 'hidden',
       fontFamily: 'var(--font-mono)',
     }}>
-      {/* Matrix rain */}
+      {/* Matrix rain — use phase-seeded characters to avoid hydration issues */}
       {Array.from({ length: 30 }).map((_, col) => (
         <div key={col} style={{
           position: 'absolute',
@@ -52,13 +91,13 @@ export default function KonamiEgg() {
           fontSize: 12,
           letterSpacing: '0.1em',
           color: '#A855F7',
-          opacity: 0.6 + Math.random() * 0.4,
-          animation: `matrixDrop ${1.5 + Math.random() * 2}s linear infinite`,
-          animationDelay: `${-Math.random() * 2}s`,
+          opacity: 0.6 + ((col * 17) % 100) / 250,
+          animation: `matrixDrop ${1.5 + (col % 5) * 0.4}s linear infinite`,
+          animationDelay: `${-(col % 7) * 0.3}s`,
           whiteSpace: 'pre',
           lineHeight: 1.4,
         }}>
-          {Array.from({ length: 30 }).map(() => chars[Math.floor(Math.random() * chars.length)]).join('\n')}
+          {Array.from({ length: 30 }).map((_, row) => getChar(col, row)).join('\n')}
         </div>
       ))}
 
@@ -74,15 +113,10 @@ export default function KonamiEgg() {
       }}>
         <div style={{ fontSize: '3em', marginBottom: 16 }}>⬆⬆⬇⬇⬅➡⬅➡</div>
         <div>QUANTUM GATE UNLOCKED</div>
-        <div style={{ fontSize: '0.55em', marginTop: 12, opacity: 0.5, letterSpacing: '0.5em' }}>SECTOR 05-Ψ · CLEARANCE GRANTED</div>
+        <div style={{ fontSize: '0.55em', marginTop: 12, opacity: 0.5, letterSpacing: '0.5em' }}>
+          SECTOR 05-Ψ · CLEARANCE GRANTED · NAVIGATING
+        </div>
       </div>
-
-      <style>{`
-        @keyframes matrixDrop {
-          from { transform: translateY(-100vh); }
-          to   { transform: translateY(100vh); }
-        }
-      `}</style>
     </div>
   )
 }

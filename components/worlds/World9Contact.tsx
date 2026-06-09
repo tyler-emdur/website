@@ -276,13 +276,60 @@ export default function World9Contact() {
             <div style={{ fontSize: 52, marginBottom: 12, color: '#34a853' }}>✓</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: '#202124', marginBottom: 8 }}>Verification complete.</div>
             <div style={{ fontSize: 13, color: '#5f6368', marginBottom: 6 }}>You are human enough.</div>
-            <div style={{ fontSize: 10, color: '#bdc1c6', marginBottom: 28, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+            <div style={{ fontSize: 10, color: '#bdc1c6', marginBottom: 24, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
               DESIGNATION: T.EMDUR · ACCESS GRANTED
             </div>
+
+            <div style={{
+              textAlign: 'left', background: '#f8f9fa', borderRadius: 6,
+              padding: '20px 24px', marginBottom: 24,
+              border: '1px solid #e8eaed',
+            }}>
+              <div style={{ fontSize: 10, color: '#9aa0a6', letterSpacing: '0.12em', marginBottom: 14 }}>CONTACT DIRECTORY</div>
+
+              <a href="mailto:healthreinvented@gmail.com" style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                textDecoration: 'none', marginBottom: 12,
+                padding: '10px 12px', background: '#fff', borderRadius: 4,
+                border: '1px solid #dadce0',
+              }}>
+                <div style={{ fontSize: 18 }}>✉</div>
+                <div>
+                  <div style={{ fontSize: 11, color: '#9aa0a6', fontFamily: 'monospace', marginBottom: 2 }}>EMAIL</div>
+                  <div style={{ fontSize: 13, color: '#1a73e8', fontFamily: 'monospace' }}>healthreinvented@gmail.com</div>
+                </div>
+              </a>
+
+              <a href="https://github.com/tyler-emdur" target="_blank" rel="noopener noreferrer" style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                textDecoration: 'none', marginBottom: 12,
+                padding: '10px 12px', background: '#fff', borderRadius: 4,
+                border: '1px solid #dadce0',
+              }}>
+                <div style={{ fontSize: 18 }}>◈</div>
+                <div>
+                  <div style={{ fontSize: 11, color: '#9aa0a6', fontFamily: 'monospace', marginBottom: 2 }}>GITHUB</div>
+                  <div style={{ fontSize: 13, color: '#202124', fontFamily: 'monospace' }}>github.com/tyler-emdur</div>
+                </div>
+              </a>
+
+              <div style={{
+                padding: '10px 12px', background: '#fff', borderRadius: 4,
+                border: '1px solid #dadce0',
+                display: 'flex', alignItems: 'center', gap: 10,
+              }}>
+                <div style={{ fontSize: 18 }}>◉</div>
+                <div>
+                  <div style={{ fontSize: 11, color: '#9aa0a6', fontFamily: 'monospace', marginBottom: 2 }}>LOCATION</div>
+                  <div style={{ fontSize: 13, color: '#202124', fontFamily: 'monospace' }}>Boulder, CO · 40.0150°N 105.2705°W</div>
+                </div>
+              </div>
+            </div>
+
             <button onClick={() => navigateTo(1 as WorldId, { type: 'fold' as PortalType })} style={{
               width: '100%', padding: '12px 0', background: '#34a853', color: '#fff',
               border: 'none', borderRadius: 4, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
-            }}>Proceed</button>
+            }}>← Back to Universe</button>
           </div>
         )}
 

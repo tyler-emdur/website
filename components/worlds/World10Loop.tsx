@@ -44,7 +44,6 @@ function OsWindow({
         userSelect: 'none',
       }}
     >
-      {/* Title bar */}
       <div onMouseDown={onDown} style={{
         background: 'linear-gradient(to right, #000080, #1084d0)',
         padding: '3px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -64,7 +63,6 @@ function OsWindow({
           }}>×</button>
         </div>
       </div>
-      {/* Content */}
       <div style={{ padding: 8, fontSize: 11, color: '#000', lineHeight: 1.7 }}>
         {children}
       </div>
@@ -97,8 +95,8 @@ function DesktopIcon({ icon, label, onClick }: { icon: string; label: string; on
   )
 }
 
-// ── Error dialog ─────────────────────────────────────────────────────────────
-function ErrorDialog({ msg, onOk }: { msg: string; onOk: () => void }) {
+// ── Generic dialog ────────────────────────────────────────────────────────────
+function SystemDialog({ title, icon, msg, onOk }: { title: string; icon: string; msg: string; onOk: () => void }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000,
@@ -106,16 +104,16 @@ function ErrorDialog({ msg, onOk }: { msg: string; onOk: () => void }) {
     }}>
       <div style={{
         background: '#c0c0c0', border: '2px solid #fff', borderRightColor: '#808080', borderBottomColor: '#808080',
-        boxShadow: '2px 2px 0 #000', width: 300, fontFamily: '"MS Sans Serif", Arial, sans-serif',
+        boxShadow: '2px 2px 0 #000', width: 320, fontFamily: '"MS Sans Serif", Arial, sans-serif',
       }}>
         <div style={{ background: 'linear-gradient(to right, #000080, #1084d0)', padding: '3px 4px', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 10, color: '#fff', fontWeight: 700 }}>⚠ System Error</span>
+          <span style={{ fontSize: 10, color: '#fff', fontWeight: 700 }}>{title}</span>
         </div>
-        <div style={{ padding: 12, display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 11 }}>
-          <span style={{ fontSize: 24 }}>⚠️</span>
-          <span style={{ lineHeight: 1.6 }}>{msg}</span>
+        <div style={{ padding: 14, display: 'flex', gap: 12, alignItems: 'flex-start', fontSize: 11 }}>
+          <span style={{ fontSize: 24, flexShrink: 0 }}>{icon}</span>
+          <span style={{ lineHeight: 1.7, whiteSpace: 'pre-line' }}>{msg}</span>
         </div>
-        <div style={{ padding: '4px 8px 8px', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ padding: '4px 8px 10px', display: 'flex', justifyContent: 'center' }}>
           <button onClick={onOk} style={{
             padding: '3px 20px', background: '#c0c0c0', border: '2px solid',
             borderColor: '#fff #808080 #808080 #fff', cursor: 'pointer',
@@ -127,7 +125,7 @@ function ErrorDialog({ msg, onOk }: { msg: string; onOk: () => void }) {
   )
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+// ── Data ─────────────────────────────────────────────────────────────────────
 const ERRORS = [
   'An error occurred in module UNKNOWN.EXE.\nThe system has no record of this module.\nThis is normal.',
   'STACK OVERFLOW in MEMORY.DLL\nContents: 1 recovered fragment, 46 missing\nPlease contact an administrator who does not exist.',
@@ -135,6 +133,66 @@ const ERRORS = [
   'Cannot locate file: TYLER_EMDUR.EXE\nThe file exists but is currently occupied.\nTry again when it finishes whatever it is doing.',
 ]
 
+const DRIVE_DIALOGS: { title: string; icon: string; msg: string }[] = [
+  {
+    title: 'C:\\ (MAIN)',
+    icon: '💾',
+    msg: 'C:\\\n47 items found.\n1 item recovered.\n46 items: status unknown.\n\nFree space: indeterminate.\nFile system: MEMORY.FAT',
+  },
+  {
+    title: 'D:\\ (BACKUP)',
+    icon: '💾',
+    msg: 'D:\\ BACKUP\nLast backup: [DATE CORRUPTED]\nBackup integrity: partial\n\nContents mirror C:\\ with a 3-month delay.\nSome memories arrive late. Some do not arrive.',
+  },
+  {
+    title: 'E:\\ (UNKNOWN)',
+    icon: '💾',
+    msg: 'E:\\\nDrive type: unknown\nContents: unknown\nOrigin: unknown\n\nThe drive mounts successfully.\nNothing appears to be on it.\nSomething may be on it.',
+  },
+  {
+    title: 'F:\\ (DO NOT OPEN)',
+    icon: '🔒',
+    msg: 'F:\\\nAccess denied.\n\nThis drive was flagged by the system at install.\nNo record of what it contains.\nNo record of who flagged it.\n\nDo not open.',
+  },
+]
+
+const FILE_DIALOGS: { title: string; icon: string; msg: string }[] = [
+  {
+    title: 'survey_te-zero.txt',
+    icon: '📄',
+    msg: 'survey_te-zero.txt\n\n[SURVEY — SUBJECT: TE]\nOrigin: midwest\nRelocation: Boulder, CO (2022)\nOccupation: software engineer\nBuilds: software, mostly\nRuns: trails, mostly\n\nStatus: active\nFrequency: 88.7',
+  },
+  {
+    title: 'mem_001.fragment',
+    icon: '📄',
+    msg: 'mem_001.fragment\n\nFragment recovered.\n\nContent: "Boulder, CO. Oct 2022.\nThis is the one.\nHigh altitude. Good."\n\n[END OF FRAGMENT]',
+  },
+  {
+    title: 'mem_047_warm.fragment',
+    icon: '📄',
+    msg: 'mem_047_warm.fragment\n\nFragment recovered.\n\nContent: "Marathon day.\nOct 2024. 3:41:22.\nStarted at 6am. Finished.\nThe last mile was wrong.\nWorth it."\n\n[END OF FRAGMENT]',
+  },
+  {
+    title: 'do_not_catalog.exe',
+    icon: '⚙️',
+    msg: 'Access denied.\nThis file is currently in use by itself.\n\nAttempting to open it will cause it to\nopen itself first, before you can open it.',
+  },
+  {
+    title: 'tyler_emdur.exe',
+    icon: '⚙️',
+    msg: 'tyler_emdur.exe (read-only)\n\nCannot execute read-only process.\nFile is currently occupied.\n\nNote: this file modifies itself\nbetween reads. Contents may differ\nfrom cached version.',
+  },
+]
+
+const START_ITEMS = [
+  { icon: '📁', label: 'Documents' },
+  { icon: '🔧', label: 'Settings (unavailable)' },
+  { icon: '🔍', label: 'Find...' },
+  { icon: '❓', label: 'Help' },
+  { icon: '🚪', label: 'Shut Down...' },
+]
+
+// ── Main ─────────────────────────────────────────────────────────────────────
 export default function World10Loop() {
   const navigateTo = useWorldStore(s => s.navigateTo)
   const [zTop, setZTop] = useState(10)
@@ -145,22 +203,23 @@ export default function World10Loop() {
     { id: 'recycle', x: 160, y: 180, z: 7, open: false, minimized: false },
     { id: 'world', x: 100, y: 200, z: 6, open: false, minimized: false },
   ])
-  const [error, setError] = useState<string | null>(null)
+  const [dialog, setDialog] = useState<{ title: string; icon: string; msg: string } | null>(null)
   const [errorCount, setErrorCount] = useState(0)
-  const [clockStr, setClockStr] = useState('??:??')
+  const [clockStr, setClockStr] = useState('11:59')
   const [trashCount, setTrashCount] = useState(0)
+  const [startOpen, setStartOpen] = useState(false)
+  const [findQuery, setFindQuery] = useState('')
+  const [findOpen, setFindOpen] = useState(false)
 
   useEffect(() => {
-    // Wrong clock — drifts unpredictably
     let h = 11, m = 59
     const iv = setInterval(() => {
       m += Math.floor(Math.random() * 5 + 1)
       if (m >= 60) { m -= 60; h = (h + 1) % 24 }
       setClockStr(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`)
     }, 3000)
-    // Spontaneous error
     const errTimer = setTimeout(() => {
-      setError(ERRORS[Math.floor(Math.random() * ERRORS.length)])
+      setDialog({ title: '⚠ System Error', icon: '⚠️', msg: ERRORS[Math.floor(Math.random() * ERRORS.length)] })
     }, 12000)
     return () => { clearInterval(iv); clearTimeout(errTimer) }
   }, [])
@@ -169,28 +228,37 @@ export default function World10Loop() {
     setZTop(z => z + 1)
     setWins(ws => ws.map(w => w.id === id ? { ...w, z: zTop + 1 } : w))
   }
-
   const openWin = (id: string) => {
     setZTop(z => z + 1)
     setWins(ws => ws.map(w => w.id === id ? { ...w, open: true, minimized: false, z: zTop + 1 } : w))
   }
-
   const closeWin = (id: string) => setWins(ws => ws.map(w => w.id === id ? { ...w, open: false } : w))
   const minimizeWin = (id: string) => setWins(ws => ws.map(w => w.id === id ? { ...w, minimized: true } : w))
-
   const dragWin = (id: string, dx: number, dy: number) => {
     setWins(ws => ws.map(w => w.id === id ? { ...w, x: w.x + dx, y: w.y + dy } : w))
   }
-
   const w = (id: string) => wins.find(w => w.id === id)!
 
-  const handleError = () => {
+  const handleDialogOk = useCallback(() => {
     const next = errorCount + 1
     setErrorCount(next)
     if (next >= 3) {
-      setError(null)
+      setDialog(null)
     } else {
-      setError(ERRORS[next % ERRORS.length])
+      setDialog({ title: '⚠ System Error', icon: '⚠️', msg: ERRORS[next % ERRORS.length] })
+    }
+  }, [errorCount])
+
+  const handleStartItem = (label: string) => {
+    setStartOpen(false)
+    if (label === 'Documents') openWin('documents')
+    else if (label === 'Find...') setFindOpen(true)
+    else if (label === 'Shut Down...') {
+      setDialog({ title: 'Shut Down', icon: '🚪', msg: 'SHUTDOWN FAILED\n\nThis system does not shut down.\nIt only restarts.\n\nThe loop is a feature, not a bug.' })
+    } else if (label === 'Help') {
+      setDialog({ title: 'Help', icon: '❓', msg: 'HELP FILE: room_10.hlp\n\nYou are in Room 10.\nThe clock is wrong.\nThe windows can be dragged.\nThe recycle bin never empties.\n\nTo leave: use ← universe (top left).' })
+    } else {
+      setDialog({ title: 'Settings', icon: '🔧', msg: 'Settings (unavailable)\n\nThis panel has no settings to show.\nThe configuration was set before you arrived.\nChanges are not persisted.' })
     }
   }
 
@@ -199,7 +267,9 @@ export default function World10Loop() {
       position: 'fixed', inset: 0,
       background: '#008080',
       overflow: 'hidden',
-    }}>
+    }}
+      onClick={() => setStartOpen(false)}
+    >
       <HomeButton />
 
       {/* Desktop icons */}
@@ -215,30 +285,35 @@ export default function World10Loop() {
       <OsWindow title="My Computer" icon="🖥" win={w('mycomputer')} onClose={() => closeWin('mycomputer')} onFocus={() => focus('mycomputer')} onMinimize={() => minimizeWin('mycomputer')} onDrag={(dx,dy) => dragWin('mycomputer',dx,dy)}>
         <div style={{ marginBottom: 6, color: '#666', fontSize: 10 }}>Drives and devices found on this system:</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {['C:\\ (MAIN)', 'D:\\ (BACKUP)', 'E:\\ (UNKNOWN)', 'F:\\ (DO NOT OPEN)'].map((d,i) => (
-            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'default', width: 60 }}>
-              <span style={{ fontSize: 22 }}>{i === 3 ? '🔒' : '💾'}</span>
-              <span style={{ fontSize: 9, textAlign: 'center', lineHeight: 1.3 }}>{d}</span>
+          {DRIVE_DIALOGS.map((d, i) => (
+            <div key={i}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'default', width: 64 }}
+              onDoubleClick={() => setDialog(d)}
+            >
+              <span style={{ fontSize: 22 }}>{d.icon}</span>
+              <span style={{ fontSize: 9, textAlign: 'center', lineHeight: 1.3 }}>
+                {d.title.split(' ')[0]}
+              </span>
             </div>
           ))}
         </div>
         <div style={{ marginTop: 8, fontSize: 9, color: '#808080', borderTop: '1px solid #808080', paddingTop: 6 }}>
-          4 objects · 1 object has no properties
+          4 objects · 1 object has no properties · double-click to open
         </div>
       </OsWindow>
 
       <OsWindow title="Documents" icon="📁" win={w('documents')} onClose={() => closeWin('documents')} onFocus={() => focus('documents')} onMinimize={() => minimizeWin('documents')} onDrag={(dx,dy) => dragWin('documents',dx,dy)}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {['survey_te-zero.txt','mem_001.fragment','mem_047_warm.fragment','do_not_catalog.exe','tyler_emdur.exe (read-only)'].map((f,i) => (
+          {FILE_DIALOGS.map((f, i) => (
             <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '2px 4px', cursor: 'default' }}
-              onDoubleClick={() => i === 3 ? setError('Access denied.\nThis file is currently in use by itself.') : undefined}>
-              <span style={{ fontSize: 14 }}>{f.endsWith('.exe') ? '⚙️' : '📄'}</span>
-              <span style={{ fontSize: 10 }}>{f}</span>
+              onDoubleClick={() => setDialog(f)}>
+              <span style={{ fontSize: 14 }}>{f.icon}</span>
+              <span style={{ fontSize: 10 }}>{f.title}</span>
             </div>
           ))}
         </div>
         <div style={{ marginTop: 8, fontSize: 9, color: '#808080', borderTop: '1px solid #808080', paddingTop: 6 }}>
-          5 objects · Last modified: unknown
+          5 objects · double-click to open
         </div>
       </OsWindow>
 
@@ -247,22 +322,33 @@ export default function World10Loop() {
           Contents: 47 items<br />
           Items recovered: 1<br />
           Items missing: estimated 46<br />
-          Last access: [DATE CORRUPTED]
+          Last access: [DATE CORRUPTED]<br />
+          Origin: SECTOR 03-Ω
         </div>
         <div style={{ background: '#808080', height: 1, marginBottom: 8 }} />
-        <div style={{ fontSize: 9, fontStyle: 'italic', color: '#666' }}>
-          &quot;Central storage. Entry sequence interrupted.&quot;
+        <div style={{ fontSize: 9, color: '#444', lineHeight: 1.7 }}>
+          Frequency cross-reference: 88.7<br />
+          Coordinates logged: 40.0150°N, 105.2705°W<br />
+          Entry sequence: <span style={{ color: '#c00' }}>INTERRUPTED</span>
+        </div>
+        <div style={{ marginTop: 8, fontSize: 9, fontStyle: 'italic', color: '#666' }}>
+          &quot;Central storage. Not all of it made it.&quot;
         </div>
       </OsWindow>
 
       <OsWindow title="Recycle Bin" icon="🗑" win={w('recycle')} onClose={() => closeWin('recycle')} onFocus={() => focus('recycle')} onMinimize={() => minimizeWin('recycle')} onDrag={(dx,dy) => dragWin('recycle',dx,dy)}>
         <div style={{ marginBottom: 6, color: '#666', fontSize: 10 }}>
-          {trashCount === 0 ? 'Recycle Bin is empty.' : `${trashCount} item(s). Some may not be recoverable.`}
+          {trashCount === 0 ? 'Recycle Bin is empty.' : `${trashCount} item(s).\nSome may not be recoverable.\nSome were never meant to be recovered.`}
         </div>
-        <button onClick={() => { setTrashCount(c => c + 1); navigateTo(13 as WorldId, { type: 'vortex' as PortalType }) }}
+        <button onClick={() => setTrashCount(c => c + 1)}
           style={{ fontSize: 10, padding: '3px 10px', background: '#c0c0c0', border: '2px solid', borderColor: '#fff #808080 #808080 #fff', cursor: 'pointer', fontFamily: 'inherit' }}>
-          Discard and Descend
+          Empty Recycle Bin
         </button>
+        {trashCount >= 5 && (
+          <div style={{ marginTop: 8, fontSize: 9, color: '#808080', fontStyle: 'italic' }}>
+            The bin does not empty. It accepts.
+          </div>
+        )}
       </OsWindow>
 
       <OsWindow title="THE WORLD.lnk" icon="🌐" win={w('world')} onClose={() => closeWin('world')} onFocus={() => focus('world')} onMinimize={() => minimizeWin('world')} onDrag={(dx,dy) => dragWin('world',dx,dy)}>
@@ -278,6 +364,39 @@ export default function World10Loop() {
         </button>
       </OsWindow>
 
+      {/* Find dialog */}
+      {findOpen && (
+        <div style={{
+          position: 'absolute', left: '50%', top: '40%', transform: 'translate(-50%,-50%)',
+          zIndex: 8500, width: 300, background: '#c0c0c0',
+          border: '2px solid #fff', borderRightColor: '#808080', borderBottomColor: '#808080',
+          boxShadow: '2px 2px 0 #000', fontFamily: '"MS Sans Serif", Arial, sans-serif',
+        }}>
+          <div style={{ background: 'linear-gradient(to right, #000080, #1084d0)', padding: '3px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>🔍 Find: Files or Folders</span>
+            <button onClick={() => setFindOpen(false)} style={{ width: 16, height: 14, background: '#c0c0c0', border: '1px solid', borderColor: '#fff #808080 #808080 #fff', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>×</button>
+          </div>
+          <div style={{ padding: 12, fontSize: 11 }}>
+            <div style={{ marginBottom: 8 }}>Named:</div>
+            <input value={findQuery} onChange={e => setFindQuery(e.target.value)} style={{ width: '100%', padding: '2px 4px', fontSize: 11, fontFamily: 'inherit', border: '2px solid', borderColor: '#808080 #fff #fff #808080', marginBottom: 10 }} />
+            <button
+              onClick={() => {
+                setFindOpen(false)
+                if (findQuery) {
+                  setDialog({
+                    title: '🔍 Search Results',
+                    icon: '🔍',
+                    msg: `Searching for: "${findQuery}"\n\nResults found: 0\n\nThe file may exist.\nThe file may be hidden.\nThe file may be looking for you instead.`,
+                  })
+                }
+              }}
+              style={{ padding: '3px 14px', background: '#c0c0c0', border: '2px solid', borderColor: '#fff #808080 #808080 #fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11 }}>
+              Find Now
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Taskbar */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0, height: 28,
@@ -288,11 +407,53 @@ export default function World10Loop() {
         zIndex: 8000,
         fontFamily: '"MS Sans Serif", Arial, sans-serif',
       }}>
-        <button style={{
-          padding: '2px 10px', background: '#c0c0c0', border: '2px solid',
-          borderColor: '#fff #808080 #808080 #fff', cursor: 'pointer',
-          fontFamily: 'inherit', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4,
-        }}>⊞ Start</button>
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={e => { e.stopPropagation(); setStartOpen(s => !s) }}
+            style={{
+              padding: '2px 10px', background: startOpen ? '#808080' : '#c0c0c0', border: '2px solid',
+              borderColor: startOpen ? '#808080 #fff #fff #808080' : '#fff #808080 #808080 #fff',
+              cursor: 'pointer', fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>⊞ Start</button>
+          {startOpen && (
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                position: 'absolute', bottom: 28, left: 0,
+                background: '#c0c0c0', border: '2px solid',
+                borderColor: '#fff #808080 #808080 #fff',
+                boxShadow: '2px 2px 0 #000',
+                width: 180, zIndex: 9000,
+              }}>
+              <div style={{ background: 'linear-gradient(to top, #000080, #1084d0)', width: 20, position: 'absolute', left: 0, top: 0, bottom: 0, writingMode: 'vertical-rl', transform: 'rotate(180deg)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '4px 2px', fontSize: 9, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em', fontFamily: 'inherit' }}>
+                room 10
+              </div>
+              <div style={{ marginLeft: 20 }}>
+                {START_ITEMS.map(item => (
+                  <div key={item.label}
+                    onClick={() => handleStartItem(item.label)}
+                    style={{ padding: '5px 10px', fontSize: 11, cursor: 'default', display: 'flex', alignItems: 'center', gap: 8 }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#000080', e.currentTarget.style.color = '#fff')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#000')}
+                  >
+                    <span>{item.icon}</span>{item.label}
+                  </div>
+                ))}
+                <div style={{ height: 1, background: '#808080', margin: '2px 0' }} />
+                <div
+                  onClick={() => { setStartOpen(false); navigateTo(1 as WorldId, { type: 'fold' as PortalType }) }}
+                  style={{ padding: '5px 10px', fontSize: 11, cursor: 'default', display: 'flex', alignItems: 'center', gap: 8 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#000080', e.currentTarget.style.color = '#fff')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent', e.currentTarget.style.color = '#000')}
+                >
+                  <span>🌐</span> Return to Universe
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div style={{ display: 'flex', gap: 2 }}>
           {wins.filter(w => w.open && w.minimized).map(w => (
             <button key={w.id} onClick={() => setWins(ws => ws.map(ww => ww.id === w.id ? { ...ww, minimized: false } : ww))}
@@ -301,13 +462,27 @@ export default function World10Loop() {
             </button>
           ))}
         </div>
+
         <div style={{
           background: '#c0c0c0', border: '2px solid', borderColor: '#808080 #fff #fff #808080',
           padding: '2px 8px', fontSize: 10, minWidth: 52, textAlign: 'center',
         }}>{clockStr}</div>
       </div>
 
-      {error && <ErrorDialog msg={error} onOk={handleError} />}
+      {dialog && (
+        <SystemDialog
+          title={dialog.title}
+          icon={dialog.icon}
+          msg={dialog.msg}
+          onOk={() => {
+            if (dialog.title === '⚠ System Error') {
+              handleDialogOk()
+            } else {
+              setDialog(null)
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

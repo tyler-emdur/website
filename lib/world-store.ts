@@ -1,7 +1,7 @@
 'use client'
 import { create } from 'zustand'
 
-export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16
+export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15
 
 export type PortalType =
   | 'door'
@@ -41,7 +41,6 @@ const WORLD_TITLES: Record<WorldId, string> = {
   13: 'falling · falling · falling',
   14: '★ PIXEL QUEST ★ press start',
   15: '··· tuning · · · static · · ·',
-  16: 'index of worlds [incomplete]',
 }
 
 interface WorldState {
@@ -70,7 +69,8 @@ function loadReturnWorld(): WorldId {
     if (raw === null) return 0
     localStorage.removeItem('te-return-world')
     const id = parseInt(raw)
-    return (isNaN(id) ? 0 : id) as WorldId
+    if (isNaN(id) || id < 0 || id > 15) return 0
+    return id as WorldId
   } catch { return 0 }
 }
 
@@ -170,7 +170,7 @@ export function getWorldLog(): string {
   const visited = loadVisited()
   const names: Record<WorldId, string> = {
     0: 'THE SURFACE',
-    1: 'THE APARTMENT',
+    1: 'THE UNIVERSE',
     2: 'THE DEPTH',
     3: 'THE BROADCAST',
     4: 'THE CORRIDOR',
@@ -185,7 +185,6 @@ export function getWorldLog(): string {
     13: 'THE SPIRAL',
     14: 'THE PIXEL',
     15: 'THE DIAL',
-    16: 'THE INDEX',
   }
   const secrets = loadSecrets()
   const lines = [

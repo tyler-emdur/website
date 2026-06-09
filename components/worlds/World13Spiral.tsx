@@ -1,6 +1,5 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
 interface Branch {
@@ -8,37 +7,54 @@ interface Branch {
   angle: number
   depth: number
   label: string
-  world: WorldId
-  portal: PortalType
   color: string
 }
 
 const BRANCH_POOL: Omit<Branch, 'id' | 'angle' | 'depth'>[] = [
-  { label: 'DEPTH', world: 2, portal: 'scatter', color: '#6366f1' },
-  { label: 'TV', world: 3, portal: 'expand-white', color: '#92400e' },
-  { label: 'HALL', world: 4, portal: 'slide-right', color: '#22c55e' },
-  { label: 'STATION', world: 5, portal: 'rotate', color: '#f97316' },
-  { label: 'MALL', world: 7, portal: 'cursor-flood', color: '#1a1410' },
-  { label: 'FLICKER', world: 11, portal: 'scatter', color: '#ff0064' },
-  { label: 'LOOP', world: 10, portal: 'vortex', color: '#818cf8' },
-  { label: 'TERM', world: 12, portal: 'nothing', color: '#22c55e' },
-  { label: 'DOC', world: 6, portal: 'nothing', color: '#b45309' },
-  { label: 'SIG', world: 8, portal: 'fold', color: '#525252' },
-  { label: 'PIXEL', world: 14, portal: 'chromatic', color: '#FF006E' },
-  { label: 'DIAL', world: 15, portal: 'chromatic', color: '#22c55e' },
-  { label: 'INDEX', world: 16, portal: 'fold', color: '#818cf8' },
+  { label: 'THAT SUMMER', color: '#6366f1' },
+  { label: 'THE DECISION', color: '#92400e' },
+  { label: 'BEFORE BOULDER', color: '#22c55e' },
+  { label: 'THE MARATHON', color: '#f97316' },
+  { label: 'LATE NIGHTS', color: '#ff0064' },
+  { label: 'THE ARCHIVE', color: '#818cf8' },
+  { label: '88.7 MHz', color: '#00dcc0' },
+  { label: 'ROOM 47', color: '#b45309' },
+  { label: '40.0150°N', color: '#525252' },
+  { label: 'OCT 2024', color: '#FF006E' },
+  { label: 'POST-MOVE', color: '#4ade80' },
+  { label: 'MILESTONE', color: '#a78bfa' },
+]
+
+const DEPTH_EVENTS: { depth: number; text: string }[] = [
+  { depth: 700,   text: 'still falling.' },
+  { depth: 2000,  text: '40.0150°N  105.2705°W' },
+  { depth: 3500,  text: "the wormholes don't open from the inside." },
+  { depth: 5500,  text: "you've been here before." },
+  { depth: 8000,  text: 'something was built here.' },
+  { depth: 11000, text: "you won't find the bottom." },
+  { depth: 16000, text: 'keep going anyway.' },
+  { depth: 25000, text: '— T.E.' },
 ]
 
 export default function World13Spiral() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const depthRef = useRef(0)
   const branchesRef = useRef<Branch[]>([])
   const branchIdRef = useRef(0)
   const mouseRef = useRef({ x: 0, y: 0 })
+  const triggeredDepths = useRef<Set<number>>(new Set())
   const [depthDisplay, setDepthDisplay] = useState(0)
   const [hint, setHint] = useState('click a wormhole · scroll to fall faster')
-  const caughtRef = useRef(false)
+  const [fragment, setFragment] = useState('')
+  const [fragVisible, setFragVisible] = useState(false)
+  const fragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showFragment = useCallback((text: string) => {
+    if (fragTimerRef.current) clearTimeout(fragTimerRef.current)
+    setFragment(text)
+    setFragVisible(true)
+    fragTimerRef.current = setTimeout(() => setFragVisible(false), 3200)
+  }, [])
 
   const spawnBranch = useCallback((depth: number) => {
     const def = BRANCH_POOL[Math.floor(Math.random() * BRANCH_POOL.length)]
@@ -47,8 +63,6 @@ export default function World13Spiral() {
       angle: Math.random() * Math.PI * 2,
       depth,
       label: def.label,
-      world: def.world,
-      portal: def.portal,
       color: def.color,
     })
   }, [])
@@ -75,7 +89,6 @@ export default function World13Spiral() {
     window.addEventListener('wheel', onWheel, { passive: true })
 
     function draw() {
-      if (caughtRef.current) return
       depthRef.current += 2.8
       const depth = depthRef.current
 
@@ -152,8 +165,6 @@ export default function World13Spiral() {
 
       if (Math.floor(depth / 500) !== Math.floor((depth - 2.8) / 500)) {
         setDepthDisplay(Math.floor(depth / 100))
-        if (depth > 2000 && depth < 2100) setHint('the branches multiply the deeper you go')
-        if (depth > 5000) setHint('there is no bottom. only more openings.')
       }
 
       raf = requestAnimationFrame(draw)
@@ -167,8 +178,23 @@ export default function World13Spiral() {
     }
   }, [spawnBranch])
 
+  // Check depth events independently from draw loop to avoid stale closures
+  useEffect(() => {
+    const iv = setInterval(() => {
+      const d = depthRef.current
+      for (const ev of DEPTH_EVENTS) {
+        if (d >= ev.depth && !triggeredDepths.current.has(ev.depth)) {
+          triggeredDepths.current.add(ev.depth)
+          showFragment(ev.text)
+          setHint(ev.text)
+          break
+        }
+      }
+    }, 400)
+    return () => clearInterval(iv)
+  }, [showFragment])
+
   const handleClick = (e: React.MouseEvent) => {
-    if (caughtRef.current) return
     const mx = e.clientX
     const my = e.clientY
     const depth = depthRef.current
@@ -192,13 +218,8 @@ export default function World13Spiral() {
     }
 
     if (hit) {
-      caughtRef.current = true
-      setHint(`entering ${hit.label}...`)
-      navigateTo(hit.world, {
-        type: hit.portal,
-        origin: { x: mx, y: my },
-        color: hit.color,
-      })
+      showFragment(`// ${hit.label}`)
+      setHint(`// ${hit.label}`)
     }
   }
 
@@ -227,6 +248,26 @@ export default function World13Spiral() {
         <div>THE SPIRAL</div>
         <div>DEPTH: {depthDisplay}</div>
         <div style={{ opacity: 0.6 }}>{hint}</div>
+      </div>
+
+      {/* Centered depth fragment */}
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        fontFamily: '"Share Tech Mono", monospace',
+        fontSize: 13,
+        color: 'rgba(255,255,255,0.7)',
+        letterSpacing: '0.18em',
+        pointerEvents: 'none',
+        textAlign: 'center',
+        opacity: fragVisible ? 1 : 0,
+        transition: 'opacity 0.6s ease',
+        textShadow: '0 0 20px rgba(255,255,255,0.3)',
+        maxWidth: '60vw',
+      }}>
+        {fragment}
       </div>
 
       <div style={{
