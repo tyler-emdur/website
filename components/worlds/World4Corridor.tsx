@@ -194,7 +194,7 @@ export default function World4Corridor() {
             {loopCount >= 2 && (
               <div style={{ marginTop: 28, paddingTop: 16, borderTop: '1px dashed #aaa' }}>
                 <div style={{ fontSize: 9, color: '#aaa', marginBottom: 8, letterSpacing: '0.1em' }}>
-                  [You notice a door you somehow missed.]
+                  [A door, previously unnoticed.]
                 </div>
                 <button onClick={() => visit('maintenance')} style={{
                   padding: '6px 14px', background: '#555', color: '#ccc',
@@ -214,8 +214,8 @@ export default function World4Corridor() {
                 <div style={{ fontSize: 32, fontWeight: 700, color: '#2c4a7a', letterSpacing: '0.2em' }}>{ticketNumber}</div>
               </div>
               <div style={{ textAlign: 'right', fontSize: 9, color: '#aaa', lineHeight: 1.8 }}>
-                <div>NOW SERVING: {ticketNumber - 847}</div>
-                <div>EST. WAIT: 847 YEARS</div>
+                <div>NOW SERVING: {Math.max(1, ticketNumber - 3)}</div>
+                <div>EST. WAIT: INDETERMINATE</div>
                 <div>PRIORITY: STANDARD</div>
               </div>
             </div>

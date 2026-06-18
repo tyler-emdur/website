@@ -14,6 +14,15 @@ const SEGMENTS = [
 ]
 const CORRECT_ORDER = [0, 1, 2, 3, 4, 5]
 
+const DECODED_LOG = [
+  { label: 'PERSONAL LOG — ENTRY 001', text: 'origin: midwest. relocated boulder, co august 2022.\naltitude: 5,430ft. adjustment period: still ongoing.' },
+  { label: 'FIELD NOTE — TRAILS', text: 'boulder mountain, green mountain, pikes peak, mt elbert, maroon bells.\nthe mountains don\'t care about your pace.\nthis is a feature, not a bug.' },
+  { label: 'PROJECT LOG — DIGGER', text: 'music discovery app. deployed 2024.\nbuilt between 11pm and 2am, mostly.\nstill running. still finding things.' },
+  { label: 'OBSERVATION — FREQUENCY', text: 'frequency 88.7 appears in multiple sectors.\nsource unconfirmed. possibly self-referential.\nsignal is real regardless of origin.' },
+  { label: 'MARATHON LOG — OCT 2024', text: 'boulder marathon. time: 3:41:22.\nstarted 6am. cold. finished.\nthe last mile was wrong. it was the right one.' },
+  { label: 'STATUS — CURRENT', text: 'software engineer. boulder, co.\nbuilds things before they\'re ready.\nships them anyway.\nthis is the archive. you found it.' },
+]
+
 // ── Waveform segment drawn on canvas ─────────────────────────────────────────
 function WaveSegment({ seeds, color, clarity, w = 140, h = 40 }: {
   seeds: number[]; color: string; clarity: number; w?: number; h?: number
@@ -203,19 +212,43 @@ export default function World8Signal() {
         {/* Complete — show full message */}
         {phase === 'complete' && (
           <div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 12 }}>
               {SEGMENTS.map((seg, i) => (
                 <div key={i} style={{
-                  padding: '6px 10px', background: 'rgba(0,20,0,0.8)',
+                  padding: '5px 8px', background: 'rgba(0,20,0,0.8)',
                   border: `1px solid ${seg.color}33`,
-                  fontFamily: 'monospace', fontSize: 11, color: seg.color,
+                  fontFamily: 'monospace', fontSize: 10, color: seg.color,
                   letterSpacing: '0.08em',
-                  animation: `fadeIn 0.4s ease ${i * 0.15}s both`,
+                  animation: `fadeIn 0.4s ease ${i * 0.12}s both`,
                 }}>
                   {seg.text}
                 </div>
               ))}
             </div>
+
+            <div style={{ height: 1, background: 'rgba(64,170,255,0.15)', margin: '12px 0' }} />
+
+            <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(80,200,80,0.35)', letterSpacing: '0.2em', marginBottom: 10 }}>
+              DECODED LOG — PERSONAL ARCHIVE
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              {DECODED_LOG.map((entry, i) => (
+                <div key={i} style={{
+                  padding: '8px 10px', background: 'rgba(0,15,0,0.9)',
+                  border: '1px solid rgba(80,180,80,0.15)',
+                  animation: `fadeIn 0.5s ease ${(SEGMENTS.length * 0.12) + i * 0.2}s both`,
+                }}>
+                  <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(80,200,80,0.5)', letterSpacing: '0.15em', marginBottom: 5 }}>
+                    {entry.label}
+                  </div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 10, color: 'rgba(160,230,180,0.75)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
+                    {entry.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <button
               onClick={() => navigateTo(1 as WorldId, { type: 'fold' as PortalType })}
               style={{

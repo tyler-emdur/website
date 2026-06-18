@@ -112,6 +112,13 @@ export default function World9Contact() {
   const [attrs, setAttrs] = useState<string[]>([])
   const [showResult, setShowResult] = useState(false)
   const [dots, setDots] = useState('')
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+
+  useEffect(() => () => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    timersRef.current.forEach(clearTimeout)
+  }, [])
 
   const toggle = (i: number) => setSel(prev => {
     const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n
@@ -128,12 +135,15 @@ export default function World9Contact() {
   const submitDraw = () => {
     setPhase('analyzing')
     let i = 0
-    const iv = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       setDots('.'.repeat(++i % 4))
       if (i >= 9) {
-        clearInterval(iv); setPhase('reclassify')
-        ATTRIBUTES.forEach(({ text, ms }) => setTimeout(() => setAttrs(prev => [...prev, text]), ms))
-        setTimeout(() => setShowResult(true), 4200)
+        if (intervalRef.current) clearInterval(intervalRef.current)
+        setPhase('reclassify')
+        ATTRIBUTES.forEach(({ text, ms }) => {
+          timersRef.current.push(setTimeout(() => setAttrs(prev => [...prev, text]), ms))
+        })
+        timersRef.current.push(setTimeout(() => setShowResult(true), 4200))
       }
     }, 350)
   }

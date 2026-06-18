@@ -16,6 +16,9 @@ function OsWindow({
 }) {
   const dragging = useRef(false)
   const last = useRef({ x: 0, y: 0 })
+  const cleanupRef = useRef<(() => void) | null>(null)
+
+  useEffect(() => () => cleanupRef.current?.(), [])
 
   const onDown = (e: React.MouseEvent) => {
     dragging.current = true; last.current = { x: e.clientX, y: e.clientY }
@@ -25,7 +28,13 @@ function OsWindow({
       onDrag(e.clientX - last.current.x, e.clientY - last.current.y)
       last.current = { x: e.clientX, y: e.clientY }
     }
-    const onUp = () => { dragging.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+    const onUp = () => {
+      dragging.current = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      cleanupRef.current = null
+    }
+    cleanupRef.current = onUp
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }

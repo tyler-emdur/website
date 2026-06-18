@@ -70,6 +70,11 @@ function RadioDial({ freq, onChange }: { freq: number; onChange: (f: number) => 
   const startX = useRef(0)
   const startFreq = useRef(freq)
 
+  const onWheel = (e: React.WheelEvent) => {
+    const delta = Math.sign(e.deltaY) * 0.3
+    onChange(Math.max(70, Math.min(120, freq + delta)))
+  }
+
   const onMouseDown = (e: React.MouseEvent) => {
     dragging.current = true
     startX.current = e.clientX
@@ -99,6 +104,7 @@ function RadioDial({ freq, onChange }: { freq: number; onChange: (f: number) => 
       {/* Knob */}
       <div
         onMouseDown={onMouseDown}
+        onWheel={onWheel}
         style={{
           width: 52, height: 52, borderRadius: '50%',
           background: 'radial-gradient(circle at 35% 35%, #5a4a2a, #1a1208)',
@@ -170,6 +176,21 @@ const NOTEBOOK_PAGES = [
       'Cross-reference: depth, corridor.',
     ],
   },
+  {
+    title: 'Contact',
+    lines: [
+      'healthreinvented@gmail.com',
+      '',
+      'github.com/tyler-emdur',
+      '',
+      'Open to new projects.',
+      'Interested in hard problems,',
+      '  good teams, meaningful work.',
+      '',
+      'Will read everything.',
+      'Response: within one orbit.',
+    ],
+  },
 ]
 
 // ─── MORSE DECODER ───────────────────────────────────────────────────────────
@@ -207,12 +228,13 @@ export default function World5FieldStation() {
   // transmissions trigger on station lock
   useEffect(() => {
     if (!onStation || transmitting) return
+    let iv: ReturnType<typeof setInterval> | undefined
     const t = setTimeout(() => {
       setTransmitting(true)
       setTransmission('')
       const msg = station.content
       let i = 0
-      const iv = setInterval(() => {
+      iv = setInterval(() => {
         setTransmission(msg.slice(0, i + 1))
         i++
         if (i >= msg.length) {
@@ -224,9 +246,8 @@ export default function World5FieldStation() {
           setTimeout(() => setTransmitting(false), 4000)
         }
       }, 60)
-      return () => clearInterval(iv)
     }, 600)
-    return () => clearTimeout(t)
+    return () => { clearTimeout(t); if (iv) clearInterval(iv) }
   }, [onStation, station.freq]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFreqNav = useCallback(() => {

@@ -351,14 +351,14 @@ export default function LabPage() {
         <div style={{fontFamily:'var(--font-mono)',fontSize:9,letterSpacing:'0.25em',color:'rgba(168,85,247,0.6)',marginBottom:8}}>SECTOR 05-Ψ · LAB</div>
         <h1 style={{fontFamily:'var(--font-sans)',fontSize:'clamp(3rem,10vw,7rem)',fontWeight:300,lineHeight:0.9,color:'#fff'}}>LAB</h1>
         <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'rgba(255,255,255,0.14)',marginTop:16,letterSpacing:'0.12em'}}>
-          {EXPS.length} EXPERIMENTS · HOVER TO PREVIEW · CLICK TO EXPAND · GET LOST
+          {EXPS.length} EXPERIMENTS · HOVER TO PREVIEW · CLICK TO EXPAND
         </div>
       </div>
       <div style={{padding:'32px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:10}}>
         {EXPS.map(exp=><ExperimentCard key={exp.id} exp={exp} />)}
       </div>
       <div style={{padding:'20px 32px',borderTop:'1px solid rgba(168,85,247,0.05)',fontFamily:'var(--font-mono)',fontSize:7,letterSpacing:'0.15em',color:'rgba(255,255,255,0.07)'}}>
-        SECTOR 05-Ψ · UNSTABLE · MORE EXPERIMENTS INCOMING · TRY KONAMI CODE FROM UNIVERSE · PRESS ` FOR TERMINAL
+        SECTOR 05-Ψ · UNSTABLE · MORE EXPERIMENTS INCOMING
       </div>
     </div>
   )

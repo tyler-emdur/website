@@ -6,42 +6,40 @@ import HomeButton from './HomeButton'
 // ─── STORE DATA ───────────────────────────────────────────────────────────────
 
 const VEND_ITEMS = [
-  { label: 'CERTAINTY', price: '$4.99', responses: ['OUT OF STOCK SINCE 2019', 'CHECKING INVENTORY…\nNOPE', 'FOUND SOME.\nIT EXPIRED.', 'SOLD TO SOMEONE ELSE'] },
-  { label: 'SLEEP', price: '$2.11', responses: ['DISPENSING…\n[MECHANISM JAMS]', 'TRY THE STAIRS', '6–8 HOURS\n(ESTIMATED)', 'ALREADY DISPENSED\nCHECK UNDER THE BENCH'] },
-  { label: 'PURPOSE', price: '$∞', responses: ['MACHINE VIBRATES\nTHEN GOES QUIET', 'SELECT COLUMN B\nCOLUMN B DOES NOT EXIST', 'PROCESSING…\nSTILL PROCESSING', 'RECEIPT:\n"GOOD QUESTION"'] },
-  { label: 'REASONS', price: 'FREE', responses: ['TAKING TOO MANY', 'DISPENSING 3\nYOU ONLY ASKED FOR 1', 'NONE LEFT\nTRY CERTAINTY', 'MACHINE FLICKERS\nRETURNS YOUR COIN'] },
+  { label: 'CERTAINTY', price: '$4.99', responses: ['MACHINE REGISTERS SELECTION.\nNO DISPENSING MECHANISM FOUND.', 'CHECKING INVENTORY…\nINVENTORY OFFLINE.', 'FOUND SOME.\nCONDITION: UNLISTED.', 'MECHANISM ENGAGES.\nNOTHING FALLS.'] },
+  { label: 'SLEEP', price: '$2.11', responses: ['DISPENSING…\n[MECHANISM JAMS]', '6–8 HOURS\n(ESTIMATE UNVERIFIED)', 'ALREADY DISPENSED.\nEXACT LOCATION UNCLEAR.', 'PROCESSING.\nNO RESULT.'] },
+  { label: 'PURPOSE', price: '$∞', responses: ['MACHINE VIBRATES.\nGOES QUIET.', 'COLUMN B SELECTED.\nCOLUMN B DOES NOT EXIST.', 'PROCESSING…\nSTILL PROCESSING.', 'RECEIPT PRINTED.\nRECEIPT IS BLANK.'] },
+  { label: 'REASONS', price: 'FREE', responses: ['TAKING TOO MANY', 'DISPENSING 3.\nYOU ASKED FOR 1.', 'NONE LISTED IN INVENTORY.', 'MACHINE FLICKERS.\nCOIN RETURNED.'] },
   { label: 'STATIC', price: '$0.01', responses: ['ALWAYS IN STOCK', '░░▒▓█\n█▓▒░░', 'FRESH BATCH', 'THIS ONE HAS TEETH'] },
-  { label: 'THE ORIGINAL\nIDEA', price: '$???', responses: ['ALREADY YOURS\nSOMEONE ELSE BOUGHT THE COPY', 'SOLD 1,200 TIMES\nSTILL ONE LEFT', 'MACHINE HUMS\nTHEN GOES DARK', 'RECEIPT: "NICE TRY"'] },
+  { label: 'THE ORIGINAL\nIDEA', price: '$???', responses: ['ALREADY YOURS.\nSOMEONE ELSE BOUGHT THE COPY.', 'SOLD 1,200 TIMES.\nSTILL ONE LEFT.', 'MACHINE HUMS.\nTHEN GOES DARK.', 'RECEIPT PRINTED.\nNO CHARGE.'] },
 ]
 
 const FOOD_ITEMS = [
-  { name: 'TIME SOUP', desc: 'approx. 12 minutes', price: '$3.50', responses: ['SERVING IN ~12 MINUTES\n(MINUTES ARE APPROXIMATE)', 'HOT. EXTREMELY HOT.\nCOOLING TIME: UNKNOWN', 'BROTH SOURCE: UNCONFIRMED\nFLAVOR: FAMILIAR', 'ORDER PLACED\nETA: WHENEVER'] },
-  { name: 'YESTERDAY', desc: 'out of stock', price: '$0.00', responses: ['OUT OF STOCK\nWAS IN STOCK YESTERDAY', 'SORRY. TRY TOMORROW.\n(TOMORROW IS ALSO YESTERDAY)', 'WE CHECKED THE BACK\nIT IS NOT THERE ANYMORE', 'NONE LEFT\nNEVER LEFT'] },
-  { name: 'STATIC LG', desc: 'complimentary', price: 'always', responses: ['░░▒▓█ DISPENSING █▓▒░░', 'ALWAYS IN STOCK\nALWAYS', 'COMPLIMENTARY\nNO RECEIPT REQUIRED', '░▒▓ ENJOY ▓▒░\nCHARGES MAY APPLY'] },
-  { name: 'DECISION', desc: 'takes ~3 business days', price: '$CONTACT', responses: ['ORDER PLACED\nESTIMATED DELIVERY: 3 BUSINESS DAYS\n(BUSINESS DAYS NOT GUARANTEED)', 'PROCESSING...\nSTILL PROCESSING', 'WE WILL REACH OUT\nWE WILL NOT REACH OUT', 'RECEIPT ISSUED\nDECISION STILL PENDING'] },
-  { name: 'THE ORIGINAL\nFEELING', desc: 'limited qty', price: 'ask cashier', responses: ['CASHIER UNAVAILABLE\nYOU ALREADY KNOW THE PRICE', 'LIMITED QTY: 1\nALREADY YOURS', 'CANNOT BE PURCHASED\nONLY REMEMBERED', 'ASK CASHIER\n(CASHIER DOES NOT KNOW EITHER)'] },
-  { name: 'CERTAINTY FRIES', desc: 'see vending machine', price: 'N/A', responses: ['SEE VENDING MACHINE\nVENDING MACHINE IS OUT', 'CRISPY. PROBABLY.\nFRYER STATUS: UNCERTAIN', 'N/A\n(NOT APPLICABLE / NOT AVAILABLE / NOT ANYMORE)', 'FOUND SOME IN BACK\nTHEY EXPIRED IN 2019'] },
+  { name: 'HOUSE SOUP', desc: 'broth, rotating stock', price: '$3.50', responses: ['SERVING IN ~12 MINUTES.\nMINUTES ARE APPROXIMATE.', 'HOT. EXTREMELY HOT.\nCOOLING TIME: UNKNOWN.', 'SOURCE CONFIRMED.\nFLAVOR: FAMILIAR.', 'ORDER PLACED.\nETA: WHENEVER.'] },
+  { name: "YESTERDAY'S SPECIAL", desc: 'out of stock', price: '$0.00', responses: ['OUT OF STOCK.\nWAS IN STOCK YESTERDAY.', 'CHECKED THE BACK.\nNOT THERE ANYMORE.', 'SORRY.\nTRY TOMORROW.', 'NONE LEFT.'] },
+  { name: 'STATIC LG', desc: 'complimentary', price: 'always', responses: ['░░▒▓█ DISPENSING █▓▒░░', 'ALWAYS IN STOCK.\nALWAYS.', 'COMPLIMENTARY.\nNO RECEIPT.', '░▒▓ ENJOY ▓▒░'] },
+  { name: 'PENDING ORDER', desc: 'estimated: 3 business days', price: '$CONTACT', responses: ['ORDER PLACED.\nESTIMATED: 3 BUSINESS DAYS.', 'PROCESSING.', 'WE WILL REACH OUT.', 'RECEIPT ISSUED.\nSTILL PENDING.'] },
+  { name: 'DAILY SPECIAL', desc: 'limited qty', price: 'ask cashier', responses: ['CASHIER UNAVAILABLE.', 'LIMITED QTY: 1.\nALREADY ACCOUNTED FOR.', 'CANNOT BE ORDERED.\nONLY ENCOUNTERED.', 'ASK CASHIER.\nCASHIER IS NOT HERE.'] },
+  { name: 'FRIES', desc: 'see main counter', price: '$3.25', responses: ['AVAILABLE.\nFRYER STATUS: UNCERTAIN.', 'CRISPY. PROBABLY.', 'ORDER CONFIRMED.\nSTATION B IS UNMANNED.', 'FOUND SOME IN BACK.\nCONDITION: UNCHECKED.'] },
 ]
 
 const MANNEQUIN_LINES = [
-  'what are you\nlooking at',
-  "i don't actually\nhave eyes",
-  'this outfit is from\nlast season\n(of something)',
-  "i've been standing\nhere since 1994",
-  'the collar was\nnot my idea',
-  'please stop',
+  'the eyes are\npainted on',
+  'this position has\nnot changed since 1994',
+  'inventory tag:\nremoved',
+  'the joints still move.\nnobody has checked why',
+  'someone dusts this\nevery week',
+  'no response\nis expected',
 ]
 
 const PA_LINES = [
   'Attention shoppers: nothing has happened yet.',
-  'Could the person standing still please continue standing still. Thank you.',
-  'The food court is open. The food court has never been open.',
+  'The food court is open. It has always been open.',
   'Attention: the exit has relocated. New coordinates pending.',
-  'A mannequin in section C has filed a complaint. The complaint is you.',
-  'The escalator is currently traveling sideways. This is normal.',
-  'Lost and found contains: one left shoe, a frequency, and your previous excuse.',
-  'Store closing in 30 minutes. Store closing has been ongoing for 4 years.',
+  'Lost and found contains: one left shoe, a frequency.',
+  'Store closing in 30 minutes. Store closing has been ongoing.',
   'Frequency 88.7 is currently unavailable in this location.',
+  'All shoppers are reminded that this level continues.',
 ]
 
 
@@ -60,7 +58,7 @@ interface StoreDef {
 
 const STORES: StoreDef[] = [
   { id: 'vending', z: 3, side: 'L', color: '#d01060', accentColor: '#ff85af', name: 'MACHINES', sign: 'CERTAINTY · SLEEP · PURPOSE', interiorKey: 'vending' },
-  { id: 'food', z: 5.5, side: 'R', color: '#d06000', accentColor: '#ffc066', name: 'FOOD COURT', sign: 'TIME SOUP · YESTERDAY · STATIC', interiorKey: 'food' },
+  { id: 'food', z: 5.5, side: 'R', color: '#d06000', accentColor: '#ffc066', name: 'FOOD COURT', sign: 'HOUSE SOUP · DAILY SPECIAL · STATIC', interiorKey: 'food' },
   { id: 'mannequins', z: 9, side: 'L', color: '#0080a0', accentColor: '#80d8f0', name: 'GALLERY', sign: 'UNIT A · UNIT B · UNIT C · UNIT D', interiorKey: 'mannequins' },
   { id: 'escalator', z: 13, side: 'R', color: '#5020a0', accentColor: '#c090ff', name: 'ESCALATOR', sign: 'DESTINATION UNCONFIRMED', interiorKey: 'escalator' },
 ]
@@ -344,11 +342,91 @@ function FoodInterior() {
   )
 }
 
+const MIRROR_LINES = [
+  'the mirror shows you, approximately.',
+  'the mirror shows someone who has been here before.',
+  'the mirror shows the same outfit.\nthe date does not match.',
+  'the mirror shows: you are in the right place.',
+  'the mirror reflects nothing.\nthis is also normal.',
+  'the mirror shows a person making a decision.\nyou recognize them.',
+  'the mirror is on a slight delay.\nthis has been reported. not fixed.',
+]
+
+function FittingRoom({ unit, onClose }: { unit: string; onClose: () => void }) {
+  const [mirrorMsg, setMirrorMsg] = useState('')
+  const [tries, setTries] = useState(0)
+  const tryMirror = () => {
+    setMirrorMsg(MIRROR_LINES[tries % MIRROR_LINES.length])
+    setTries(t => t + 1)
+  }
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 60,
+      background: 'rgba(0,0,0,0.8)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }} onClick={onClose}>
+      <div style={{
+        width: 'min(340px, 88vw)',
+        background: '#0a1820',
+        border: '2px solid #00b4d8',
+        padding: '20px',
+      }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(144,224,239,0.6)', letterSpacing: '0.2em', marginBottom: 16 }}>
+          FITTING ROOM {unit}
+        </div>
+        {/* Mirror */}
+        <div
+          onClick={tryMirror}
+          style={{
+            background: 'linear-gradient(135deg, rgba(0,180,216,0.06) 0%, rgba(144,224,239,0.12) 50%, rgba(0,180,216,0.06) 100%)',
+            border: '1px solid rgba(0,180,216,0.35)',
+            height: 160,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', marginBottom: 14, position: 'relative', overflow: 'hidden',
+          }}
+        >
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'repeating-linear-gradient(0deg, transparent, transparent 6px, rgba(0,180,216,0.04) 6px, rgba(0,180,216,0.04) 7px)',
+            pointerEvents: 'none',
+          }} />
+          {mirrorMsg ? (
+            <div style={{
+              fontFamily: 'monospace', fontSize: 10, color: 'rgba(144,224,239,0.8)',
+              textAlign: 'center', padding: '0 20px', lineHeight: 1.8,
+              whiteSpace: 'pre-line', animation: 'mirrorFade 0.4s ease',
+            }}>{mirrorMsg}</div>
+          ) : (
+            <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(0,180,216,0.3)', letterSpacing: '0.2em' }}>
+              TAP TO LOOK
+            </div>
+          )}
+        </div>
+        <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(144,224,239,0.25)', lineHeight: 1.8, marginBottom: 14 }}>
+          MIRROR ACCURACY: {tries === 0 ? 'UNCHECKED' : tries < 3 ? 'APPROXIMATE' : 'UNRELIABLE'}<br />
+          LIGHTING: UNCERTAIN
+        </div>
+        <button onClick={onClose} style={{
+          width: '100%', padding: '7px 0', background: 'rgba(0,0,0,0.4)',
+          border: '1px solid rgba(0,180,216,0.3)', color: 'rgba(144,224,239,0.5)',
+          fontFamily: '"Arial Black", sans-serif', fontSize: 9, cursor: 'pointer',
+          letterSpacing: '0.1em',
+        }}>← BACK TO GALLERY</button>
+      </div>
+      <style>{`@keyframes mirrorFade { from { opacity:0 } to { opacity:1 } }`}</style>
+    </div>
+  )
+}
+
 function MannequinInterior() {
   const [mannResponse, setMannResponse] = useState<{ idx: number; text: string } | null>(null)
   const mouseRef = useRef({ x: 0, y: 0 })
   const mannRefs = useRef<(HTMLDivElement | null)[]>([])
   const [mannAngles, setMannAngles] = useState([0, 0, 0, 0])
+  const [fittingRoom, setFittingRoom] = useState<string | null>(null)
+  const responseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => { if (responseTimerRef.current) clearTimeout(responseTimerRef.current) }, [])
 
   useEffect(() => {
     const move = (e: MouseEvent) => { mouseRef.current = { x: e.clientX, y: e.clientY } }
@@ -378,7 +456,12 @@ function MannequinInterior() {
       <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(144,224,239,0.6)', letterSpacing: '0.15em' }}>SECTION C · MOVE YOUR CURSOR</div>
       <div style={{ flex: 1, display: 'flex', gap: 16, justifyContent: 'center', alignItems: 'flex-end', background: '#0a1a20', padding: '16px' }}>
         {[0, 1, 2, 3].map(i => (
-          <div key={i} onClick={() => { const t = MANNEQUIN_LINES[Math.floor(Math.random() * MANNEQUIN_LINES.length)]; setMannResponse({ idx: i, text: t }); setTimeout(() => setMannResponse(null), 3000) }}
+          <div key={i} onClick={() => {
+            const t = MANNEQUIN_LINES[Math.floor(Math.random() * MANNEQUIN_LINES.length)]
+            setMannResponse({ idx: i, text: t })
+            if (responseTimerRef.current) clearTimeout(responseTimerRef.current)
+            responseTimerRef.current = setTimeout(() => setMannResponse(null), 3000)
+          }}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', position: 'relative' }}>
             <div ref={el => { mannRefs.current[i] = el }}
               style={{ width: 28, height: 28, borderRadius: '50%', background: '#d8d0c0', border: '2px solid #00b4d8', marginBottom: 2, transform: `rotate(${mannAngles[i]}deg)`, transition: 'transform 0.05s', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
@@ -402,10 +485,17 @@ function MannequinInterior() {
           </div>
         ))}
       </div>
-      <div
-        style={{ padding: '10px', background: '#555', textAlign: 'center', fontFamily: '"Arial Black", sans-serif', fontSize: 10, color: '#ccc' }}>
-        FITTING ROOMS CLOSED
+      <div style={{ display: 'flex', gap: 6 }}>
+        {['A', 'B', 'C'].map(unit => (
+          <button key={unit} onClick={() => setFittingRoom(unit)} style={{
+            flex: 1, padding: '8px 0', background: 'rgba(0,20,30,0.8)',
+            border: '1px solid rgba(0,180,216,0.25)', color: 'rgba(144,224,239,0.5)',
+            fontFamily: '"Arial Black", sans-serif', fontSize: 9, cursor: 'pointer',
+            letterSpacing: '0.08em',
+          }}>FITTING {unit}</button>
+        ))}
       </div>
+      {fittingRoom && <FittingRoom unit={fittingRoom} onClose={() => setFittingRoom(null)} />}
     </div>
   )
 }
@@ -439,7 +529,7 @@ function EscalatorInterior() {
         {escUsed === 0 ? '↑  RIDE' : escUsed === 1 ? '↑  PROCEED' : '↑  DEPART'}
       </button>
       <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(199,125,255,0.3)', textAlign: 'center', lineHeight: 2 }}>
-        THIS ESCALATOR TRAVELS SIDEWAYS<br />MANAGEMENT NOT RESPONSIBLE FOR DRIFT
+        MANAGEMENT NOT RESPONSIBLE FOR DESTINATION
       </div>
       <style>{`@keyframes escMove { 0% { transform:translateY(-14px) } 100% { transform:translateY(0) } }`}</style>
     </div>

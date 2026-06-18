@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useWorldStore } from '@/lib/world-store'
+import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
 const TILE = 20
@@ -21,7 +21,7 @@ const ACCESSIBLE_WARPS = [
   { x: 104, y: 26, id: '9' },
 ]
 const ACCESSIBLE_COINS = Array.from({ length: 24 }, (_, i) => ({ x: 5 + i * 5, y: 26 }))
-const WRONG_SIGNS = ['NOT A DOOR', 'PRESS MAYBE', '404 FLOOR', 'COIN? NO', 'EXIT-ish', 'SCORE: MILK', 'LEFT IS ALSO RIGHT']
+const WRONG_SIGNS = ['NOT A DOOR', 'PRESS NOTHING', 'WRONG FLOOR', 'COIN? NO', 'NOT THE EXIT', 'SCORE: MILK', 'LEFT IS ALSO RIGHT']
 
 // #: block  C: coin  P: spawn  1-9: warp id  ^: mover  !: spring
 const LEVEL = [
@@ -56,16 +56,18 @@ const LEVEL = [
   '################################################################################################################################',
 ]
 
-const WARPS: Record<string, { label: string }> = {
-  '1': { label: 'MALL' },
-  '2': { label: 'TV' },
-  '3': { label: 'SPIRAL' },
-  '4': { label: 'FLICKER' },
-  '5': { label: 'LOOP' },
-  '6': { label: 'DIAL' },
-  '7': { label: 'HALL' },
-  '8': { label: '???' },
-  '9': { label: 'UNIVERSE' },
+const WARP_COIN_THRESHOLD = 10
+
+const WARPS: Record<string, { label: string; worldId: number }> = {
+  '1': { label: 'MALL', worldId: 7 },
+  '2': { label: 'TV', worldId: 3 },
+  '3': { label: 'SPIRAL', worldId: 13 },
+  '4': { label: 'FLICKER', worldId: 11 },
+  '5': { label: 'LOOP', worldId: 10 },
+  '6': { label: 'DIAL', worldId: 15 },
+  '7': { label: 'HALL', worldId: 4 },
+  '8': { label: '???', worldId: 8 },
+  '9': { label: 'UNIVERSE', worldId: 1 },
 }
 
 interface Mover { x: number; y: number; dir: number; minX: number; maxX: number }
@@ -114,6 +116,7 @@ const LEVEL_DATA = parseLevel()
 
 export default function World14Pixel() {
   const findSecret = useWorldStore(s => s.findSecret)
+  const navigateTo = useWorldStore(s => s.navigateTo)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const keysRef = useRef<Record<string, boolean>>({})
   const playerRef = useRef<Player>({ x: LEVEL_DATA.spawn.x, y: LEVEL_DATA.spawn.y, vx: 0, vy: 0, w: 14, h: 16, grounded: false, onMover: null })
@@ -123,20 +126,33 @@ export default function World14Pixel() {
   const rafRef = useRef(0)
   const warpLock = useRef(false)
   const [coinCount, setCoinCount] = useState(0)
-  const [msg, setMsg] = useState('arrows / wasd move · space jumps · numbered lies open somewhere')
+  const [msg, setMsg] = useState('arrows / wasd move · space jumps · collect coins · lower floor portals are real')
 
   const totalCoins = LEVEL_DATA.coins.size
 
-  const tryWarp = useCallback((id: string) => {
+  const tryWarp = useCallback((id: string, playerY: number) => {
     if (warpLock.current) return
     const w = WARPS[id]
     if (!w) return
     warpLock.current = true
-    const wrongSign = WRONG_SIGNS[parseInt(id) % WRONG_SIGNS.length]
-    setMsg(`[ ${w.label} ] — ${wrongSign}`)
-    findSecret(`pixel-warp-${id}`)
-    setTimeout(() => { warpLock.current = false; setMsg('') }, 2000)
-  }, [findSecret])
+    const collectedCoins = totalCoins - coinsRef.current.size
+    const isLowerFloor = playerY === 26
+    if (isLowerFloor && collectedCoins >= WARP_COIN_THRESHOLD) {
+      setMsg(`[ ${w.label} ] — PORTAL ACTIVE`)
+      findSecret(`pixel-warp-${id}`)
+      setTimeout(() => {
+        warpLock.current = false
+        navigateTo(w.worldId as WorldId, { type: 'vortex' as PortalType })
+      }, 800)
+    } else {
+      const wrongSign = isLowerFloor
+        ? `NEED ${WARP_COIN_THRESHOLD - collectedCoins} MORE COINS`
+        : WRONG_SIGNS[parseInt(id) % WRONG_SIGNS.length]
+      setMsg(`[ ${w.label} ] — ${wrongSign}`)
+      findSecret(`pixel-warp-${id}`)
+      setTimeout(() => { warpLock.current = false; setMsg('') }, 2000)
+    }
+  }, [findSecret, navigateTo, totalCoins])
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -156,6 +172,7 @@ export default function World14Pixel() {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+    canvas.focus()
     const ctx = canvas.getContext('2d')!
     let W = window.innerWidth
     let H = window.innerHeight
@@ -265,7 +282,7 @@ export default function World14Pixel() {
       }
 
       const warpId = LEVEL_DATA.warps.get(pkey)
-      if (warpId) tryWarp(warpId)
+      if (warpId) tryWarp(warpId, pty)
 
       const targetCam = p.x - W * 0.35
       camRef.current += (targetCam - camRef.current) * 0.1
@@ -394,7 +411,7 @@ export default function World14Pixel() {
 
   return (
     <div data-world="14" style={{ position: 'fixed', inset: 0, background: '#1a0a2e', overflow: 'hidden' }}>
-      <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%', imageRendering: 'pixelated' }} />
+      <canvas ref={canvasRef} tabIndex={0} style={{ display: 'block', width: '100%', height: '100%', imageRendering: 'pixelated', outline: 'none' }} />
       <div style={{
         position: 'fixed',
         top: 16,
@@ -411,7 +428,9 @@ export default function World14Pixel() {
         <div style={{ color: '#06FFA5', fontSize: 7 }}>COINS {coinCount}/{totalCoins}</div>
         <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 6, marginTop: 8, lineHeight: 1.8 }}>{msg}</div>
         <div style={{ color: 'rgba(255,255,255,0.28)', fontSize: 6, marginTop: 8, lineHeight: 1.8 }}>
-          doors repeat below because the upper floor is lying.
+          {coinCount >= WARP_COIN_THRESHOLD
+            ? 'lower floor portals: unlocked · walk through them'
+            : `upper floor lies · lower floor needs ${WARP_COIN_THRESHOLD - coinCount} more coins`}
         </div>
       </div>
       <div style={{

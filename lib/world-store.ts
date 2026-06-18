@@ -1,7 +1,7 @@
 'use client'
 import { create } from 'zustand'
 
-export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15
+export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16
 
 export type PortalType =
   | 'door'
@@ -41,6 +41,7 @@ const WORLD_TITLES: Record<WorldId, string> = {
   13: 'falling · falling · falling',
   14: '★ PIXEL QUEST ★ press start',
   15: '··· tuning · · · static · · ·',
+  16: 'master catalog · index incomplete',
 }
 
 interface WorldState {
@@ -185,6 +186,7 @@ export function getWorldLog(): string {
     13: 'THE SPIRAL',
     14: 'THE PIXEL',
     15: 'THE DIAL',
+    16: 'THE CATALOG',
   }
   const secrets = loadSecrets()
   const lines = [

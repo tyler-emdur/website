@@ -70,11 +70,11 @@ export default function AbstractIndex() {
     setMounted(true)
 
     // Stagger marker appearance
-    MARKER_POSITIONS.forEach((_, i) => {
+    const markerTimers = MARKER_POSITIONS.map((_, i) =>
       setTimeout(() => {
         setVisibleMarkers(prev => new Set([...prev, i]))
       }, 2000 + i * 1400 + Math.random() * 800)
-    })
+    )
 
     // Status line rotation
     const statusIv = setInterval(() => {
@@ -99,6 +99,7 @@ export default function AbstractIndex() {
     }, 1000)
 
     return () => {
+      markerTimers.forEach(clearTimeout)
       clearInterval(statusIv)
       clearInterval(countIv)
       clearInterval(clockIv)

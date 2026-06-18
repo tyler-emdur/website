@@ -71,7 +71,7 @@ const TRANSMISSIONS = [
   'DO NOT APPROACH THE WORMHOLE',
   'OBJECT COUNT MISMATCH · RECOUNT REQUIRED',
   'ARCHIVE NODE 17 · ACCESS LOGGED',
-  'DESIGNATION: TYLER EMDUR',
+  'DESIGNATION: T.EMDUR',
   '... ... ...',
   'CLASSIFIED — CLEARANCE REQUIRED',
   'POSITION DISPUTED · LAST VERIFIED 03:12',
@@ -84,31 +84,38 @@ export default function GlitchOverlay() {
   const [msgVisible, setMsgVisible] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
+    let burstId: ReturnType<typeof setTimeout>
+    let txId: ReturnType<typeof setTimeout>
+
     // Random static bursts every 45–90 seconds
-    const burstTimer = () => {
+    const scheduleBurst = () => {
       const delay = 45000 + Math.random() * 45000
-      return setTimeout(() => {
+      burstId = setTimeout(() => {
+        if (cancelled) return
         setBurst(true)
-        burstTimer()
+        scheduleBurst()
       }, delay)
     }
-    const bt = burstTimer()
 
     // Random transmissions every 20–50 seconds
-    const txTimer = () => {
+    const scheduleTx = () => {
       const delay = 20000 + Math.random() * 30000
-      return setTimeout(() => {
+      txId = setTimeout(() => {
+        if (cancelled) return
         const msg = TRANSMISSIONS[Math.floor(Math.random() * TRANSMISSIONS.length)]
         setMessage(msg)
         setMsgVisible(true)
-        setTimeout(() => setMsgVisible(false), 3500)
-        setTimeout(() => setMessage(null), 4200)
-        txTimer()
+        setTimeout(() => { if (!cancelled) setMsgVisible(false) }, 3500)
+        setTimeout(() => { if (!cancelled) setMessage(null) }, 4200)
+        scheduleTx()
       }, delay)
     }
-    const tt = txTimer()
 
-    return () => { clearTimeout(bt); clearTimeout(tt) }
+    scheduleBurst()
+    scheduleTx()
+
+    return () => { cancelled = true; clearTimeout(burstId); clearTimeout(txId) }
   }, [])
 
   return (

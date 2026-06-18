@@ -172,6 +172,20 @@ export default function World0Surface() {
         }}>
           please switch to a computer<br />for the full experience.
         </div>
+        <a
+          href="mailto:healthreinvented@gmail.com"
+          style={{
+            display: 'block',
+            marginTop: 28,
+            fontFamily: 'Georgia, serif',
+            fontSize: 11,
+            color: 'rgba(28,26,23,0.35)',
+            letterSpacing: '0.06em',
+            textDecoration: 'none',
+          }}
+        >
+          healthreinvented@gmail.com
+        </a>
       </div>
 
       {/* Desktop screen */}
@@ -232,7 +246,18 @@ export default function World0Surface() {
             lineHeight: 1.6,
             textTransform: 'lowercase',
           }}>
-            a work in progress<br />art coding project
+            a work in progress · art coding project
+          </div>
+          <div style={{
+            marginTop: 12,
+            fontFamily: 'Georgia, serif',
+            fontSize: 10,
+            color: 'rgba(28,26,23,0.16)',
+            letterSpacing: '0.12em',
+            textAlign: 'center',
+            textTransform: 'lowercase',
+          }}>
+            16 gates · field notes inside
           </div>
         </div>
 

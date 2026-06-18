@@ -40,7 +40,7 @@ export default function PortalDirectory() {
         type="button"
         onClick={() => setOpen(v => !v)}
       >
-        {open ? 'MISFILE GATES' : 'GATES ?'}
+        {open ? 'GATE INDEX' : 'GATES ?'}
       </button>
 
       {open && (

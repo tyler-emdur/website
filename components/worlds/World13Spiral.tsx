@@ -25,6 +25,21 @@ const BRANCH_POOL: Omit<Branch, 'id' | 'angle' | 'depth'>[] = [
   { label: 'MILESTONE', color: '#a78bfa' },
 ]
 
+const BRANCH_FRAGMENTS: Record<string, string> = {
+  'THAT SUMMER': 'summer 2022. somewhere between "i should probably do this" and "i\'m doing this."\n\nthe midwest was still home, technically.\nthat\'s the last time it was.',
+  'THE DECISION': 'it wasn\'t one moment.\nit was three weeks of spreadsheets\nand one morning where it just seemed obvious.\n\nthen it was obvious.',
+  'BEFORE BOULDER': 'flat. comfortable in the wrong direction.\nthe kind of place where you stay\nbecause leaving requires a decision.\n\ni made the decision.',
+  'THE MARATHON': 'boulder marathon. oct 2024. 3:41:22.\n\nthe last mile was the wrong mile.\nit was the right one.',
+  'LATE NIGHTS': 'usually software. sometimes music.\n\ndigger was built between 11pm and 2am.\nso was most of the good stuff.',
+  'THE ARCHIVE': 'everything gets kept somewhere.\nnotes, logs, running splits, commit histories.\n\nsome of it makes sense later.\nsome of it is just weight.',
+  '88.7 MHz': 'the frequency appears in several worlds.\n\nthere\'s no good explanation for this.\nthere doesn\'t need to be.',
+  'ROOM 47': '47 objects. 1 recovered. 46 status unknown.\n\nthe committee has been notified.\nthe committee meets irregularly.',
+  '40.0150°N': 'boulder, co. center of gravity.\n\nnorth of downtown, south of the mountains,\nleft of where i started.',
+  'OCT 2024': 'marathon month. altitude makes everything harder and better.\n\nboulder at altitude is a thing\nyou can\'t explain without being here.',
+  'POST-MOVE': 'the 6 months after moving.\neverything is new and nothing is familiar.\n\ni stayed anyway.\nthat was the right call.',
+  'MILESTONE': 'hard to name while you\'re in it.\n\nonly visible in retrospect,\nfrom a certain angle,\nwhen the light is right.',
+}
+
 const DEPTH_EVENTS: { depth: number; text: string }[] = [
   { depth: 700,   text: 'still falling.' },
   { depth: 2000,  text: '40.0150°N  105.2705°W' },
@@ -48,6 +63,8 @@ export default function World13Spiral() {
   const [fragment, setFragment] = useState('')
   const [fragVisible, setFragVisible] = useState(false)
   const fragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [wormholeCard, setWormholeCard] = useState<{ label: string; text: string; color: string } | null>(null)
+  const wormholeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showFragment = useCallback((text: string) => {
     if (fragTimerRef.current) clearTimeout(fragTimerRef.current)
@@ -220,6 +237,12 @@ export default function World13Spiral() {
     if (hit) {
       showFragment(`// ${hit.label}`)
       setHint(`// ${hit.label}`)
+      const fragmentText = BRANCH_FRAGMENTS[hit.label]
+      if (fragmentText) {
+        if (wormholeTimerRef.current) clearTimeout(wormholeTimerRef.current)
+        setWormholeCard({ label: hit.label, text: fragmentText, color: hit.color })
+        wormholeTimerRef.current = setTimeout(() => setWormholeCard(null), 5000)
+      }
     }
   }
 
@@ -282,10 +305,55 @@ export default function World13Spiral() {
         pointerEvents: 'none',
         textAlign: 'center',
       }}>
-        ∞ WORMHOLES AHEAD ∞
+        DEPTH INCREASING · NO FLOOR DETECTED
       </div>
 
+      {/* Wormhole fragment card */}
+      {wormholeCard && (
+        <div
+          onClick={() => setWormholeCard(null)}
+          style={{
+            position: 'absolute',
+            right: 32,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            maxWidth: 260,
+            background: 'rgba(0,0,0,0.88)',
+            border: `1px solid ${wormholeCard.color}55`,
+            padding: '18px 20px',
+            cursor: 'pointer',
+            animation: 'spiralCardIn 0.4s ease',
+          }}
+        >
+          <div style={{
+            fontFamily: '"Share Tech Mono", monospace',
+            fontSize: 8,
+            color: wormholeCard.color,
+            letterSpacing: '0.22em',
+            marginBottom: 12,
+            opacity: 0.9,
+          }}>{wormholeCard.label}</div>
+          <div style={{
+            fontFamily: '"Share Tech Mono", monospace',
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.75)',
+            lineHeight: 1.9,
+            whiteSpace: 'pre-line',
+          }}>{wormholeCard.text}</div>
+          <div style={{
+            marginTop: 14,
+            fontFamily: '"Share Tech Mono", monospace',
+            fontSize: 7,
+            color: 'rgba(255,255,255,0.2)',
+            letterSpacing: '0.15em',
+          }}>[ click to close ]</div>
+        </div>
+      )}
+
       <HomeButton />
+      <style>{`
+        @keyframes spiralCardIn { from { opacity:0; transform:translateY(-50%) translateX(20px) } to { opacity:1; transform:translateY(-50%) translateX(0) } }
+      `}</style>
     </div>
   )
 }

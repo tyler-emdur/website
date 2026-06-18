@@ -112,9 +112,9 @@ export default function KonamiEgg() {
         textShadow: '0 0 30px #A855F7',
       }}>
         <div style={{ fontSize: '3em', marginBottom: 16 }}>⬆⬆⬇⬇⬅➡⬅➡</div>
-        <div>QUANTUM GATE UNLOCKED</div>
+        <div>QUANTUM-GATE</div>
         <div style={{ fontSize: '0.55em', marginTop: 12, opacity: 0.5, letterSpacing: '0.5em' }}>
-          SECTOR 05-Ψ · CLEARANCE GRANTED · NAVIGATING
+          SECTOR 05-Ψ · ACCESS GRANTED · NAVIGATING
         </div>
       </div>
     </div>

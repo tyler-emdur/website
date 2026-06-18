@@ -18,6 +18,7 @@ import World12Terminal from './World12Terminal'
 import World13Spiral from './World13Spiral'
 import World14Pixel from './World14Pixel'
 import World15Dial from './World15Dial'
+import World16Catalog from './World16Catalog'
 
 const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
   0: World0Surface,
@@ -36,6 +37,7 @@ const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
   13: World13Spiral,
   14: World14Pixel,
   15: World15Dial,
+  16: World16Catalog,
 }
 
 function WorldConsoleSetup() {

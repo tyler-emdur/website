@@ -150,7 +150,7 @@ function StaticScreen() {
 
 // ── News ─────────────────────────────────────────────────────────────────────
 const TICKER_ITEMS = [
-  'LOCAL MAN FINDS DOOR · DOOR UNCLEAR ABOUT SITUATION',
+  'DOOR DISCOVERED ON SUB-LEVEL · CLASSIFICATION PENDING',
   'WEATHER: WEATHER EXPECTED TO CONTINUE · DETAILS AT 11',
   'FREQUENCY 88.7 REPORTS UNUSUAL ACTIVITY · INVESTIGATION PENDING',
   'BOULDER ELEVATION REMAINS 5,430 FT · NO PLANS TO CHANGE',
@@ -167,7 +167,7 @@ function NewsChannel() {
   const [tickerX, setTickerX] = useState(0)
   const tickerText = TICKER_ITEMS.join(' · · · ')
   const STORIES = [
-    { headline: 'REPORTS: FAMILIAR PLACE BECOMES UNRECOGNIZABLE AFTER PROLONGED OBSERVATION', sub: 'Experts disagree on cause. Some call it "Tuesday."', anchor: 'K. MARSH', time: '11:03 PM' },
+    { headline: 'REPORTS: FAMILIAR PLACE BECOMES UNRECOGNIZABLE AFTER PROLONGED OBSERVATION', sub: 'Phenomenon recurs without explanation. Frequency: weekly.', anchor: 'K. MARSH', time: '11:03 PM' },
     { headline: 'OBJECT CATALOGUED AS SIGNIFICANT — SIGNIFICANCE STILL UNSPECIFIED', sub: 'Database entry pending review for third consecutive quarter.', anchor: 'K. MARSH', time: '11:06 PM' },
     { headline: 'DOOR REQUIRING FORM FOUND TO CONTAIN ANOTHER FORM', sub: 'Citizens describe situation as "expected, somehow."', anchor: 'K. MARSH', time: '11:09 PM' },
     { headline: 'LOCAL FREQUENCY CONTINUES BROADCASTING TO NO ACKNOWLEDGED RECEIVER', sub: 'Signal strength: elevated. Content: unclassified.', anchor: 'K. MARSH', time: '11:12 PM' },
@@ -213,10 +213,10 @@ function NewsChannel() {
 function InfomercialChannel() {
   const [page, setPage] = useState(0)
   const PAGES = [
-    { title: 'ARE YOU TIRED OF HAVING TOO MANY DOORS?', body: 'Introducing DOOR-LESS™, the revolutionary solution that eliminates all your doors and replaces them with the memory of doors.', cta: 'CALL NOW: 1-800-NO-DOORS' },
-    { title: 'TESTIMONIAL', body: '"I used DOOR-LESS™ and now I can\'t find the room. But I remember it perfectly." — K. from somewhere. Results not typical. Room may be irretrievable.', cta: 'ORDER IN THE NEXT 47 MINUTES' },
-    { title: 'BUT WAIT — THERE\'S MORE', body: 'Order now and receive a FREE bottle of CERTAINTY (1 oz). WARNING: Contents disputed. Do not open if you prefer things the way they are.', cta: '$19.99 + S&H (S&H: $847.00)' },
-    { title: 'THE DOOR-LESS™ SYSTEM', body: 'Step 1: Identify your doors. Step 2: Remember them fondly. Step 3: Proceed.', cta: 'OPERATORS ARE STANDING BY (PROBABLY)' },
+    { title: 'TOO MANY DOORS?', body: 'DOOR-LESS removes the door and keeps the memory of the door. Installation included.', cta: 'INQUIRE WITHIN' },
+    { title: 'TESTIMONIAL', body: '"I used DOOR-LESS. I can\'t find the room anymore. I remember it perfectly." — K., installed 2019.', cta: 'RESULTS NOT TYPICAL' },
+    { title: 'WHAT\'S INCLUDED', body: 'One (1) absence. Certainty not included. Returns are not accepted.', cta: 'PRICE ON REQUEST' },
+    { title: 'THE DOOR-LESS SYSTEM', body: 'Step 1: Identify the door. Step 2: Remember it. Step 3: Proceed.', cta: 'AVAILABLE NOW' },
   ]
   useEffect(() => {
     const iv = setInterval(() => setPage(p => (p + 1) % PAGES.length), 6000)
@@ -297,11 +297,11 @@ function EmergencyChannel() {
 function KidsChannel() {
   const [t, setT] = useState(0)
   const SEGMENTS = [
-    { bg:'#ff6eb4', text:"Hi! I'm MR. STATIC! Can you say hello? Great! You're doing so well!", color:'#fff' },
-    { bg:'#ffd700', text:"Today we're going to count all the objects in the survey! Ready? 47... 46... 44... Hmm.", color:'#333' },
-    { bg:'#98fb98', text:"Mr. Static's favorite color is the color of an abandoned room in the afternoon.", color:'#333' },
-    { bg:'#9370db', text:"Let's play a game! Find the door! It has been in the same place the whole time. Have you found it? Good.", color:'#fff' },
-    { bg:'#1a1a2e', text:"...Mr. Static will be right back.", color:'rgba(255,255,255,0.3)' },
+    { bg:'#ff6eb4', text:"Hello. Today's lesson is about doors.", color:'#fff' },
+    { bg:'#ffd700', text:"We are going to count the objects in the survey. 47. 46. 44. The count does not always agree with itself.", color:'#333' },
+    { bg:'#98fb98', text:"Mr. Static's favorite color is the color of an empty room in the afternoon.", color:'#333' },
+    { bg:'#9370db', text:"Find the door. It has not moved. It was never going to move.", color:'#fff' },
+    { bg:'#1a1a2e', text:"Mr. Static will return.", color:'rgba(255,255,255,0.3)' },
   ]
   useEffect(() => {
     const iv = setInterval(() => setT(v => (v + 1) % SEGMENTS.length), 5000)

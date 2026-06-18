@@ -16,8 +16,10 @@ async function getToken(): Promise<string | null> {
         grant_type: 'refresh_token',
       }),
     })
-    const data = await res.json()
-    if (data.access_token) return data.access_token
+    if (res.ok) {
+      const data = await res.json()
+      if (data.access_token) return data.access_token
+    }
   }
 
   // Fall back to static access token

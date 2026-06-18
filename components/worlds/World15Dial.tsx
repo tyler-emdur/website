@@ -18,7 +18,7 @@ const STATIONS: Station[] = [
   { freq: 90.2, label: 'PUBLIC ACCESS', sub: 'channel something',
     broadcast: 'channel 22. the host is not present. the set is dressed. the cameras are running. nobody came. this is normal. this has always been normal.' },
   { freq: 91.1, label: '★ PIXEL RADIO ★', sub: '8-bit emergency broadcast',
-    broadcast: 'EMERGENCY BROADCAST. collect coins. avoid the gap. the princess is in another castle. that is okay. that has always been okay. keep moving.' },
+    broadcast: 'EMERGENCY BROADCAST. collect coins. avoid the gap. what you are looking for is not on this floor. that is okay. that has always been okay. keep moving.' },
   { freq: 91.9, label: 'CORRIDOR LOOP', sub: 'do not turn around',
     broadcast: 'please hold. your position in queue: unknown. estimated wait: undefined. the number you are holding is somewhere ahead of you. thank you for holding.' },
   { freq: 92.7, label: 'FIELD STATION', sub: 'boulder uplink',
@@ -181,6 +181,7 @@ export default function World15Dial() {
             onMouseLeave={() => setDragging(false)}
             onTouchStart={e => tuneFromX(e.touches[0].clientX)}
             onTouchMove={e => tuneFromX(e.touches[0].clientX)}
+            onWheel={e => setFreq(f => +Math.max(88, Math.min(108, f + Math.sign(e.deltaY) * 0.1)).toFixed(1))}
             style={{
               height: 32,
               background: 'linear-gradient(90deg, #1a2a1a, #0a3a0a, #1a2a1a)',
