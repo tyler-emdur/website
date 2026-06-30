@@ -1,305 +1,890 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useWorldStore } from '@/lib/world-store'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useWorldStore, WorldId } from '@/lib/world-store'
 
+/* ── Authentic early internet palette ── */
+const NAVY = '#000066'
 const P = '#7700bb'
-const NAVY = '#000033'
+const P2 = '#5500aa'
+const YELLOW = '#ffff00'
+const YELLOW_DIM = '#b8a038'
+const BORDER = '#3333aa'
+const BORDER_LIGHT = '#5a5a9a'
+const BEIGE = '#eeeeee'
+const BEIGE_DARK = '#dcdcdc'
+const LINK = '#3366cc'
+const GREEN = '#00ff00'
+const GREEN_DIM = '#00aa00'
 
-function SecHeader({ label }: { label: string }) {
+const SITE_LAUNCH = new Date('2026-06-01T00:00:00')
+const img = (name: string) => `/retro/${name}.svg`
+
+const QUOTES = [
+  '"The web is more a social creation than a technical one." — Tim Berners-Lee',
+  '"Best viewed in Netscape Navigator 4.0 at 800×600." — every site, 1998',
+  '"This page is permanently under construction." — also every site, 1998',
+  '"There are 17 worlds inside. Please do not feed them after midnight." — T.E.',
+  '"Damage caused by creative overreach is not covered by warranty." — Captain\'s Log',
+  '"If you can read this, your browser supports text. Congratulations." — Webmaster',
+  '"The multiverse was not built in a day. Or was it? Time is weird here." — T.E.',
+  '"Sign my guestbook. I will sign yours back. This is the social contract." — GeoCities, 1999',
+  '"Running code is just writing that forgot it was supposed to be temporary." — T.E.',
+  '"Boulder elevation: 5,430 ft. Attitude: higher." — local knowledge',
+]
+
+const WEATHER_LABELS: Record<number, string> = {
+  0: 'clear', 1: 'mainly clear', 2: 'partly cloudy', 3: 'overcast',
+  45: 'foggy', 48: 'rime fog', 51: 'light drizzle', 53: 'drizzle',
+  55: 'heavy drizzle', 61: 'light rain', 63: 'rain', 65: 'heavy rain',
+  71: 'light snow', 73: 'snow', 75: 'heavy snow', 80: 'showers',
+  81: 'rain showers', 82: 'heavy showers', 85: 'snow showers', 95: 'thunderstorm',
+}
+
+interface WorldItem {
+  id: number
+  name: string
+  bg: string
+  ac: string
+}
+
+const ALL_WORLDS: WorldItem[] = [
+  { id: 0, name: 'Surface', bg: '#000022', ac: '#00ff88' },
+  { id: 1, name: 'Apartment', bg: '#0d001a', ac: '#ff00aa' },
+  { id: 2, name: 'Depth', bg: '#000033', ac: '#00ffff' },
+  { id: 3, name: 'Broadcast', bg: '#220022', ac: '#ff55ff' },
+  { id: 4, name: 'Corridor', bg: '#111111', ac: '#aaaaaa' },
+  { id: 5, name: 'Field Station', bg: '#002200', ac: '#55ff55' },
+  { id: 6, name: 'Document', bg: '#332211', ac: '#ffaa00' },
+  { id: 7, name: 'Mall', bg: '#440044', ac: '#ff0055' },
+  { id: 8, name: 'Signal', bg: '#000044', ac: '#00ccff' },
+  { id: 9, name: 'Contact', bg: '#220044', ac: '#aa55ff' },
+  { id: 10, name: 'Darkroom', bg: '#110000', ac: '#ff2222' },
+  { id: 11, name: 'Flicker', bg: '#222200', ac: '#ffff33' },
+  { id: 12, name: 'Moth', bg: '#1a1a00', ac: '#cccc00' },
+  { id: 13, name: 'Night Sky', bg: '#000022', ac: '#44bbff' },
+  { id: 14, name: 'Pixel', bg: '#110022', ac: '#ff00bb' },
+  { id: 15, name: 'Kitchen', bg: '#221100', ac: '#ff7700' },
+  { id: 16, name: 'Attic', bg: '#111122', ac: '#9999ff' },
+]
+
+function daysSinceLaunch() {
+  return Math.floor((Date.now() - SITE_LAUNCH.getTime()) / 86400000)
+}
+
+function getMoonPhase() {
+  const lp = 2551443
+  const ref = new Date('2024-01-11T11:57:00').getTime()
+  const phase = ((Date.now() - ref) / 1000 % lp) / lp
+  const names = ['New Moon', 'Waxing Crescent', 'First Quarter', 'Waxing Gibbous', 'Full Moon', 'Waning Gibbous', 'Last Quarter', 'Waning Crescent']
+  const ascii = ['( )', '(,)', '(D)', '(G)', '(O)', '(G)', '(C)', '(,)']
+  const idx = Math.floor(phase * 8) % 8
+  return { name: names[idx], symbol: ascii[idx], pct: Math.round(phase * 100) }
+}
+
+function PanelHeader({ label, style }: { label: string; style?: React.CSSProperties }) {
   return (
-    <div style={{ background:P, padding:'3px 10px', color:'#fff', fontSize:10, fontWeight:'bold', display:'flex', alignItems:'center', gap:5, userSelect:'none' }}>
-      <span style={{ color:'#00ff00', fontSize:9 }}>●</span>
+    <div style={{
+      background: `linear-gradient(90deg, ${P} 0%, ${P2} 100%)`,
+      padding: '3px 7px',
+      color: YELLOW,
+      fontSize: 10,
+      fontWeight: 900,
+      letterSpacing: 1,
+      borderBottom: `1px solid ${P}`,
+      fontFamily: '"Arial Black", Arial, sans-serif',
+      ...style
+    }}>
       {label}
     </div>
   )
 }
 
+function MiniPanel({ label, children, style, headerStyle }: { label: string; children: React.ReactNode; style?: React.CSSProperties; headerStyle?: React.CSSProperties }) {
+  return (
+    <div style={{ border: `2px solid ${BORDER}`, margin: 4, background: '#000033', ...style }}>
+      <PanelHeader label={label} style={headerStyle} />
+      <div style={{ padding: '6px 8px' }}>{children}</div>
+    </div>
+  )
+}
+
+function WorldThumbnail({ world, onClick }: { world: WorldItem; onClick: () => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const cv = canvasRef.current
+    if (!cv) return
+    const cx = cv.getContext('2d')
+    if (!cx) return
+
+    // Draw retro pixel pattern
+    cx.fillStyle = world.bg
+    cx.fillRect(0, 0, 80, 60)
+
+    // Draw random pixel noise
+    cx.fillStyle = world.ac
+    for (let i = 0; i < 16; i++) {
+      cx.globalAlpha = Math.random() * 0.65 + 0.2
+      cx.fillRect(Math.floor(Math.random() * 76) + 2, Math.floor(Math.random() * 56) + 2, 2, 2)
+    }
+
+    // Radial gradient glow
+    cx.globalAlpha = 1
+    const grad = cx.createRadialGradient(40, 30, 0, 40, 30, 16)
+    grad.addColorStop(0, world.ac + 'cc')
+    grad.addColorStop(1, 'transparent')
+    cx.beginPath()
+    cx.arc(40, 30, 16, 0, Math.PI * 2)
+    cx.fillStyle = grad
+    cx.fill()
+
+    // Crosshairs
+    cx.strokeStyle = 'rgba(255,255,255,0.18)'
+    cx.lineWidth = 1
+    cx.beginPath()
+    cx.moveTo(40, 5)
+    cx.lineTo(40, 55)
+    cx.moveTo(5, 30)
+    cx.lineTo(75, 30)
+    cx.stroke()
+  }, [world])
+
+  return (
+    <button onClick={onClick} className="wt" style={{
+      flexShrink: 0, width: 84, height: 64, border: `2px groove ${BORDER_LIGHT}`,
+      cursor: 'pointer', background: world.bg, display: 'block', position: 'relative', padding: 0
+    }}>
+      <canvas ref={canvasRef} width={80} height={60} style={{ display: 'block', width: '100%', height: '100%' }} />
+      <div className="wlbl" style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        background: 'rgba(0,0,0,.8)', color: '#00ccff', fontSize: 7,
+        fontFamily: '"Press Start 2P", monospace', textAlign: 'center', padding: '1px 0'
+      }}>
+        W{world.id}: {world.name.slice(0, 8)}
+      </div>
+    </button>
+  )
+}
+
+const NAV = [
+  { icon: 'icon-doc', label: "What's New?", action: 'scroll' as const },
+  { icon: 'rocket', label: 'Enter Universe', action: 'enter' as const },
+  { icon: 'icon-download', label: 'Source Code', href: 'https://github.com/tyler-emdur' },
+  { icon: 'icon-gear', label: 'Contact', href: 'mailto:tyler@tyleremdur.com' },
+  { icon: 'globe', label: '17 Worlds', action: 'worlds' as const },
+  { icon: 'icon-owl', label: "Captain's Log", action: 'log' as const },
+]
+
 export default function World0Surface() {
   const navigateTo = useWorldStore(s => s.navigateTo)
   const [time, setTime] = useState('')
+  const [count, setCount] = useState(10951)
+  const [playing, setPlaying] = useState(false)
+  const [quoteIdx, setQuoteIdx] = useState(0)
+  const [weather, setWeather] = useState<{ temp: number; label: string } | null>(null)
+  const [moon] = useState(getMoonPhase)
+  const [daysOld] = useState(daysSinceLaunch)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const heroRef = useRef<HTMLDivElement>(null)
+
+  const go = useCallback(() => navigateTo(1, { type: 'door' }), [navigateTo])
+
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
 
   useEffect(() => {
     const tick = () => {
-      const d = new Date(); let h = d.getHours()
-      const m = d.getMinutes().toString().padStart(2,'0')
-      const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12
-      setTime(`${h.toString().padStart(2,'0')}:${m} ${ap}`)
+      const d = new Date()
+      let h = d.getHours()
+      const m = d.getMinutes().toString().padStart(2, '0')
+      const ap = h >= 12 ? 'PM' : 'AM'
+      h = h % 12 || 12
+      setTime(`${h.toString().padStart(2, '0')}:${m} ${ap}`)
     }
-    tick(); const iv = setInterval(tick, 10000); return () => clearInterval(iv)
+    tick()
+    const iv = setInterval(tick, 10000)
+    return () => clearInterval(iv)
   }, [])
 
-  const go = () => navigateTo(1, { type: 'door' })
+  useEffect(() => {
+    const iv = setInterval(() => {
+      if (Math.random() < 0.06) setCount(c => c + 1)
+    }, 2500)
+    return () => clearInterval(iv)
+  }, [])
+
+  useEffect(() => {
+    const iv = setInterval(() => setQuoteIdx(i => (i + 1) % QUOTES.length), 12000)
+    return () => clearInterval(iv)
+  }, [])
+
+  useEffect(() => {
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=40.0150&longitude=-105.2705&current=temperature_2m,weather_code&temperature_unit=fahrenheit')
+      .then(r => r.json())
+      .then(d => {
+        const code = d?.current?.weather_code ?? 0
+        const temp = Math.round(d?.current?.temperature_2m ?? 0)
+        setWeather({ temp, label: WEATHER_LABELS[code] ?? 'unknown' })
+      })
+      .catch(() => setWeather({ temp: 0, label: 'offline' }))
+  }, [])
+
+  useEffect(() => {
+    const cv = canvasRef.current
+    const hero = heroRef.current
+    if (!cv || !hero) return
+    const cx = cv.getContext('2d')
+    if (!cx) return
+
+    let stars: { x: number; y: number; r: number; spd: number; tw: number; col: string; isCross: boolean }[] = []
+    let raf = 0
+    let lastTime = performance.now()
+
+    // Comet and satellite state
+    const comet = { x: -100, y: -100, vx: 0, vy: 0, active: false, timer: 3.0 }
+    const uconSatellite = { x: -150, y: 70, active: false, timer: 12.0 }
+
+    const planets = [
+      { xPct: 0.16, yPct: 0.38, r: 8, col: '#ff5533', ring: true, ringCol: '#ffaa66' },
+      { xPct: 0.74, yPct: 0.22, r: 12, col: '#33aaff', ring: false, ringCol: '' },
+      { xPct: 0.88, yPct: 0.75, r: 5, col: '#ffcc33', ring: true, ringCol: '#eeee55' },
+    ]
+
+    const resize = () => {
+      cv.width = hero.offsetWidth
+      cv.height = hero.offsetHeight
+      stars = Array.from({ length: 180 }, () => ({
+        x: Math.random() * cv.width,
+        y: Math.random() * cv.height,
+        r: Math.random() * 1.5 + 0.12,
+        spd: Math.random() * 0.12 + 0.02,
+        tw: Math.random() * Math.PI * 2,
+        col: ['#ccccdd', '#aaaacc', '#bbaabb', '#aabbcc', '#cccaaa'][Math.floor(Math.random() * 5)],
+        isCross: Math.random() < 0.08,
+      }))
+    }
+
+    const frame = () => {
+      const now = performance.now()
+      const dt = (now - lastTime) / 1000
+      lastTime = now
+
+      cx.clearRect(0, 0, cv.width, cv.height)
+
+      // 1. Stars (with twinkling)
+      stars.forEach(s => {
+        s.tw += 0.012
+        s.x -= s.spd
+        if (s.x < 0) s.x = cv.width
+        
+        cx.beginPath()
+        if (s.isCross) {
+          cx.strokeStyle = s.col
+          cx.lineWidth = 0.8
+          cx.globalAlpha = 0.3 + 0.6 * Math.abs(Math.sin(s.tw))
+          cx.moveTo(s.x - 3, s.y)
+          cx.lineTo(s.x + 3, s.y)
+          cx.moveTo(s.x, s.y - 3)
+          cx.lineTo(s.x, s.y + 3)
+          cx.stroke()
+        } else {
+          cx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
+          cx.fillStyle = s.col
+          cx.globalAlpha = 0.25 + 0.55 * Math.abs(Math.sin(s.tw))
+          cx.fill()
+        }
+      })
+      cx.globalAlpha = 1
+
+      // 2. Planets
+      planets.forEach(p => {
+        const px = p.xPct * cv.width
+        const py = p.yPct * cv.height
+        cx.beginPath()
+        cx.arc(px, py, p.r, 0, Math.PI * 2)
+        cx.fillStyle = p.col
+        cx.fill()
+        const grad = cx.createRadialGradient(px - p.r * 0.3, py - p.r * 0.3, 0, px, py, p.r)
+        grad.addColorStop(0, 'rgba(255,255,255,0.25)')
+        grad.addColorStop(0.5, 'transparent')
+        grad.addColorStop(1, 'rgba(0,0,0,0.55)')
+        cx.beginPath()
+        cx.arc(px, py, p.r, 0, Math.PI * 2)
+        cx.fillStyle = grad
+        cx.fill()
+        if (p.ring) {
+          cx.strokeStyle = p.ringCol
+          cx.lineWidth = 1.5
+          cx.beginPath()
+          cx.ellipse(px, py, p.r * 1.6, p.r * 0.45, -Math.PI / 8, 0, Math.PI * 2)
+          cx.stroke()
+        }
+      })
+
+      // 3. Comet
+      if (!comet.active) {
+        comet.timer -= dt
+        if (comet.timer <= 0) {
+          comet.active = true
+          comet.x = Math.random() * cv.width * 0.6
+          comet.y = 0
+          comet.vx = Math.random() * 120 + 100
+          comet.vy = Math.random() * 70 + 60
+        }
+      } else {
+        const tailGrad = cx.createLinearGradient(comet.x, comet.y, comet.x - comet.vx * 0.12, comet.y - comet.vy * 0.12)
+        tailGrad.addColorStop(0, 'rgba(255,255,255,0.7)')
+        tailGrad.addColorStop(1, 'transparent')
+        cx.strokeStyle = tailGrad
+        cx.lineWidth = 1.5
+        cx.beginPath()
+        cx.moveTo(comet.x, comet.y)
+        cx.lineTo(comet.x - comet.vx * 0.12, comet.y - comet.vy * 0.12)
+        cx.stroke()
+        comet.x += comet.vx * dt
+        comet.y += comet.vy * dt
+        if (comet.x > cv.width || comet.y > cv.height) {
+          comet.active = false
+          comet.timer = Math.random() * 12 + 8
+        }
+      }
+
+      // 4. Under Construction Satellite (drifting every 30s)
+      if (!uconSatellite.active) {
+        uconSatellite.timer -= dt
+        if (uconSatellite.timer <= 0) {
+          uconSatellite.active = true
+          uconSatellite.x = -100
+          uconSatellite.y = Math.random() * (cv.height - 80) + 40
+        }
+      } else {
+        uconSatellite.x += 35 * dt
+        const sx = uconSatellite.x
+        const sy = uconSatellite.y
+        cx.fillStyle = '#33aaff'
+        cx.fillRect(sx - 15, sy - 3, 6, 6)
+        cx.fillRect(sx + 9, sy - 3, 6, 6)
+        cx.strokeStyle = '#888'
+        cx.lineWidth = 1
+        cx.beginPath()
+        cx.moveTo(sx - 9, sy)
+        cx.lineTo(sx + 9, sy)
+        cx.stroke()
+        cx.fillStyle = '#bbbbbb'
+        cx.beginPath()
+        cx.arc(sx, sy, 4, 0, Math.PI * 2)
+        cx.fill()
+        cx.fillStyle = '#ffcc00'
+        cx.fillRect(sx - 20, sy + 8, 40, 7)
+        cx.strokeStyle = '#000'
+        cx.lineWidth = 0.5
+        cx.strokeRect(sx - 20, sy + 8, 40, 7)
+        cx.fillStyle = '#000'
+        cx.font = '5px monospace'
+        cx.textAlign = 'center'
+        cx.fillText('UNDER CONST', sx, sy + 13)
+        if (uconSatellite.x > cv.width + 30) {
+          uconSatellite.active = false
+          uconSatellite.timer = 30.0
+        }
+      }
+
+      raf = requestAnimationFrame(frame)
+    }
+
+    resize()
+    frame()
+    const ro = new ResizeObserver(resize)
+    ro.observe(hero)
+    return () => { cancelAnimationFrame(raf); ro.disconnect() }
+  }, [])
+
+  const linkStyle: React.CSSProperties = { color: LINK, textDecoration: 'underline', cursor: 'pointer' }
 
   return (
-    <div style={{ position:'fixed', inset:0, display:'flex', flexDirection:'column', background:'#bdbdbd', fontFamily:'Arial,Helvetica,sans-serif', fontSize:12, userSelect:'none', border:'3px ridge #f5f5f5' }}>
+    <div style={{
+      position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
+      background: NAVY, fontFamily: 'Arial, Helvetica, sans-serif', fontSize: 12,
+      userSelect: 'none', border: '3px ridge #3333aa',
+      backgroundImage: `radial-gradient(ellipse at 50% 0%, #110033 0%, transparent 60%), radial-gradient(ellipse at 0% 100%, #110022 0%, transparent 50%)`
+    }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-        .wa { color:#0000cc; text-decoration:underline; cursor:pointer }
-        .wa:hover { color:#cc0000 }
-        .retroPanel { border:2px ridge #bdbdbd; margin:4px; box-shadow:inset 1px 1px 0 rgba(255,255,255,.45), inset -1px -1px 0 rgba(0,0,0,.35) }
-        .ws::-webkit-scrollbar { width:16px; height:16px }
-        .ws::-webkit-scrollbar-track { background:#c0c0c0; border:1px solid #808080 }
-        .ws::-webkit-scrollbar-thumb { background:#c0c0c0; border:2px outset #ffffff; min-height:20px }
-        .ws::-webkit-scrollbar-button { background:#c0c0c0; border:2px outset #ffffff; display:block; width:16px; height:14px }
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+        .w0-link { color:${LINK}; text-decoration:underline; cursor:pointer; background:none; border:none; font:inherit; padding:0 }
+        .w0-link:hover { color:${YELLOW} }
+        .w0-link:visited { color:#8866aa }
+        .w0-pixel { font-family:"Press Start 2P","Courier New",monospace }
+        .w0-mono { font-family:"Courier New",monospace }
+        .w0-img { image-rendering:pixelated; display:block }
+        .w0-scroll::-webkit-scrollbar { width:10px; height:8px; background:#000033 }
+        .w0-scroll::-webkit-scrollbar-thumb { background:#440088 }
+        .w0-scroll::-webkit-scrollbar-button { background:#330066; height:12px }
+        .w0-ibtn {
+          display:block; background:linear-gradient(180deg,#ffff55,#cccc00);
+          color:#000033; font-family:"Arial Black",Arial,sans-serif;
+          font-size:11px; font-weight:900; text-align:center; text-decoration:none;
+          padding:5px 8px; border:2px outset #ffff99; margin:3px; letter-spacing:1px; cursor:pointer;
+        }
+        .w0-ibtn:hover { filter:brightness(1.12) }
+        .w0-ibtn:active { border-style:inset }
+        .w0-ebtn {
+          display:inline-block; padding:10px 24px;
+          font-family:"Arial Black",Arial,sans-serif; font-size:15px; font-weight:900;
+          text-transform:uppercase; border:3px outset; cursor:pointer;
+          letter-spacing:1px; text-align:center; line-height:1.1;
+        }
+        .w0-ebtn:hover { filter:brightness(1.2) }
+        .w0-ebtn:active { border-style:inset }
+        .w0-npb {
+          background:#111144; border:2px outset ${BORDER}; color:#fff;
+          width:24px; height:19px; display:flex; align-items:center; justify-content:center;
+          font-size:9px; cursor:pointer;
+        }
+        .w0-npb:active { border-style:inset }
+        @keyframes w0-pulse { 0%,100%{opacity:1;box-shadow:0 0 6px #00ff00} 50%{opacity:.3;box-shadow:0 0 2px #00ff00} }
+        .w0-led { animation:w0-pulse 2s ease-in-out infinite }
+        @keyframes w0-spin { to { transform:rotate(360deg) } }
+        .w0-spin { animation:w0-spin 9s linear infinite }
+        @keyframes w0-blink { 50% { opacity:0 } }
+        .w0-blink { animation:w0-blink 1.2s step-end infinite }
+        @keyframes w0-construct {
+          0% { background-position:0 0 }
+          100% { background-position:40px 0 }
+        }
+        .w0-construct {
+          height:14px;
+          background:repeating-linear-gradient(-45deg,#c8a030,#c8a030 8px,#1a1028 8px,#1a1028 16px);
+          background-size:40px 40px;
+          animation:w0-construct 1s linear infinite;
+          border-bottom:1px solid ${BORDER};
+        }
+        .w0-ticker-wrap { overflow:hidden; white-space:nowrap; }
+        .w0-ticker { display:inline-block; animation:w0-scroll 32s linear infinite; color:#00ff00; font-family:"Courier New",monospace; font-size:11px; padding-left:100% }
+        @keyframes w0-scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-100%)} }
+        .w0-welcome {
+          background-color:${BEIGE};
+          border-right:2px solid ${BORDER};
+          font-family:Arial,Helvetica,sans-serif;
+        }
+        .w0-welcome hr { border:none; border-top:1px solid #aaaaaa; margin:6px 0 }
+        .w0-wobble { display:inline-block; transform:rotate(-0.5deg) }
+        
+        .wt {
+          flex-shrink: 0; width: 84px; height: 64px; border: 2px groove ${BORDER_LIGHT};
+          cursor: pointer; position: relative; overflow: hidden;
+          text-decoration: none; display: block; transition: border-color .15s;
+        }
+        .wt:hover { border-color: ${YELLOW} !important; }
+        .wlbl {
+          position: absolute; bottom: 0; left: 0; right: 0;
+          background: rgba(0,0,0,.85);
+          color: #00ccff; font-size: 7px;
+          font-family: 'Courier New', monospace;
+          text-align: center; padding: 2px;
+        }
+
+        .w0-title-crt {
+          font-family: "Press Start 2P", "Courier New", monospace;
+          font-size: clamp(15px, 2.5vw, 26px);
+          color: #ffffff;
+          text-shadow: 
+            0 0 4px rgba(0, 255, 0, 0.6), 
+            3px 0 0 rgba(255, 0, 0, 0.75), 
+            -3px 0 0 rgba(0, 255, 255, 0.75), 
+            4px 4px 0px #060012;
+          letter-spacing: 1px;
+          line-height: 1.45;
+          filter: blur(0.3px);
+        }
+
+        @keyframes w0-flash-ad {
+          0%, 49% { background-color: #ff0000; color: #ffffff; border-color: #ffff00; }
+          50%, 100% { background-color: #ffff00; color: #ff0000; border-color: #ff0000; }
+        }
+        .w0-flash-ad {
+          animation: w0-flash-ad 0.6s step-end infinite;
+          border: 2px solid #ffff00;
+          font-family: "Press Start 2P", sans-serif;
+          font-size: 8px !important;
+          padding: 2px 6px;
+          font-weight: bold;
+          display: inline-block;
+          text-shadow: none;
+        }
       `}</style>
 
-      {/* ── BROWSER CHROME ── */}
-      <div style={{ height:40, background:'linear-gradient(#eeeeee,#a8a8a8)', display:'flex', alignItems:'center', gap:5, padding:'0 8px', borderBottom:'3px ridge #808080', flexShrink:0 }}>
-        {['◀','▶','▷','🏠','↻','🏡'].map((b,i) => (
-          <button key={i} style={{ width:28, height:26, background:'#d0d0d0', border:'2px outset #eeeeee', color:'#555', fontSize:i>2?13:12, cursor:'pointer', padding:0, lineHeight:1 }}>{b}</button>
+      {/* Browser chrome */}
+      <div style={{
+        height: 40, background: 'linear-gradient(#ddd,#999)', display: 'flex',
+        alignItems: 'center', gap: 5, padding: '0 8px', borderBottom: '3px ridge #666', flexShrink: 0,
+      }}>
+        {['◀', '▶', '↻', 'HOME'].map((b, i) => (
+          <button key={i} className="w0-pixel" style={{
+            width: i > 1 ? 36 : 28, height: 26, background: '#c0c0c0',
+            border: '2px outset #ddd', color: '#444', fontSize: i > 1 ? 7 : 11,
+            cursor: 'pointer', padding: 0, lineHeight: 1,
+          }}>{b}</button>
         ))}
-        <div style={{ flex:1, maxWidth:'58%', height:24, background:'#fff', border:'2px inset #d0d0d0', padding:'0 8px', display:'flex', alignItems:'center', fontSize:13, color:'#000' }}>
-          tyleremdur.com
+        <div style={{
+          flex: 1, maxWidth: '55%', height: 24, background: '#fff',
+          border: '2px inset #aaa', padding: '0 8px', display: 'flex', alignItems: 'center',
+          fontSize: 13, color: '#000',
+        }}>
+          http://www.tyleremdur.com/index.html
         </div>
-        <span style={{ fontSize:11, color:'#111', padding:'0 14px', marginLeft:'auto' }}>Alcohol 40% or Higher</span>
-        <span style={{ fontSize:18 }}>🌐</span>
-        <span style={{ fontSize:11, color:'#111', paddingLeft:2 }}>Viewable With Any Browser</span>
+        <img className="w0-img" src={img('browser-globe')} alt="" style={{ width: 22, height: 22, marginLeft: 'auto' }} />
+        <span style={{ fontSize: 10, color: '#222' }}>Viewable With Any Browser</span>
       </div>
 
-      {/* ── MAIN 3-COLUMN ── */}
-      <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0, gap:0, padding:4 }}>
+      {/* Ticker */}
+      <div style={{ background: '#000033', borderBottom: `1px solid ${BORDER}`, padding: '2px 0', flexShrink: 0 }} className="w0-ticker-wrap">
+        <div className="w0-ticker">
+          * WELCOME TO TYLER EMDUR&apos;S MULTIVERSE * 17 WORLDS INSIDE * BOULDER, COLORADO *
+          SITE UPDATED {daysOld} DAYS AGO * YOU ARE VISITOR #{String(count).padStart(6, '0')} *
+          MOON: {moon.name.toUpperCase()} * {weather ? `BOULDER: ${weather.temp}F ${weather.label.toUpperCase()}` : 'LOADING WEATHER...'} *
+        </div>
+      </div>
 
-        {/* LEFT SIDEBAR */}
-        <div style={{ width:'22%', flexShrink:0, display:'flex', flexDirection:'column', overflowY:'auto', background:'#d6d6d6', border:'2px inset #777' }} className="ws">
+      {/* 3-column body */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
 
-          {/* TYLER'S WEB ZONE header */}
+        {/* LEFT */}
+        <div style={{ width: 175, flexShrink: 0, overflowY: 'auto', background: '#000033' }} className="w0-scroll">
+
+          {/* Symmetrical imperfection: slight margin offset on header and different background gradient */}
           <div style={{
-            background:NAVY,
-            backgroundImage:[
-              'radial-gradient(1px 1px at 18px 12px,rgba(255,255,255,.9) 0%,transparent 100%)',
-              'radial-gradient(1px 1px at 48px 32px,rgba(255,255,255,.8) 0%,transparent 100%)',
-              'radial-gradient(1px 1px at 82px 8px,rgba(255,255,255,.7) 0%,transparent 100%)',
-              'radial-gradient(1px 1px at 112px 26px,rgba(255,255,255,.9) 0%,transparent 100%)',
-              'radial-gradient(1px 1px at 145px 6px,rgba(255,255,255,.6) 0%,transparent 100%)',
-              'radial-gradient(1px 1px at 175px 20px,rgba(255,255,255,.8) 0%,transparent 100%)',
-              'radial-gradient(1px 1px at 28px 48px,rgba(255,255,255,.5) 0%,transparent 100%)',
-              'radial-gradient(1px 1px at 92px 52px,rgba(255,255,255,.7) 0%,transparent 100%)',
-              'radial-gradient(1px 1px at 155px 44px,rgba(255,255,255,.6) 0%,transparent 100%)',
-              'radial-gradient(1px 1px at 205px 16px,rgba(255,255,255,.8) 0%,transparent 100%)',
-              'radial-gradient(1px 1px at 60px 60px,rgba(255,255,255,.5) 0%,transparent 100%)',
-              'radial-gradient(1px 1px at 130px 55px,rgba(255,255,255,.6) 0%,transparent 100%)',
-            ].join(','),
-            backgroundSize:'100% 70px',
-            padding:'14px 16px 16px',
-            borderBottom:`2px ridge ${P}`,
-          }} className="retroPanel">
-            <div style={{ fontFamily:'Impact,"Arial Black",sans-serif', fontSize:27, color:'#ffcc00', letterSpacing:'0.05em', lineHeight:1.15, textShadow:'2px 2px #000' }}>
-              TYLER'S WEB ZONE
+            background: '#000080', padding: '10px 10px 12px', margin: '4px 6px 4px 2px',
+            border: `2px groove ${BORDER}`,
+            backgroundImage: 'radial-gradient(1px 1px at 30px 20px,rgba(255,255,255,.4),transparent),radial-gradient(1px 1px at 90px 40px,rgba(255,255,255,.3),transparent)',
+          }}>
+            <div className="w0-pixel" style={{ fontSize: 10, color: YELLOW, lineHeight: 1.6, textShadow: '1px 1px 0px #ff0000' }}>
+              TYLER&apos;S WEB ZONE
             </div>
-            <div style={{ fontSize:14, color:'#00d6ff', marginTop:8, textAlign:'center' }}>on the World Wide Web!!!</div>
+            <div style={{ fontSize: 10, color: '#00ccff', marginTop: 4, fontFamily: 'Comic Sans MS, cursive' }}>on the World Wide Web!!!</div>
           </div>
 
-          {/* NAVIGATION */}
-          <SecHeader label="NAVIGATION" />
-          <div style={{ background:'#f0f0f0', padding:'6px 0', borderBottom:`1px solid ${P}` }} className="retroPanel">
-            {([['📋',"What's New?"],['⬇️','Download'],['⚙️','Installation'],['💡','Useful Tips'],['🦉','Using OWL']] as [string,string][]).map(([ic,tx]) => (
-              <div key={tx} style={{ display:'flex', alignItems:'center', gap:10, padding:'6px 16px', borderBottom:'1px solid #ddd', cursor:'pointer' }}>
-                <span style={{ fontSize:13 }}>{ic}</span>
-                <a className="wa" style={{ fontSize:11 }}>{tx}</a>
+          <MiniPanel label="NAVIGATION">
+            <ul style={{ listStyle: 'none', margin: '-6px -8px' }}>
+              {NAV.map(({ icon, label, action, href }) => (
+                <li key={label} style={{ borderBottom: `1px solid #111155` }}>
+                  {href ? (
+                    <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 6px', ...linkStyle, textDecoration: 'none', fontSize: 11 }}>
+                      <span className="ico"><img className="w0-img" src={img(icon)} alt="" style={{ width: 16, height: 16 }} /></span>
+                      {label}
+                    </a>
+                  ) : (
+                    <button className="w0-link" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 6px', width: '100%', textAlign: 'left', fontSize: 11 }}
+                      onClick={() => {
+                        if (action === 'enter') go()
+                        else if (action === 'scroll') scrollTo('hero')
+                        else if (action === 'worlds') scrollTo('worlds-strip')
+                        else if (action === 'log') scrollTo('log-box')
+                      }}>
+                      <span className="ico" style={{ transform: label === '17 Worlds' ? 'rotate(-5deg)' : undefined }}><img className="w0-img" src={img(icon)} alt="" style={{ width: 16, height: 16 }} /></span>
+                      {label}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </MiniPanel>
+
+          {/* Symmetrical imperfection: dashed borders on visitor panel */}
+          <MiniPanel label="> VISITOR COUNTER" style={{ border: '2px dashed #33aa33' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div id="globe" className="w0-spin" style={{ width: 52, height: 52, borderRadius: '50%', margin: '0 auto 7px' }}></div>
+              <div id="odo" className="w0-mono" style={{
+                fontSize: 22, fontWeight: 'bold', color: GREEN, letterSpacing: 3,
+                background: '#000', border: '2px inset #333', padding: '3px 8px', display: 'inline-block',
+                textShadow: '0 0 9px #00FF00'
+              }}>
+                {String(count).padStart(6, '0')}
               </div>
-            ))}
-          </div>
-
-          {/* SYSTEM STATUS */}
-          <SecHeader label="SYSTEM STATUS" />
-          <div style={{ background:'#080808', padding:'13px 18px', borderBottom:`1px solid ${P}` }} className="retroPanel">
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
-              <span style={{ width:10, height:10, background:'#00ff00', borderRadius:'50%', display:'inline-block', boxShadow:'0 0 5px #00ff00', flexShrink:0 }} />
-              <span style={{ color:'#fff', fontSize:11 }}>STATUS: <strong>Online</strong></span>
+              <div className="ctr-lbl" style={{ fontSize: 9, color: '#777799', marginTop: 5 }}>visitors since June 2026</div>
             </div>
-            <div style={{ fontSize:10, color:'#888', lineHeight:1.9 }}>LAST UPDATED:<br/>June 2026</div>
-          </div>
+          </MiniPanel>
 
-          {/* VISITOR COUNTER */}
-          <SecHeader label="VISITOR COUNTER" />
-          <div style={{ background:'#080808', padding:'14px 18px', textAlign:'center', borderBottom:`1px solid ${P}` }} className="retroPanel">
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:18 }}>
-              <div style={{ fontSize:40 }}>🌍</div>
-              <div style={{ fontFamily:'"Courier New",monospace', fontSize:31, color:'#e8ff00', letterSpacing:'6px', textShadow:'0 0 8px #99ff00' }}>
-                010951
+          <MiniPanel label="> QUOTE OF THE VISIT">
+            <div style={{ fontSize: 10, lineHeight: 1.65, color: '#9999aa', fontStyle: 'italic', minHeight: 48 }}>
+              {QUOTES[quoteIdx]}
+            </div>
+            <button className="w0-link" style={{ fontSize: 8, color: '#666680', marginTop: 4 }}
+              onClick={() => setQuoteIdx(i => (i + 7) % QUOTES.length)}>
+              [ another quote ]
+            </button>
+          </MiniPanel>
+
+          <MiniPanel label="> MOON PHASE">
+            <div className="w0-mono" style={{ fontSize: 11, color: '#888899', lineHeight: 1.7 }}>
+              <span style={{ fontSize: 16, color: YELLOW, letterSpacing: 2 }}>{moon.symbol}</span><br />
+              {moon.name}<br />
+              <span style={{ fontSize: 9, color: '#555568' }}>illumination ~{moon.pct}%</span>
+            </div>
+          </MiniPanel>
+
+          <MiniPanel label="> SYSTEM STATUS">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span className="w0-led" style={{ width: 11, height: 11, borderRadius: '50%', background: GREEN, display: 'inline-block', flexShrink: 0, boxShadow: '0 0 6px #00ff00' }} />
+              <span className="w0-mono" style={{ fontSize: 10, color: GREEN }}>STATUS: Online</span>
+            </div>
+            <div style={{ fontSize: 9, color: '#777799', marginTop: 5, lineHeight: 1.6 }}>
+              LAST UPDATED:<br />{daysOld} days ago<br />
+              <span style={{ fontSize: 8 }}>(June 2026 launch)</span>
+            </div>
+          </MiniPanel>
+
+          <MiniPanel label="> ABOUT TYLER">
+            <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+              <img className="w0-img" src={img('profile')} alt="" style={{ width: 52, height: 52, border: `2px groove ${BORDER}`, flexShrink: 0 }} />
+              <div style={{ fontSize: 10, lineHeight: 1.65, color: '#CCCCCC' }}>
+                Software engineer.<br />Builder of worlds.<br />Boulder, Colorado.
               </div>
             </div>
-            <div style={{ fontSize:9, color:'#777', marginTop:4 }}>visitors since June 2026</div>
-          </div>
-
-          {/* ABOUT TYLER */}
-          <SecHeader label="ABOUT TYLER" />
-          <div style={{ background:'#080808', padding:'12px 14px' }} className="retroPanel">
-            <div style={{ display:'flex', gap:8, marginBottom:8 }}>
-              <div style={{ width:72, height:72, background:'radial-gradient(circle at 52% 38%, #f0b086 0 15%, transparent 16%), radial-gradient(circle at 48% 45%, #d98a63 0 27%, transparent 28%), radial-gradient(circle at 45% 24%, #17110d 0 22%, transparent 23%), linear-gradient(135deg,#10240e,#2b4a22)', border:'2px ridge #aaa', flexShrink:0 }} />
-              <div style={{ fontSize:13, color:'#ccc', lineHeight:2 }}>
-                Software engineer.<br/>Builder of worlds.<br/>Boulder, Colorado.
-              </div>
-            </div>
-            <a className="wa" onClick={go} style={{ fontSize:10, color:'#8888ff' }}>More about me →</a>
-          </div>
+            <button className="w0-link" onClick={go} style={{ fontSize: 10, color: '#00ccff' }}>More about me &rarr;</button>
+          </MiniPanel>
         </div>
 
-        {/* CENTER COLUMN */}
-        <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0, borderTop:'2px inset #777', borderBottom:'2px inset #777' }}>
+        {/* CENTER */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
 
-          {/* HERO */}
-          <div style={{ flex:'0 0 49%', display:'flex', flexDirection:'column', border:'2px ridge #bdbdbd', borderBottom:'2px solid #808080', minHeight:0, margin:'0 4px 0' }}>
-            <div style={{ background:P, padding:'3px 8px', color:'#fff', fontSize:11, fontWeight:'bold', flexShrink:0 }}>
-              Tyler Emdur's Multiverse World!
-            </div>
-            <div style={{
-              flex:1, background:'#000',
-              backgroundImage:[
-                'radial-gradient(circle,rgba(255,255,255,.95) 1px,transparent 1px)',
-                'radial-gradient(circle,rgba(255,255,255,.8) 1px,transparent 1px)',
-                'radial-gradient(circle,rgba(255,255,255,.65) 1px,transparent 1px)',
-                'radial-gradient(circle,rgba(255,255,255,.5) 1px,transparent 1px)',
-              ].join(','),
-              backgroundSize:'80px 60px,55px 70px,30px 42px,22px 28px',
-              backgroundPosition:'10px 8px,26px 18px,8px 28px,16px 5px',
-              display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-              padding:'14px', position:'relative', overflow:'hidden',
-            }}>
-              <div style={{ fontFamily:'"VT323","Courier New",monospace', fontSize:'clamp(14px,1.8vw,22px)', color:'#00ff66', letterSpacing:'0.3em', marginBottom:4 }}>
+          <div style={{
+            background: 'linear-gradient(90deg, #330077, #110055)',
+            color: '#FFFFFF', fontSize: 11, fontWeight: 'bold', padding: '3px 8px', margin: '4px 4px 0', border: `2px solid ${BORDER}`, borderBottom: 'none'
+          }}>
+            Tyler Emdur&apos;s Multiverse World!
+          </div>
+
+          {/* Hero / starfield */}
+          <div id="hero" ref={heroRef} style={{
+            position: 'relative', flex: '1 1 42%', minHeight: 200,
+            background: '#000005', overflow: 'hidden', textAlign: 'center',
+            border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px',
+          }}>
+            <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
+            <div style={{ position: 'relative', zIndex: 5, padding: '22px 20px' }}>
+              <div id="sf-wel" style={{ fontSize: 18, letterSpacing: 4, color: '#00ff00', textShadow: '0 0 10px #00ff00', fontFamily: 'VT323, monospace', marginBottom: 4 }}>
                 WELCOME TO
               </div>
-              <div style={{ fontFamily:'Impact,"Arial Black",sans-serif', fontSize:'clamp(30px,4.2vw,56px)', color:'#fff', lineHeight:0.98, textAlign:'center', textShadow:'3px 3px #222', marginBottom:8, letterSpacing:'0.04em' }}>
-                TYLER EMDUR'S<br/>MULTIVERSE
+              <div className="w0-title-crt" style={{ marginBottom: 12 }}>
+                TYLER EMDUR&apos;S<br />MULTIVERSE
               </div>
-              <div style={{ fontFamily:'"VT323","Courier New",monospace', fontSize:'clamp(12px,1.4vw,18px)', color:'#00ff66', marginBottom:12, letterSpacing:'0.12em' }}>
+              <div id="sf-tag" style={{ fontFamily: 'VT323, monospace', fontSize: 22, color: '#00ff00', textShadow: '0 0 8px #00ff00', marginBottom: 4 }}>
                 17 worlds. Infinite possibilities.
               </div>
-              <div style={{ fontSize:11, color:'#ccc', marginBottom:14, fontStyle:'italic' }}>Choose your destination...</div>
-              <div style={{ display:'flex', gap:34, marginBottom:8 }}>
-                <div onClick={go} style={{ background:'linear-gradient(#d50a8d,#8a005a)', border:'4px outset #ff55aa', padding:'12px 28px', cursor:'pointer', textAlign:'center', minWidth:126, boxShadow:'0 0 0 2px #3a0030' }}>
-                  <div style={{ fontFamily:'Impact,"Arial Black",sans-serif', fontSize:'clamp(16px,2vw,22px)', color:'#fff', letterSpacing:'0.12em' }}>ENTER</div>
-                  <div style={{ fontSize:10, color:'rgba(255,255,255,.85)', fontStyle:'italic' }}>the Galaxy</div>
+              <div style={{ fontSize: 11, color: '#aaaacc', marginBottom: 14 }}>Choose your destination...</div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
+                <div>
+                  <button className="w0-ebtn ebtn-a" onClick={go}>
+                    ENTER
+                    <span className="ebtn-sub">the Galaxy</span>
+                  </button>
+                  <div className="bdate">Updated June 2026</div>
                 </div>
-                <div onClick={go} style={{ background:'linear-gradient(#0024d6,#00005f)', border:'4px outset #3333ff', padding:'12px 28px', cursor:'pointer', textAlign:'center', minWidth:126, boxShadow:'0 0 0 2px #000033' }}>
-                  <div style={{ fontFamily:'Impact,"Arial Black",sans-serif', fontSize:'clamp(16px,2vw,22px)', color:'#fff', letterSpacing:'0.12em' }}>ENTER</div>
-                  <div style={{ fontSize:10, color:'rgba(255,255,255,.7)', fontStyle:'italic' }}>seriously, enter</div>
+                <div>
+                  <button className="w0-ebtn ebtn-b" onClick={go}>
+                    ENTER
+                    <span className="ebtn-sub">seriously, enter</span>
+                  </button>
+                  <div className="bdate">Updated June 2026</div>
                 </div>
               </div>
-              <div style={{ display:'flex', gap:80, fontSize:9, color:'rgba(255,255,255,.35)' }}>
-                <span>Updated June 2026</span>
-                <span>Updated June 2026</span>
+            </div>
+            <img className="w0-img w0-spin" src={img('globe')} alt="" style={{ position: 'absolute', bottom: 12, left: 20, width: 48, height: 48, zIndex: 4, opacity: 0.75, animationDuration: '14s' }} />
+            <img className="w0-img" src={img('rocket')} alt="" style={{ position: 'absolute', top: '36%', right: '5%', width: 68, height: 42, transform: 'rotate(-18deg)', zIndex: 4, opacity: 0.85 }} />
+          </div>
+
+          {/* Welcome + Log — vintage welcome card */}
+          <div id="cbot" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px', background: '#000033', flex: '0 0 auto' }}>
+            <div className="w0-welcome" style={{ padding: 0 }}>
+              <div className="w0-construct" title="under construction" />
+              <div style={{ padding: '8px 10px 10px' }}>
+                <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                  <span className="w0-flash-ad">NEW!</span>
+                  {' '}
+                  <span className="w0-wobble" style={{ fontSize: 12, fontWeight: 'bold', color: '#330066', fontFamily: 'Arial Black,Arial,sans-serif' }}>
+                    WELCOME TO MY HOMEPAGE!!!
+                  </span>
+                </div>
+                <hr />
+                <p style={{ fontSize: 11, lineHeight: 1.7, color: '#222', marginBottom: 7, textAlign: 'center' }}>
+                  <b>Hello and welcome!</b> I&apos;m a software engineer and everything I build is cool.
+                </p>
+                <p style={{ fontSize: 11, lineHeight: 1.7, color: '#222', marginBottom: 7 }}>
+                  So the following multiverse of <b>17 websites</b> represents my work and interests.
+                  Please sign my guestbook. Tell your friends. Add me to your webring.
+                </p>
+                <hr />
+                <div style={{ fontSize: 10, color: '#444', marginBottom: 5, textAlign: 'center' }}>
+                  <i>{QUOTES[quoteIdx]}</i>
+                </div>
+                <hr />
+                <p style={{ fontSize: 11, lineHeight: 1.6, color: '#222', marginBottom: 5 }}>
+                  Boulder, CO &bull; <a href="mailto:tyler@tyleremdur.com" style={{ color: '#0000cc' }}>tyler@tyleremdur.com</a><br />
+                  github: <a href="https://github.com/tyler-emdur" target="_blank" rel="noopener noreferrer" style={{ color: '#0000cc' }}>tyler-emdur</a>
+                </p>
+                <div className="retnav" style={{ fontSize: 11, marginBottom: 5 }}>
+                  <span style={{ color: '#0000cc', textDecoration: 'underline', cursor: 'pointer' }} onClick={go}>[ Enter the Multiverse &rarr; ]</span>{' '}
+                  <span style={{ color: '#0000cc', textDecoration: 'underline', cursor: 'pointer' }} onClick={go}>[ About Me ]</span>{' '}
+                  <a href="/build" style={{ color: '#0000cc' }}>[ Projects ]</a>
+                </div>
+                <div style={{ fontSize: 9, color: '#666', borderTop: `1px dotted ${BORDER}`, paddingTop: 5, textAlign: 'center' }}>
+                  Site updated <b>{daysOld}</b> day{daysOld !== 1 ? 's' : ''} ago &bull;
+                  Best viewed at 800&times;600 &bull;
+                  You are visitor <b>#{String(count).padStart(6, '0')}</b>
+                </div>
               </div>
-              <div style={{ position:'absolute', bottom:18, left:34, fontSize:54, filter:'saturate(1.3)' }}>🌍</div>
-              <div style={{ position:'absolute', top:'46%', right:'7%', fontSize:34, transform:'rotate(-18deg)' }}>🚀</div>
-              <div style={{ position:'absolute', right:'12%', top:'54%', width:150, height:1, background:'repeating-linear-gradient(90deg,#f7e600 0 4px,transparent 4px 10px)', transform:'rotate(-24deg)', opacity:0.75 }} />
+            </div>
+
+            <div id="log-box" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="log-ph">LATEST LOG ENTRY</div>
+              <div id="logscroll" className="w0-scroll w0-mono" style={{
+                flex: 1, height: 130, overflowY: 'scroll', padding: '7px 8px',
+                fontSize: 10, lineHeight: 1.85, background: '#000022', color: '#9999cc',
+              }}>
+                <div style={{ color: '#00ccff', fontWeight: 'bold', marginBottom: 4 }}>Monday, 30th June, 2026</div>
+                <div>
+                  Production of the page commenced.<br />
+                  Building world 17. This is taking longer<br />
+                  than expected but I am not an expert<br />
+                  at multiverse architecture.<br /><br />
+                  <button className="w0-link" style={{ color: '#00ff77' }}>Captain&apos;s log &mdash; 51589.7</button><br />
+                  We are approaching world base 16.<br />
+                  We will visit all sectors. Damage<br />
+                  caused by creative overreach.<br /><br />
+                  &mdash; T.E.
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* MIDDLE ROW */}
-          <div style={{ flex:'0 0 31%', display:'flex', borderBottom:'2px solid #808080', minHeight:0, margin:'0 4px' }}>
-            {/* Welcome */}
-            <div style={{ flex:'0 0 50%', display:'flex', flexDirection:'column', borderRight:'2px solid #808080', minWidth:0 }}>
-              <div style={{ background:P, padding:'3px 8px', color:'#fff', fontSize:11, fontWeight:'bold', flexShrink:0 }}>WELCOME TO MY HOMEPAGE!!!</div>
-              <div style={{ flex:1, background:'#fff', padding:'12px 14px', overflowY:'auto', fontSize:12, color:'#000', lineHeight:1.65, fontFamily:'"Courier New",monospace' }} className="ws">
-                <div style={{ marginBottom:8 }}>I'm a software engineer and everything I build is cool. So the following multiverse of 17 websites represents my work and interests.</div>
-                <div style={{ fontSize:10, color:'#333', marginBottom:10 }}>Boulder, CO • healthreinvented@gmail.com<br/>github: tyler-emdur</div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                  <a className="wa" onClick={go} style={{ fontSize:10 }}>[ Enter the Multiverse → ]</a>
-                  <a className="wa" style={{ fontSize:10 }}>[ About Me ]</a>
-                  <a className="wa" style={{ fontSize:10 }}>[ Projects ]</a>
-                </div>
-              </div>
-            </div>
-            {/* Log */}
-            <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0 }}>
-              <div style={{ background:P, padding:'3px 8px', color:'#fff', fontSize:11, fontWeight:'bold', flexShrink:0 }}>LATEST LOG ENTRY</div>
-              <div style={{ flex:1, background:'linear-gradient(180deg,#07075a,#00001f)', padding:'10px 14px', overflowY:'auto', fontSize:12, color:'#b7b7d8', lineHeight:1.6, fontFamily:'"Courier New",monospace' }} className="ws">
-                <div style={{ color:'#6699ff', textDecoration:'underline', cursor:'pointer', marginBottom:6 }}>Friday 20th June, 2026</div>
-                <div style={{ marginBottom:10 }}>Production of the page commenced. Building world 17. This is taking longer than expected but I am not an expert at multiverse architecture.</div>
-                <div style={{ color:'#6699ff', textDecoration:'underline', cursor:'pointer', marginBottom:6 }}>Captain's log — 51589.7</div>
-                <div>We are approaching world base 16. We will visit all sectors. Damage caused by creative overreach.</div>
-              </div>
-            </div>
-          </div>
-
-          {/* 17 WORLDS STRIP */}
-          <div style={{ flex:'0 0 92px', display:'flex', flexDirection:'column', minHeight:0, margin:'0 4px 4px', border:'2px ridge #bdbdbd' }}>
-            <div style={{ background:P, padding:'3px 8px', color:'#fff', fontSize:11, fontWeight:'bold', flexShrink:0 }}>17 WORLDS INSIDE</div>
-            <div style={{ flex:1, background:'#fff', display:'flex', alignItems:'center', padding:'5px 6px', gap:6, overflow:'hidden' }}>
-              <div style={{ width:18, height:22, background:'#c0c0c0', border:'1px outset #fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, cursor:'pointer', flexShrink:0 }}>◀</div>
-              {([['#0d001a','🌌'],['#000080','🌐'],['#555','👤'],['#880000','🧃'],['#004400','⚽'],['#1a004a','🌈'],['#550022','❤️']] as [string,string][]).map(([bg,em],i) => (
-                <div key={i} onClick={go} style={{ flexShrink:0, width:82, height:54, background:bg, border:'3px ridge #bdbdbd', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>
-                  {em}
-                </div>
+          {/* Worlds strip — Horizontal scrolling gallery of 17 worlds */}
+          <div id="worlds" style={{ border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px 4px', background: '#000022', flex: '0 0 auto' }}>
+            <PanelHeader label="17 WORLDS INSIDE" />
+            <div id="wstrip" className="w0-scroll" style={{ display: 'flex', alignItems: 'center', overflowX: 'auto', gap: 3, padding: 4, background: '#000' }}>
+              {ALL_WORLDS.map((w) => (
+                <WorldThumbnail
+                  key={w.id}
+                  world={w}
+                  onClick={() => navigateTo(w.id as WorldId, { type: 'door' })}
+                />
               ))}
-              <div onClick={go} style={{ flexShrink:0, width:54, height:54, background:'#eee', border:'2px solid #999', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:'bold', color:'#333', textAlign:'center' }}>
-                & MORE
-              </div>
-              <div style={{ width:18, height:22, background:'#c0c0c0', border:'1px outset #fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, cursor:'pointer', flexShrink:0 }}>▶</div>
+              <button onClick={go} className="morebtn" style={{
+                flexShrink: 0, width: 62, height: 62, background: '#110033', border: '2px solid #440088',
+                color: YELLOW, fontFamily: '"Arial Black",Arial,sans-serif', fontSize: 9,
+                cursor: 'pointer', lineHeight: 1.3,
+              }}>
+                &amp; MORE
+              </button>
             </div>
           </div>
         </div>
 
-        {/* RIGHT SIDEBAR */}
-        <div style={{ width:'23%', flexShrink:0, overflowY:'auto', border:'2px inset #777', background:'#d6d6d6', display:'flex', flexDirection:'column' }} className="ws">
+        {/* RIGHT */}
+        <div style={{ width: 210, flexShrink: 0, overflowY: 'auto', background: '#000033' }} className="w0-scroll">
 
-          {/* INDEX */}
-          <div style={{ border:'2px ridge #bdbdbd', margin:4, background:'#f4f4f4' }}>
-            <div style={{ background:P, padding:'5px 10px', fontSize:14, fontWeight:'bold', color:'#fff', letterSpacing:'0.08em', borderBottom:'1px solid #ccc' }}>INDEX</div>
-            <div style={{ padding:'8px', display:'flex', flexDirection:'column', gap:6 }}>
-              {['WORLDS','ABOUT','PROJECTS','CONTACT','SOURCE CODE'].map(t => (
-                <div key={t} onClick={go} style={{ background:'#ffdf72', border:'2px outset #ffeeb1', padding:'7px 10px', fontSize:11, fontWeight:'bold', color:'#000080', textAlign:'center', cursor:'pointer', textDecoration:'underline' }}>
-                  {t}
-                </div>
+          {/* Symmetrical imperfection: different shade of purple on INDEX headers */}
+          <MiniPanel label="INDEX" headerStyle={{ background: 'linear-gradient(90deg, #aa0088 0%, #770055 100%)', borderBottom: '1px solid #c900aa' }}>
+            <div style={{ margin: '-6px -8px', padding: 4 }}>
+              {['WORLDS', 'ABOUT', 'PROJECTS', 'CONTACT', 'SOURCE CODE'].map(t => (
+                t === 'PROJECTS'
+                  ? <a key={t} href="/build" className="w0-ibtn">{t}</a>
+                  : t === 'CONTACT'
+                    ? <a key={t} href="mailto:tyler@tyleremdur.com" className="w0-ibtn">{t}</a>
+                    : t === 'SOURCE CODE'
+                      ? <a key={t} href="https://github.com/tyler-emdur" target="_blank" rel="noopener noreferrer" className="w0-ibtn">{t}</a>
+                      : <button key={t} className="w0-ibtn" onClick={go} style={{ width: '100%' }}>{t}</button>
               ))}
             </div>
-          </div>
+          </MiniPanel>
 
-          {/* NOW PLAYING */}
-          <SecHeader label="♪ NOW PLAYING" />
-          <div style={{ background:'#000', padding:'12px 16px', borderBottom:`1px solid ${P}` }} className="retroPanel">
-            <div style={{ fontFamily:'"Courier New",monospace', fontSize:11, color:'#00cc00', marginBottom:2 }}>media.exe</div>
-            <div style={{ fontFamily:'"Courier New",monospace', fontSize:10, color:'#00cc00', marginBottom:8 }}>by tyler emdur</div>
-            <div style={{ display:'flex', alignItems:'center', gap:3 }}>
-              {(['⏮','⏸','⏹'] as string[]).map(b => <button key={b} style={{ background:'#333', border:'1px outset #555', width:22, height:20, fontSize:10, cursor:'pointer', color:'#ccc', padding:0 }}>{b}</button>)}
-              <div style={{ flex:1, height:5, background:'#222', marginLeft:4, border:'1px inset #111', position:'relative' }}>
-                <div style={{ position:'absolute', left:0, top:0, height:'100%', width:'38%', background:'#006600' }} />
-              </div>
+          <MiniPanel label="BOULDER WEATHER">
+            <div className="w0-mono" style={{ fontSize: 11, color: '#888899', lineHeight: 1.7 }}>
+              {weather ? (
+                <>
+                  <span style={{ fontSize: 18, color: YELLOW }}>{weather.temp}&deg;F</span><br />
+                  {weather.label}<br />
+                  <span style={{ fontSize: 9, color: '#555568' }}>40.0150&deg;N 105.2705&deg;W<br />elevation 5,430 ft</span>
+                </>
+              ) : (
+                <span style={{ fontSize: 10, color: '#555568' }}>connecting to NOAA...</span>
+              )}
             </div>
-          </div>
+          </MiniPanel>
 
-          {/* NEW MEDIA */}
-          <SecHeader label="NEW MEDIA • NEW ART" />
-          <div style={{ background:NAVY, padding:'18px 18px', borderBottom:`1px solid ${P}`, minHeight:150 }} className="retroPanel">
-            <div style={{ fontSize:13, color:'#ccc', lineHeight:1.9, fontFamily:'"Courier New",monospace' }}>
-              tyler emdur • 2026<br/>
-              boulder colorado<br/>
-              software • running<br/>
-              17 worlds inside
-            </div>
-            <a className="wa" onClick={go} style={{ color:'#ff8cff', fontSize:13, display:'block', marginTop:18 }}>→ enter now</a>
-          </div>
-
-          {/* LINK LOG */}
-          <SecHeader label="♦ LINK LOG" />
-          <div style={{ background:'#fff', padding:'12px 14px', fontSize:12, color:'#333', lineHeight:1.8, flex:1 }} className="retroPanel">
-            <div style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
-              <div style={{ flex:1 }}>
-                This is a <a className="wa">IN SYNC WITH *N SYNC</a> site.<br/>
-                Want to join <a className="wa">"IN SYNC WITH *N SYNC"</a> the official fan club?
-                <div style={{ marginTop:8 }}>
-                  <a className="wa" onClick={go}>Click here to join now!</a>
+          {/* Symmetrical imperfection: Magenta-themed player box header */}
+          <MiniPanel label="♪ NOW PLAYING" headerStyle={{ background: 'linear-gradient(90deg, #990088 0%, #660055 100%)', borderBottom: '1px solid #b90088' }}>
+            <div className="w0-mono" style={{ fontSize: 10 }}>
+              <div style={{ color: '#00ff00', fontWeight: 'bold' }}>media.exe</div>
+              <div style={{ color: '#666699', marginBottom: 7 }}>by tyler emdur</div>
+              <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                <div className="w0-npb">&#9664;&#9664;</div>
+                <div className="w0-npb" onClick={() => setPlaying(p => !p)}>{playing ? '||' : '▶'}</div>
+                <div className="w0-npb">&#9632;</div>
+                <div style={{ flex: 1, height: 5, background: '#1a1a1a', marginLeft: 4, border: '1px inset #333', position: 'relative' }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '38%', background: GREEN_DIM }} />
                 </div>
               </div>
-              <div style={{ width:82, height:82, background:'linear-gradient(135deg,#f1c5a0,#1a1a2e 45%,#050510)', flexShrink:0, border:'2px inset #aaa', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>👥</div>
             </div>
-          </div>
+          </MiniPanel>
+
+          <MiniPanel label="NEW MEDIA / NEW ART">
+            <div className="w0-mono" style={{ fontSize: 10, lineHeight: 1.75, color: '#888899' }}>
+              <span style={{ color: '#00ccff', fontWeight: 'bold' }}>tyler emdur</span> &bull; 2026<br />
+              boulder colorado<br />
+              software &bull; running<br />
+              17 worlds inside<br />
+              <span style={{ fontSize: 9, color: '#555568' }}>updated {daysOld}d ago</span>
+            </div>
+            <button className="w0-link" onClick={go} style={{ color: '#00ff77', display: 'block', marginTop: 5, fontSize: 10 }}>&rarr; enter.now</button>
+          </MiniPanel>
+
+          {/* Symmetrical imperfection: Brick red gradient header */}
+          <MiniPanel label="LINK LOG" headerStyle={{ background: 'linear-gradient(90deg, #993300 0%, #551100 100%)', borderBottom: '1px solid #b94411' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <div style={{ fontSize: 10, lineHeight: 1.65, color: '#888899', flex: 1 }}>
+                This is an <button className="w0-link" style={{ color: '#00ccff' }}>IN SYNC WITH &apos;N SYNC</button> site.<br /><br />
+                Want to join <button className="w0-link" style={{ color: '#00ccff' }}>&quot;IN SYNC WITH &apos;N SYNC&quot;</button>
+                the official fan club?<br /><br />
+                <button className="w0-link" onClick={go} style={{ color: '#00ccff' }}>Click here to join now!</button>
+              </div>
+              <img className="w0-img" src={img('group')} alt="" style={{ width: 68, height: 68, flexShrink: 0, border: `2px inset ${BORDER}` }} />
+            </div>
+          </MiniPanel>
+
+          <MiniPanel label="WEB RING">
+            <div style={{ fontSize: 9, color: '#666680', lineHeight: 1.7, textAlign: 'center' }}>
+              <span style={{ color: '#66aaff', cursor: 'pointer' }}>[ &lt;&lt; Prev ]</span>
+              {' '}
+              <img className="w0-img w0-spin" src={img('globe')} alt="" style={{ width: 20, height: 20, display: 'inline-block', verticalAlign: 'middle', animationDuration: '6s' }} />
+              {' '}
+              <span style={{ color: '#66aaff', cursor: 'pointer' }}>[ Next &gt;&gt; ]</span>
+              <br /><br />
+              <span style={{ fontSize: 8 }}>Member of the Multiverse Webring<br />since June 2026</span>
+            </div>
+          </MiniPanel>
         </div>
       </div>
 
-      {/* BOTTOM BAR */}
-      <div style={{ height:34, background:'#0a0a2a', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 28px', flexShrink:0, borderTop:'3px ridge #777' }}>
-        <span style={{ fontSize:10, color:'#aaa' }}>
-          This is a{' '}<a className="wa" onClick={go} style={{ color:'#6699ff' }}>TYLER EMDUR MULTIVERSE</a>{' '}site.
+      {/* Footer */}
+      <div style={{
+        background: '#000022', borderTop: `2px solid ${BORDER}`, padding: '5px 12px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        fontSize: 10, color: '#777799', flexWrap: 'wrap', gap: 6, flexShrink: 0,
+      }}>
+        <span>
+          This is a <button className="w0-link" onClick={go} style={{ color: YELLOW_DIM, fontWeight: 'bold' }}>TYLER EMDUR MULTIVERSE</button> site.
+          {' '}| updated {daysOld}d ago | {moon.symbol} {moon.name}
         </span>
-        <span style={{ fontSize:10, color:'#aaa' }}>
-          [<a className="wa" style={{ color:'#6699ff' }}>Prev</a>]{' '}
-          [<a className="wa" onClick={go} style={{ color:'#6699ff' }}>Enter</a>]{' '}
-          [<a className="wa" style={{ color:'#6699ff' }}>Random</a>]{' '}
-          [<a className="wa" style={{ color:'#6699ff' }}>List Sites</a>]
+        <span>
+          [ <button className="w0-link" style={{ color: '#66aaff' }}>Prev</button> ]
+          &nbsp;[ <button className="w0-link" onClick={go} style={{ color: '#66aaff' }}>Enter</button> ]
+          &nbsp;[ <button className="w0-link" style={{ color: '#66aaff' }}>Random</button> ]
+          &nbsp;[ <button className="w0-link" style={{ color: '#66aaff' }}>List Sites</button> ]
         </span>
-        <span style={{ fontFamily:'"Courier New",monospace', fontSize:11, color:'#aaa' }}>{time}</span>
+        <span className="w0-mono" style={{ color: '#00ff00' }}>
+          {time}
+        </span>
       </div>
     </div>
   )

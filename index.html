@@ -3,955 +3,458 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tyler Emdur</title>
+  <meta http-equiv="refresh" content="0;url=/">
+  <title>Tyler Emdur's Multiverse World!</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg:    #080808;
-      --fg:    #f0ede8;
-      --a1:    #CAFF00;
-      --a2:    #FF2D78;
-      --a3:    #00FFEA;
-      --serif: 'Georgia','Times New Roman',serif;
-      --sans:  system-ui,-apple-system,sans-serif;
-      --mono:  'Courier New',Courier,monospace;
-    }
-
-    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
-
-    html { cursor:none; overflow-x:hidden; scroll-behavior:smooth; }
-
+    * { box-sizing:border-box; margin:0; padding:0; }
     body {
-      background:var(--bg);
-      color:var(--fg);
-      font-family:var(--sans);
-      overflow-x:hidden;
+      background:#bdbdbd; color:#fff;
+      font-family:Arial,Helvetica,sans-serif; font-size:12px;
+      min-width:780px; border:3px ridge #f5f5f5;
+    }
+    a { color:#66aaff; text-decoration:underline; }
+    a:visited { color:#cc88ff; }
+    a:hover { color:#ffff00; }
+    .img-pixel { image-rendering:pixelated; display:block; }
+
+    /* browser chrome */
+    #chrome {
+      height:40px; background:linear-gradient(#eee,#a8a8a8);
+      display:flex; align-items:center; gap:5px; padding:0 8px;
+      border-bottom:3px ridge #808080;
+    }
+    #chrome button {
+      background:#d0d0d0; border:2px outset #eee; color:#555;
+      font-family:"Press Start 2P",monospace; cursor:pointer; height:26px;
+    }
+    #urlbar {
+      flex:1; max-width:55%; height:24px; background:#fff;
+      border:2px inset #d0d0d0; padding:0 8px; display:flex;
+      align-items:center; font-size:13px; color:#000;
+    }
+    .chrome-badge { font-size:10px; color:#111; margin-left:auto; display:flex; align-items:center; gap:4px; }
+
+    /* marquee */
+    .mq { background:#000033; border-bottom:1px solid #3333aa; padding:2px 0; }
+    .mq marquee { color:#00ff00; font-family:"Courier New",monospace; font-size:11px; }
+
+    /* layout */
+    #body { display:flex; background:#000066; min-height:calc(100vh - 110px); }
+    #left { width:175px; flex-shrink:0; background:#000033; overflow-y:auto; }
+    #center { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+    #right { width:210px; flex-shrink:0; background:#000033; overflow-y:auto; }
+
+    .panel { border:2px solid #3333aa; margin:4px; background:#000033; }
+    .ph {
+      background:linear-gradient(90deg,#7700bb,#5500aa);
+      color:#ffff00; font-family:"Arial Black",Arial,sans-serif;
+      font-size:10px; font-weight:900; padding:3px 8px; letter-spacing:1px;
+      border-bottom:1px solid #9900dd;
+    }
+    .pb { padding:6px 8px; }
+
+    /* web zone header */
+    #wzh {
+      background:#000033; padding:10px; border:2px solid #3333aa; margin:4px;
+      background-image:
+        radial-gradient(1px 1px at 18px 12px,rgba(255,255,255,.9),transparent),
+        radial-gradient(1px 1px at 48px 32px,rgba(255,255,255,.8),transparent);
+    }
+    #wzh h1 {
+      font-family:"Press Start 2P",monospace; font-size:11px;
+      color:#ffcc00; line-height:1.6; text-shadow:2px 2px #000;
+    }
+    #wzh p { font-size:10px; color:#00ccff; margin-top:4px; }
+
+    /* nav */
+    #nav-ul { list-style:none; }
+    #nav-ul li { border-bottom:1px solid #111155; }
+    #nav-ul li a {
+      display:flex; align-items:center; gap:5px; padding:5px 6px;
+      color:#66aaff; text-decoration:none; font-size:11px;
+    }
+    #nav-ul li a:hover { color:#ffff00; background:rgba(255,255,0,.05); }
+    .ico { width:16px; height:16px; flex-shrink:0; }
+
+    /* status */
+    #led {
+      display:inline-block; width:11px; height:11px; border-radius:50%;
+      background:#00ff00; box-shadow:0 0 6px #00ff00; margin-right:5px;
+      animation:pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .st { font-family:"Courier New",monospace; font-size:10px; color:#00ff00; }
+    .std { font-size:9px; color:#777799; margin-top:5px; }
+
+    /* counter */
+    #ctr { text-align:center; padding:8px 4px; }
+    #odo {
+      font-family:"Courier New",monospace; font-size:22px; font-weight:bold;
+      color:#00ff00; letter-spacing:3px; background:#000; border:2px inset #333;
+      padding:3px 8px; display:inline-block; text-shadow:0 0 9px #00ff00;
+    }
+    .ctr-lbl { font-size:9px; color:#777799; margin-top:5px; }
+
+    /* center hero */
+    #ctitle {
+      background:#330077; color:#fff; font-size:11px; font-weight:bold;
+      padding:3px 8px; border:2px solid #3333aa; margin:4px 4px 0; border-bottom:none;
+    }
+    #sf {
+      position:relative; background:#000005; overflow:hidden; flex:1; min-height:220px;
+      border:2px solid #3333aa; border-top:none; margin:0 4px; text-align:center;
+    }
+    #sfcv { position:absolute; inset:0; width:100%; height:100%; }
+    #sfc { position:relative; z-index:5; padding:18px 16px 20px; }
+    #sf-wel { font-family:"VT323",monospace; font-size:18px; letter-spacing:4px; color:#00ff00; text-shadow:0 0 10px #00ff00; margin-bottom:4px; }
+    #sf-ttl {
+      font-family:"Press Start 2P",monospace; font-size:clamp(13px,2.2vw,24px);
+      color:#fff; text-shadow:3px 3px 0 #000055; line-height:1.5; margin-bottom:10px;
+    }
+    #sf-tag { font-family:"VT323",monospace; font-size:20px; color:#00ff00; text-shadow:0 0 8px #00ff00; margin-bottom:4px; }
+    #sf-cho { font-size:11px; color:#aaaacc; margin-bottom:14px; }
+    .btn-row { display:flex; justify-content:center; gap:24px; flex-wrap:wrap; }
+    .ebtn {
+      display:inline-block; padding:10px 24px;
+      font-family:"Arial Black",Arial,sans-serif; font-size:15px; font-weight:900;
+      text-transform:uppercase; text-decoration:none; border:3px outset;
+      cursor:pointer; letter-spacing:1px; text-align:center; line-height:1.1;
+    }
+    .ebtn:hover { filter:brightness(1.2); }
+    .ebtn-a { background:linear-gradient(180deg,#cc44aa,#880033); border-color:#ff88dd; color:#ffff00; }
+    .ebtn-b { background:linear-gradient(180deg,#2244cc,#001188); border-color:#6688ff; color:#fff; }
+    .ebtn-sub { display:block; font-size:9px; font-weight:normal; color:rgba(255,255,255,.75); margin-top:3px; text-transform:lowercase; }
+    .bdate { font-size:8px; color:#666699; margin-top:4px; text-align:center; }
+    .hero-deco { position:absolute; z-index:4; image-rendering:pixelated; }
+    #hero-globe { bottom:14px; left:24px; width:56px; height:56px; opacity:.9; }
+    #hero-rocket { top:38%; right:6%; width:72px; height:44px; transform:rotate(-18deg); }
+
+    /* bottom center */
+    #cbot { display:grid; grid-template-columns:1fr 1fr; border:2px solid #3333aa; border-top:none; margin:0 4px; background:#000033; }
+    #wcbox { background:#eee; color:#000; padding:10px 12px; border-right:1px solid #3333aa; }
+    #wcbox h3 { font-size:12px; font-weight:bold; text-transform:uppercase; color:#330066; margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid #aaa; }
+    #wcbox p { font-size:11px; line-height:1.7; color:#222; margin-bottom:7px; }
+    #wcbox a { color:#0000cc; }
+    .retnav a { color:#0000cc; margin-right:6px; font-size:11px; }
+    #logbox { display:flex; flex-direction:column; }
+    #logscroll {
+      flex:1; height:130px; overflow-y:scroll; padding:7px 8px;
+      font-family:"Courier New",monospace; font-size:10px; line-height:1.85; background:#000022; color:#9999cc;
+    }
+    .log-d { color:#00ccff; font-weight:bold; margin-bottom:4px; }
+    .log-t a { color:#00ff77; }
+
+    /* worlds */
+    #worlds { border:2px solid #3333aa; border-top:none; margin:0 4px 4px; background:#000022; }
+    #wstrip { display:flex; align-items:center; overflow-x:auto; gap:2px; padding:4px; background:#000; }
+    .wt {
+      flex-shrink:0; width:82px; height:62px; border:2px solid #333366;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      text-decoration:none;
+    }
+    .wt:hover { border-color:#ffff00; }
+    .wt img { max-width:90%; max-height:90%; image-rendering:pixelated; }
+    .morebtn {
+      flex-shrink:0; width:62px; height:62px; background:#110033; border:2px solid #440088;
+      color:#ffff00; font-family:"Arial Black",Arial,sans-serif; font-size:9px;
+      display:flex; align-items:center; justify-content:center; cursor:pointer;
     }
 
-    #bg-canvas {
-      position:fixed; inset:0;
-      width:100vw; height:100vh;
-      z-index:0; pointer-events:none;
+    /* right sidebar */
+    .ibtn {
+      display:block; background:linear-gradient(180deg,#ffff55,#cccc00);
+      color:#000033; font-family:"Arial Black",Arial,sans-serif;
+      font-size:11px; font-weight:900; text-align:center; text-decoration:none;
+      padding:5px 8px; border:2px outset #ffff99; margin:3px; letter-spacing:1px;
     }
+    .ibtn:hover { filter:brightness(1.12); }
+    #np { font-family:"Courier New",monospace; font-size:10px; }
+    #npt { color:#00ff00; font-weight:bold; }
+    #npa { color:#666699; margin-bottom:7px; }
+    .npc { display:flex; gap:5px; align-items:center; }
+    .npb { background:#111144; border:2px outset #3333aa; color:#fff; width:24px; height:19px; display:flex; align-items:center; justify-content:center; font-size:9px; cursor:pointer; }
+    .bio { font-size:10px; line-height:1.75; color:#ccc; }
+    .bio .bl { color:#00ccff; font-weight:bold; }
+    .bio a { color:#00ff77; display:block; margin-top:5px; }
+    .ll { font-size:10px; line-height:1.7; color:#ccc; }
+    .ll a { color:#00ccff; }
+    .abt-row { display:flex; gap:8px; margin-bottom:6px; }
+    .abt-row img { width:56px; height:56px; border:2px ridge #444488; flex-shrink:0; image-rendering:pixelated; }
+    .abt { font-size:11px; line-height:1.7; color:#ccc; }
 
-    body::after {
-      content:'';
-      position:fixed; inset:0;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-      opacity:0.028; pointer-events:none;
-      z-index:1; mix-blend-mode:screen;
-    }
-
-    section, div[id], footer { position:relative; z-index:2; }
-
-    /* ── CURSOR ──
-       Dot uses mix-blend-mode:difference so it's always
-       visible regardless of what's behind it.
-       Ring follows with a spring delay.
-    ── */
-    #cur-dot {
-      position:fixed; z-index:9999; pointer-events:none;
-      width:12px; height:12px; border-radius:50%;
-      background:#fff;
-      mix-blend-mode:difference;
-      transform:translate(-50%,-50%);
-      will-change:transform;
-      transition:width .15s, height .15s;
-    }
-
-    #cur-ring {
-      position:fixed; z-index:9998; pointer-events:none;
-      width:36px; height:36px; border-radius:50%;
-      border:1.5px solid #CAFF00;
-      opacity:0.55;
-      transform:translate(-50%,-50%);
-      will-change:transform;
-      transition:width .2s, height .2s, opacity .2s;
-    }
-
-    body.hovering #cur-dot  { width:6px; height:6px; }
-    body.hovering #cur-ring { width:52px; height:52px; opacity:0.9; }
-
-    /* ── HERO ── */
-    #hero {
-      width:100vw; height:100svh;
-      display:flex; flex-direction:column;
-      justify-content:flex-end;
-      padding:6vw;
-      overflow:hidden;
-      border-bottom:1px solid rgba(240,237,232,0.07);
-    }
-
-    #hero-year {
-      position:absolute; top:5vw; right:5vw;
-      font-family:var(--mono); font-size:9px;
-      letter-spacing:0.22em; text-transform:uppercase;
-      opacity:0.18;
-    }
-
-    #hero-name {
-      font-family:var(--serif);
-      font-size:clamp(3.5rem,15vw,19vw);
-      font-weight:normal; line-height:0.87;
-      letter-spacing:-0.025em;
-      display:flex; flex-wrap:wrap;
-      gap:0 0.3em;
-      margin-bottom:2rem;
-      user-select:none;
-    }
-
-    .h-let {
-      display:inline-block;
-      will-change:transform;
-      opacity:0;
-      transform:translateY(90px) rotate(var(--r,0deg));
-      transition:opacity .7s var(--d,0s) ease,
-                 transform .7s var(--d,0s) cubic-bezier(0.16,1,0.3,1),
-                 color .25s;
-    }
-
-    .h-let.in { opacity:1; transform:translateY(0) rotate(0deg); }
-
-    #hero-sub {
-      font-family:var(--mono);
-      font-size:clamp(0.72rem,1.3vw,0.9rem);
-      opacity:0.4; letter-spacing:0.06em;
-      margin-bottom:3.5rem;
-      min-height:1.4em;
-      display:flex; align-items:center; gap:0.1em;
-    }
-
-    #hero-sub-text { transition:opacity .4s; }
-    #hero-cursor { color:var(--a1); animation:blink 1s step-end infinite; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-
-    #hero-scroll {
-      font-size:9px; letter-spacing:0.22em; text-transform:uppercase;
-      opacity:0.22; display:flex; align-items:center; gap:1rem;
-    }
-    #hero-scroll::before {
-      content:''; width:36px; height:1px; background:var(--fg);
-      animation:sline 2.2s ease-in-out infinite;
-    }
-    @keyframes sline { 0%,100%{width:36px;opacity:.22} 50%{width:60px;opacity:.45} }
-
-    /* ── MARQUEES ── */
-    #mq-zone {
-      overflow:hidden;
-      border-bottom:1px solid rgba(240,237,232,0.07);
-      position:relative; z-index:2;
-    }
-
-    .mq-row {
-      padding:.4rem 0;
-      border-top:1px solid rgba(240,237,232,0.05);
-      overflow:hidden; white-space:nowrap;
-    }
-    .mq-row:first-child { border-top:none; }
-
-    .mq-track {
-      display:inline-block;
-      animation:mql var(--dur,30s) linear infinite;
-      will-change:transform;
-    }
-    .mq-row.rev .mq-track { animation-direction:reverse; }
-
-    .mq-track span {
-      font-size:var(--sz,.72rem); letter-spacing:.14em;
-      text-transform:uppercase;
-      color:var(--col,var(--fg)); opacity:var(--op,.35);
-    }
-
-    @keyframes mql { from{transform:translateX(0)} to{transform:translateX(-50%)} }
-
-    /* ── ABOUT ── */
-    #about {
-      display:grid; grid-template-columns:1fr 1.9fr;
-      border-bottom:1px solid rgba(240,237,232,0.07);
-    }
-
-    #about-left {
-      padding:5vw 4vw;
-      border-right:1px solid rgba(240,237,232,0.07);
-      display:flex; flex-direction:column;
-      justify-content:space-between; gap:3rem;
-    }
-
-    #about-left h2 {
-      font-family:var(--serif);
-      font-size:clamp(1.8rem,4.5vw,4rem);
-      font-weight:normal; line-height:1.02;
-      letter-spacing:-.02em;
-    }
-
-    #live-clock {
-      font-family:var(--mono);
-      font-size:clamp(1rem,2.5vw,1.8rem);
-      color:var(--a1); letter-spacing:.06em;
-    }
-
-    #about-right { padding:5vw 6vw; }
-
-    .idx { width:100%; border-collapse:collapse; }
-    .idx tr { border-top:1px solid rgba(240,237,232,0.06); transition:background .2s; }
-    .idx tr:hover { background:rgba(202,255,0,0.04); }
-    .idx td { padding:1.15rem 0; vertical-align:top; }
-
-    .ik {
-      font-family:var(--mono); font-size:9px;
-      letter-spacing:.22em; text-transform:uppercase;
-      opacity:.3; padding-right:2rem;
-      white-space:nowrap; padding-top:1.4rem;
-    }
-
-    .iv {
-      font-size:.92rem; line-height:1.6;
-      transition:color .2s, padding-left .2s;
-    }
-    .idx tr:hover .iv { color:var(--a1); padding-left:.4rem; }
-    .iv a { color:var(--a3); text-decoration:none; border-bottom:1px solid rgba(0,255,234,0.3); }
-    .iv a:hover { color:var(--fg); }
-
-    /* ── PLAYGROUND ── */
-    #playground {
-      position:relative; height:68vh; min-height:400px;
-      border-bottom:1px solid rgba(240,237,232,0.07);
-      overflow:hidden;
-    }
-
-    #pg-label, #pg-hint {
-      position:absolute;
-      font-family:var(--mono); font-size:9px;
-      letter-spacing:.2em; text-transform:uppercase;
-      opacity:.2; z-index:10;
-    }
-    #pg-label { top:1.8rem; left:4vw; }
-    #pg-hint  { bottom:1.8rem; right:4vw; }
-
-    #play-canvas {
-      position:absolute; inset:0;
-      width:100%; height:100%;
-      z-index:1; pointer-events:none;
-    }
-
-    .fobj {
-      position:absolute; z-index:5;
-      padding:.55rem 1.1rem;
-      border:1px solid;
-      font-family:var(--mono); font-size:.72rem;
-      letter-spacing:.18em; text-transform:uppercase;
-      cursor:none; user-select:none;
-      transition:box-shadow .3s, transform .15s;
-    }
-
-    .fobj[data-c="1"] { color:var(--a1); border-color:rgba(202,255,0,.3); }
-    .fobj[data-c="2"] { color:var(--a2); border-color:rgba(255,45,120,.3); }
-    .fobj[data-c="3"] { color:var(--a3); border-color:rgba(0,255,234,.3); }
-    .fobj[data-c="0"] { color:var(--fg); border-color:rgba(240,237,232,.2); }
-
-    .fobj.lit  { box-shadow:0 0 20px currentColor; }
-    .fobj.held { transform:scale(1.06) rotate(-1deg); z-index:20; }
-
-    /* ── TERMINAL ── */
-    #term-section {
-      display:grid; grid-template-columns:1fr 1.15fr;
-      border-bottom:1px solid rgba(240,237,232,0.07);
-    }
-
-    #term-intro {
-      padding:5vw 4vw;
-      border-right:1px solid rgba(240,237,232,0.07);
-      display:flex; flex-direction:column;
-      justify-content:space-between; gap:3rem;
-    }
-
-    #term-intro h2 {
-      font-family:var(--serif);
-      font-size:clamp(1.8rem,4vw,3.5rem);
-      font-weight:normal; line-height:1.05;
-    }
-
-    #term-intro p {
-      font-family:var(--mono); font-size:.78rem;
-      opacity:.38; line-height:1.85;
-    }
-    #term-intro p code { color:var(--a1); opacity:1; }
-
-    #term-outer { padding:4vw; }
-
-    #term-win {
-      background:#0c0c0c;
-      border:1px solid rgba(202,255,0,.12);
-      border-radius:5px; overflow:hidden;
-      font-family:var(--mono); font-size:.77rem; line-height:1.65;
-      box-shadow:0 0 40px rgba(202,255,0,.04);
-    }
-
-    #term-bar {
-      background:#141414; padding:.55rem .9rem;
-      display:flex; align-items:center; gap:.42rem;
-      border-bottom:1px solid rgba(202,255,0,.07);
-    }
-
-    .tdot { width:10px; height:10px; border-radius:50%; }
-    .tr{background:#FF5F57} .ty{background:#FEBC2E} .tg{background:#28C840}
-    #term-bar-title { margin-left:auto; font-size:9px; color:rgba(240,237,232,.18); letter-spacing:.1em; }
-
-    #term-out {
-      padding:1rem 1rem .25rem;
-      min-height:230px; max-height:340px; overflow-y:auto;
-    }
-    #term-out::-webkit-scrollbar{width:3px}
-    #term-out::-webkit-scrollbar-thumb{background:rgba(202,255,0,.15);border-radius:2px}
-
-    .tl { margin-bottom:.04em; }
-    .tp { color:var(--a1); }
-    .to { color:rgba(240,237,232,.5); padding-left:.9em; }
-    .to.hi { color:var(--a1); padding-left:0; }
-    .to.cy { color:var(--a3); }
-    .to.pk { color:var(--a2); }
-    .to.er { color:#FF5F57; }
-
-    #term-in-row {
-      display:flex; align-items:center;
-      padding:.45rem 1rem .9rem; gap:.5rem;
-      border-top:1px solid rgba(202,255,0,.07);
-    }
-    #term-in {
-      background:transparent; border:none; outline:none;
-      color:rgba(240,237,232,.88); font-family:inherit;
-      font-size:inherit; flex:1; caret-color:var(--a1); cursor:none;
-    }
-
-    /* ── LINKS ── */
-    #links-section { padding:6vw; border-bottom:1px solid rgba(240,237,232,0.07); }
-
-    #links-section h2 {
-      font-family:var(--serif);
-      font-size:clamp(1.4rem,3vw,2.2rem);
-      font-weight:normal; opacity:.3; margin-bottom:2.5rem;
-    }
-
-    #links-grid {
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
-      gap:1px; background:rgba(240,237,232,.06);
-      border:1px solid rgba(240,237,232,.06);
-    }
-
-    .lcard {
-      background:var(--bg); padding:1.7rem 1.4rem;
-      display:flex; flex-direction:column; gap:.7rem;
-      text-decoration:none; color:var(--fg); cursor:none;
-      transition:background .22s;
-    }
-    .lcard:hover { background:rgba(202,255,0,.04); }
-    .lcard-arrow { font-size:1.15rem; color:var(--a1); display:inline-block; transition:transform .22s; }
-    .lcard:hover .lcard-arrow { transform:translate(4px,-4px); }
-    .lcard-name { font-size:.88rem; letter-spacing:.06em; }
-    .lcard-handle { font-family:var(--mono); font-size:9px; letter-spacing:.15em; text-transform:uppercase; opacity:.28; }
-
-    /* ── FOOTER ── */
-    #footer {
-      padding:3.5vw 6vw;
+    /* footer */
+    #bot {
+      background:#000022; border-top:2px solid #3333aa; padding:5px 12px;
       display:flex; justify-content:space-between; align-items:center;
-      font-family:var(--mono); font-size:9px;
-      letter-spacing:.18em; text-transform:uppercase; opacity:.18;
+      font-size:10px; color:#777799; flex-wrap:wrap; gap:6px;
     }
+    #bot a { color:#66aaff; }
+    #bot .site-link { color:#ffff00; font-weight:bold; }
+    #btime { font-family:"Courier New",monospace; color:#00ff00; }
 
-    /* ── SCROLL REVEAL ── */
-    .reveal { opacity:0; transform:translateY(28px); transition:opacity .75s ease, transform .75s ease; }
-    .reveal.in { opacity:1; transform:none; }
-
-    /* ── KONAMI ── */
-    #konami {
-      position:fixed; inset:0; background:#000;
-      z-index:99999; display:flex; flex-direction:column;
-      align-items:center; justify-content:center;
-      opacity:0; pointer-events:none; transition:opacity .5s;
-    }
-    #konami.on { opacity:1; pointer-events:all; }
-    #konami h1 {
-      font-family:var(--mono); color:var(--a1);
-      font-size:clamp(.9rem,3vw,1.6rem);
-      text-align:center; line-height:1.7; letter-spacing:.08em;
-    }
-    #konami p {
-      margin-top:2rem; font-family:var(--mono); font-size:.7rem;
-      color:rgba(240,237,232,.3); letter-spacing:.18em; cursor:pointer;
-    }
-    #konami p:hover { color:var(--a1); }
-
-    /* ── MOBILE ── */
-    @media(max-width:768px){
-      #about{grid-template-columns:1fr}
-      #about-left{border-right:none;border-bottom:1px solid rgba(240,237,232,.07)}
-      #term-section{grid-template-columns:1fr}
-      #term-intro{border-right:none;border-bottom:1px solid rgba(240,237,232,.07)}
-      #playground{height:55vh}
-    }
+    @media(max-width:750px){ #left,#right{ display:none; } #cbot{ grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
 
-<canvas id="bg-canvas"></canvas>
-
-<!-- Cursor elements -->
-<div id="cur-dot"></div>
-<div id="cur-ring"></div>
-
-<!-- Konami easter egg — ↑↑↓↓←→←→BA -->
-<div id="konami">
-  <h1>you found it.<br>most people don't look this hard.</h1>
-  <p>[click to close]</p>
-</div>
-
-<!-- ═══ HERO ═══ -->
-<section id="hero">
-  <p id="hero-year">Tyler Emdur · 2026</p>
-  <h1 id="hero-name" aria-label="Tyler Emdur"></h1>
-  <p id="hero-sub">
-    <!-- ✏️ EDIT: rotating phrases in JS below -->
-    <span id="hero-sub-text"></span><span id="hero-cursor">_</span>
-  </p>
-  <p id="hero-scroll">Scroll</p>
-</section>
-
-<!-- ═══ MARQUEES ═══ -->
-<div id="mq-zone">
-  <!-- ✏️ EDIT: marquee text -->
-  <div class="mq-row" style="--dur:26s;--sz:.62rem;--col:#CAFF00;--op:.5;">
-    <div class="mq-track">
-      <span>TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; &nbsp;</span>
-      <span>TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; TYLER EMDUR &nbsp;·&nbsp; &nbsp;</span>
-    </div>
-  </div>
-  <div class="mq-row rev" style="--dur:38s;--sz:.5rem;--op:.14;">
-    <div class="mq-track">
-      <span>— — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — &nbsp;</span>
-      <span>— — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — — &nbsp;</span>
-    </div>
-  </div>
-  <div class="mq-row" style="--dur:18s;--sz:1.3rem;--op:.04;">
-    <div class="mq-track">
-      <span>★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ &nbsp;</span>
-      <span>★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ ★ &nbsp;</span>
-    </div>
+<!-- Browser chrome -->
+<div id="chrome">
+  <button style="width:28px;font-size:11px">&#9664;</button>
+  <button style="width:28px;font-size:11px">&#9654;</button>
+  <button style="width:28px;font-size:11px">&#8635;</button>
+  <button style="width:36px;font-size:7px">HOME</button>
+  <div id="urlbar">tyleremdur.com</div>
+  <div class="chrome-badge">
+    <img class="img-pixel" src="/retro/browser-globe.svg" alt="" width="22" height="22">
+    Viewable With Any Browser
   </div>
 </div>
 
-<!-- ═══ ABOUT ═══ -->
-<section id="about" class="reveal">
-  <div id="about-left">
-    <h2 class="scramble" data-target="An index.">An index.</h2>
-    <div id="live-clock">00:00:00</div>
-  </div>
-  <div id="about-right">
-    <!-- ✏️ EDIT: fill in your actual info -->
-    <table class="idx">
-      <tbody>
-        <tr>
-          <td class="ik">Currently</td>
-          <td class="iv">—</td>
-        </tr>
-        <tr>
-          <td class="ik">Lately</td>
-          <td class="iv">—</td>
-        </tr>
-        <tr>
-          <td class="ik">Always</td>
-          <td class="iv">—</td>
-        </tr>
-        <tr>
-          <td class="ik">Background</td>
-          <td class="iv">—</td>
-        </tr>
-        <tr>
-          <td class="ik">Contact</td>
-          <!-- ✏️ EDIT: your email -->
-          <td class="iv"><a href="mailto:tyler@tyleremdur.com">tyler@tyleremdur.com</a></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</section>
+<div class="mq">
+  <marquee scrollamount="3">
+    * WELCOME TO TYLER EMDUR'S MULTIVERSE * 17 WORLDS INSIDE * BOULDER, COLORADO *
+    SOFTWARE ENGINEER * BUILDER OF WORLDS * UPDATED JUNE 2026 *
+    DAMAGE CAUSED BY CREATIVE OVERREACH * ENTER THE GALAXY *
+  </marquee>
+</div>
 
-<!-- ═══ PLAYGROUND ═══ -->
-<section id="playground" class="reveal">
-  <div id="pg-label">drag everything</div>
-  <canvas id="play-canvas"></canvas>
-  <!-- ✏️ EDIT: words that mean something to you -->
-  <div class="fobj" data-c="1">TEXTURE</div>
-  <div class="fobj" data-c="2">SIGNAL</div>
-  <div class="fobj" data-c="3">NOISE</div>
-  <div class="fobj" data-c="0">SYSTEM</div>
-  <div class="fobj" data-c="1">EDGE</div>
-  <div class="fobj" data-c="2">LOOP</div>
-  <div class="fobj" data-c="3">DRIFT</div>
-  <div class="fobj" data-c="0">FORM</div>
-  <div id="pg-hint">objects connect when near</div>
-</section>
+<div id="body">
 
-<!-- ═══ TERMINAL ═══ -->
-<section id="term-section" class="reveal">
-  <div id="term-intro">
-    <h2>Ask<br>anything.</h2>
-    <p>Type <code>help</code> to start.<br>Some commands are hidden.</p>
+<!-- LEFT -->
+<div id="left">
+  <div id="wzh">
+    <h1>TYLER'S WEB ZONE</h1>
+    <p>on the World Wide Web!!!</p>
   </div>
-  <div id="term-outer">
-    <div id="term-win" role="application" aria-label="Terminal">
-      <div id="term-bar">
-        <div class="tdot tr"></div><div class="tdot ty"></div><div class="tdot tg"></div>
-        <span id="term-bar-title">tyler@emdur — bash</span>
+
+  <div class="panel">
+    <div class="ph">NAVIGATION</div>
+    <ul id="nav-ul">
+      <li><a href="#sf"><img class="ico img-pixel" src="/retro/icon-doc.svg" alt="">What's New?</a></li>
+      <li><a href="/"><img class="ico img-pixel" src="/retro/rocket.svg" alt="">Enter Universe</a></li>
+      <li><a href="https://github.com/tyler-emdur"><img class="ico img-pixel" src="/retro/icon-download.svg" alt="">Source Code</a></li>
+      <li><a href="mailto:tyler@tyleremdur.com"><img class="ico img-pixel" src="/retro/icon-gear.svg" alt="">Contact</a></li>
+      <li><a href="#worlds"><img class="ico img-pixel" src="/retro/globe.svg" alt="">17 Worlds</a></li>
+      <li><a href="#logbox"><img class="ico img-pixel" src="/retro/icon-owl.svg" alt="">Captain's Log</a></li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <div class="ph">&gt; SYSTEM STATUS</div>
+    <div class="pb">
+      <div><span id="led"></span><span class="st">STATUS: Online</span></div>
+      <div class="std">LAST UPDATED:<br>June 2026</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">&gt; VISITOR COUNTER</div>
+    <div id="ctr">
+      <img class="img-pixel" src="/retro/globe.svg" alt="" width="48" height="48" style="margin:0 auto 7px">
+      <div id="odo">010951</div>
+      <div class="ctr-lbl">visitors since June 2026</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">&gt; ABOUT TYLER</div>
+    <div class="pb">
+      <div class="abt-row">
+        <img class="img-pixel" src="/retro/profile.svg" alt="">
+        <div class="abt">Software engineer.<br>Builder of worlds.<br>Boulder, Colorado.</div>
       </div>
-      <div id="term-out">
-        <div class="tl"><span class="to hi">type <span style="color:var(--a1)">help</span></span></div>
+      <a href="/">More about me &rarr;</a>
+    </div>
+  </div>
+</div>
+
+<!-- CENTER -->
+<div id="center">
+  <div id="ctitle">Tyler Emdur's Multiverse World!</div>
+
+  <div id="sf">
+    <canvas id="sfcv"></canvas>
+    <div id="sfc">
+      <div id="sf-wel">WELCOME TO</div>
+      <div id="sf-ttl">TYLER EMDUR'S<br>MULTIVERSE</div>
+      <div id="sf-tag">17 worlds. Infinite possibilities.</div>
+      <div id="sf-cho">Choose your destination...</div>
+      <div class="btn-row">
+        <div>
+          <a href="/" class="ebtn ebtn-a">ENTER<span class="ebtn-sub">the Galaxy</span></a>
+          <div class="bdate">Updated June 2026</div>
+        </div>
+        <div>
+          <a href="/" class="ebtn ebtn-b">ENTER<span class="ebtn-sub">seriously, enter</span></a>
+          <div class="bdate">Updated June 2026</div>
+        </div>
       </div>
-      <div id="term-in-row">
-        <span class="tp">~ $</span>
-        <input id="term-in" type="text" autocomplete="off" spellcheck="false" autocorrect="off" aria-label="terminal">
+    </div>
+    <img class="hero-deco" id="hero-globe" src="/retro/globe.svg" alt="">
+    <img class="hero-deco" id="hero-rocket" src="/retro/rocket.svg" alt="">
+  </div>
+
+  <div id="cbot">
+    <div id="wcbox">
+      <h3>WELCOME TO MY HOMEPAGE!!!</h3>
+      <p>I'm a software engineer and everything I build is cool. So the following multiverse of 17 websites represents my work and interests.</p>
+      <p>Boulder, CO &bull; <a href="mailto:tyler@tyleremdur.com">tyler@tyleremdur.com</a><br>github: <a href="https://github.com/tyler-emdur">tyler-emdur</a></p>
+      <div class="retnav">
+        <a href="/">[ Enter the Multiverse &rarr; ]</a>
+        <a href="/">[ About Me ]</a>
+        <a href="/build">[ Projects ]</a>
+      </div>
+    </div>
+    <div id="logbox">
+      <div class="ph">LATEST LOG ENTRY</div>
+      <div id="logscroll">
+        <div class="log-d">Monday, 30th June, 2026</div>
+        <div class="log-t">
+          Production of the page commenced.<br>
+          Building world 17. This is taking longer<br>
+          than expected but I am not an expert<br>
+          at multiverse architecture.<br><br>
+          <a href="#">Captain's log &mdash; 51589.7</a><br>
+          We are approaching world base 16.<br>
+          We will visit all sectors. Damage<br>
+          caused by creative overreach.<br><br>
+          &mdash; T.E.
+        </div>
       </div>
     </div>
   </div>
-</section>
 
-<!-- ═══ LINKS ═══ -->
-<section id="links-section" class="reveal">
-  <h2>Elsewhere —</h2>
-  <div id="links-grid">
-    <!-- ✏️ EDIT: replace # with real URLs -->
-    <a href="#" class="lcard" target="_blank" rel="noopener">
-      <span class="lcard-arrow">↗</span>
-      <span class="lcard-name">Twitter / X</span>
-      <span class="lcard-handle">@handle</span>
-    </a>
-    <a href="#" class="lcard" target="_blank" rel="noopener">
-      <span class="lcard-arrow">↗</span>
-      <span class="lcard-name">Instagram</span>
-      <span class="lcard-handle">@handle</span>
-    </a>
-    <a href="https://github.com/tyler-emdur" class="lcard" target="_blank" rel="noopener">
-      <span class="lcard-arrow">↗</span>
-      <span class="lcard-name">GitHub</span>
-      <span class="lcard-handle">tyler-emdur</span>
-    </a>
-    <a href="#" class="lcard" target="_blank" rel="noopener">
-      <span class="lcard-arrow">↗</span>
-      <span class="lcard-name">LinkedIn</span>
-      <span class="lcard-handle">tyler emdur</span>
-    </a>
-    <a href="mailto:tyler@tyleremdur.com" class="lcard">
-      <span class="lcard-arrow">↗</span>
-      <span class="lcard-name">Email</span>
-      <span class="lcard-handle">tyler@tyleremdur.com</span>
-    </a>
+  <div id="worlds">
+    <div class="ph">17 WORLDS INSIDE</div>
+    <div id="wstrip">
+      <a href="/" class="wt" style="background:#0d001a"><img src="/retro/thumb-space.svg" alt=""></a>
+      <a href="/" class="wt" style="background:#000080"><img src="/retro/globe.svg" alt=""></a>
+      <a href="/" class="wt" style="background:#555"><img src="/retro/profile.svg" alt=""></a>
+      <a href="/" class="wt" style="background:#880000"><img src="/retro/thumb-juice.svg" alt=""></a>
+      <a href="/" class="wt" style="background:#004400"><img src="/retro/thumb-soccer.svg" alt=""></a>
+      <a href="/" class="wt" style="background:#1a004a"><img src="/retro/thumb-rainbow.svg" alt=""></a>
+      <a href="/" class="wt" style="background:#550022"><img src="/retro/thumb-heart.svg" alt=""></a>
+      <div class="morebtn">&amp; MORE</div>
+    </div>
   </div>
-</section>
+</div>
 
-<!-- ═══ FOOTER ═══ -->
-<footer id="footer">
-  <span>Tyler Emdur — 2026</span>
-  <span>built weird on purpose</span>
-</footer>
+<!-- RIGHT -->
+<div id="right">
+  <div class="panel">
+    <div class="ph">INDEX</div>
+    <div style="padding:4px">
+      <a href="/" class="ibtn">WORLDS</a>
+      <a href="/" class="ibtn">ABOUT</a>
+      <a href="/build" class="ibtn">PROJECTS</a>
+      <a href="mailto:tyler@tyleremdur.com" class="ibtn">CONTACT</a>
+      <a href="https://github.com/tyler-emdur" class="ibtn">SOURCE CODE</a>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">NOW PLAYING</div>
+    <div class="pb">
+      <div id="np">
+        <div id="npt">media.exe</div>
+        <div id="npa">by tyler emdur</div>
+        <div class="npc">
+          <div class="npb">&#9664;&#9664;</div>
+          <div class="npb" id="npplay">&#9654;</div>
+          <div class="npb">&#9632;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">NEW MEDIA / NEW ART</div>
+    <div class="pb">
+      <div class="bio">
+        <span class="bl">tyler emdur</span> &bull; 2026<br>
+        boulder colorado<br>
+        software &bull; running<br>
+        17 worlds inside
+        <a href="/">&rarr; enter.now</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">LINK LOG</div>
+    <div class="pb">
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div class="ll" style="flex:1">
+          This is an <a href="#">IN SYNC WITH 'N SYNC</a> site.<br><br>
+          Want to join <a href="#">"IN SYNC WITH 'N SYNC"</a> the official fan club?<br><br>
+          <a href="/">Click here to join now!</a>
+        </div>
+        <img class="img-pixel" src="/retro/group.svg" alt="" width="72" height="72" style="border:2px inset #444488;flex-shrink:0">
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div id="bot">
+  <span>This is a <a href="/" class="site-link">TYLER EMDUR MULTIVERSE</a> site.</span>
+  <span>
+    [ <a href="#">Prev</a> ]
+    [ <a href="/">Enter</a> ]
+    [ <a href="#">Random</a> ]
+    [ <a href="#">List Sites</a> ]
+  </span>
+  <span id="btime">01:59 AM</span>
+</div>
 
 <script>
 (function(){
-'use strict';
-
-const $ = id => document.getElementById(id);
-const lerp = (a,b,t) => a+(b-a)*t;
-const rand = (a,b) => a+Math.random()*(b-a);
-const ri   = (a,b) => Math.floor(rand(a,b+1));
-const clamp= (v,lo,hi) => Math.max(lo,Math.min(hi,v));
-
-/* ─── CURSOR ─── */
-const dot  = $('cur-dot');
-const ring = $('cur-ring');
-let mx = innerWidth/2, my = innerHeight/2;
-let rx = mx, ry = my;
-
-document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
-
-document.querySelectorAll('a,button,input,.fobj,.lcard').forEach(el => {
-  el.addEventListener('mouseenter', () => document.body.classList.add('hovering'));
-  el.addEventListener('mouseleave', () => document.body.classList.remove('hovering'));
-});
-
-function stepCursor(){
-  // dot snaps instantly
-  dot.style.transform  = `translate(calc(${mx}px - 50%),calc(${my}px - 50%))`;
-  // ring springs behind
-  rx = lerp(rx, mx, 0.14);
-  ry = lerp(ry, my, 0.14);
-  ring.style.transform = `translate(calc(${rx}px - 50%),calc(${ry}px - 50%))`;
-}
-
-/* ─── BACKGROUND PARTICLE NETWORK ─── */
-const bgC = $('bg-canvas');
-const bgX = bgC.getContext('2d');
-let bW, bH;
-
-function rsz(){ bW=bgC.width=innerWidth; bH=bgC.height=innerHeight; }
-rsz(); addEventListener('resize', rsz);
-
-const PCOLS = ['#CAFF00','#FF2D78','#00FFEA'];
-const pts = Array.from({length:58}, () => ({
-  x: rand(0,innerWidth), y: rand(0,innerHeight),
-  vx: (Math.random()-.5)*.6, vy: (Math.random()-.5)*.6,
-  col: PCOLS[ri(0,2)],
-  sz: rand(1.4,2.8),
-  wo: rand(0,Math.PI*2), ws: rand(.004,.01),
-}));
-
-function drawBg(){
-  bgX.clearRect(0,0,bW,bH);
-  pts.forEach(p => {
-    p.wo += p.ws;
-    p.vx += Math.cos(p.wo)*.006;
-    p.vy += Math.sin(p.wo)*.006;
-    p.vx *= .985; p.vy *= .985;
-    const sp = Math.hypot(p.vx,p.vy);
-    if(sp>.75){ p.vx=p.vx/sp*.75; p.vy=p.vy/sp*.75; }
-    const dx=p.x-mx, dy=p.y-my, d=Math.hypot(dx,dy);
-    if(d<160&&d>0){ const f=(160-d)/160*.35; p.vx+=dx/d*f; p.vy+=dy/d*f; }
-    p.x+=p.vx; p.y+=p.vy;
-    if(p.x<-8)p.x=bW+8; if(p.x>bW+8)p.x=-8;
-    if(p.y<-8)p.y=bH+8; if(p.y>bH+8)p.y=-8;
-  });
-
-  for(let i=0;i<pts.length;i++){
-    for(let j=i+1;j<pts.length;j++){
-      const d=Math.hypot(pts[i].x-pts[j].x, pts[i].y-pts[j].y);
-      if(d<135){
-        bgX.beginPath();
-        bgX.strokeStyle=pts[i].col;
-        bgX.globalAlpha=(1-d/135)*.16;
-        bgX.lineWidth=.5;
-        bgX.moveTo(pts[i].x,pts[i].y);
-        bgX.lineTo(pts[j].x,pts[j].y);
-        bgX.stroke();
-      }
-    }
+  function tick(){
+    const d=new Date(); let h=d.getHours(),m=d.getMinutes();
+    const ap=h>=12?'PM':'AM'; h=h%12||12;
+    document.getElementById('btime').textContent=
+      String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+' '+ap;
   }
+  tick(); setInterval(tick,10000);
 
-  bgX.globalAlpha=1;
-  pts.forEach(p => {
-    bgX.beginPath();
-    bgX.arc(p.x,p.y,p.sz,0,Math.PI*2);
-    bgX.fillStyle=p.col;
-    bgX.shadowBlur=10; bgX.shadowColor=p.col;
-    bgX.globalAlpha=.55;
-    bgX.fill();
-    bgX.shadowBlur=0;
-  });
-  bgX.globalAlpha=1;
-}
+  let count=10951;
+  const odo=document.getElementById('odo');
+  setInterval(()=>{ if(Math.random()<.03){ count++; odo.textContent=String(count).padStart(6,'0'); }},3500);
 
-/* ─── HERO LETTERS — PHYSICS ─── */
-const heroName = $('hero-name');
-const HTEXT = 'TYLER EMDUR';
-const GC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?#@%';
-const hEls=[], hTgt=[], hPos=[];
-
-HTEXT.split('').forEach((ch,i) => {
-  if(ch===' '){
-    const s=document.createElement('span');
-    s.style.cssText='display:inline-block;width:.32em;';
-    heroName.appendChild(s); return;
+  const cv=document.getElementById('sfcv');
+  const cx=cv.getContext('2d');
+  let stars=[];
+  function resize(){
+    cv.width=cv.parentElement.offsetWidth;
+    cv.height=cv.parentElement.offsetHeight;
   }
-  const s=document.createElement('span');
-  s.className='h-let'; s.textContent=ch; s.dataset.ch=ch;
-  s.style.setProperty('--d', `${i*.058}s`);
-  s.style.setProperty('--r', `${(Math.random()-.5)*18}deg`);
-  heroName.appendChild(s);
-  hEls.push(s);
-  hPos.push({x:0,y:0,vx:0,vy:0});
-  hTgt.push({x:0,y:0});
-});
-
-requestAnimationFrame(() => {
-  hEls.forEach(el => el.classList.add('in'));
-  setTimeout(initPhysics, 950);
-});
-
-function initPhysics(){
-  const nr = heroName.getBoundingClientRect();
-  hEls.forEach((el,i) => {
-    const r = el.getBoundingClientRect();
-    hTgt[i] = {x:r.left-nr.left+r.width/2, y:r.top-nr.top+r.height/2};
-    hPos[i].x=hTgt[i].x; hPos[i].y=hTgt[i].y;
-    el.style.transition='color .3s';
-    el.style.position='relative';
-  });
-}
-addEventListener('resize', () => setTimeout(initPhysics,100));
-
-const RRAD=130, RST=7, SPR=.09, DMP=.74;
-
-function stepLetters(){
-  if(!hTgt.length) return;
-  const nr = heroName.getBoundingClientRect();
-  const lmx=mx-nr.left, lmy=my-nr.top;
-  hEls.forEach((el,i) => {
-    const tx=hTgt[i].x, ty=hTgt[i].y;
-    const dx=hPos[i].x-lmx, dy=hPos[i].y-lmy;
-    const d=Math.hypot(dx,dy);
-    let fx=(tx-hPos[i].x)*SPR, fy=(ty-hPos[i].y)*SPR;
-    if(d<RRAD&&d>0){ const f=(RRAD-d)/RRAD; fx+=dx/d*f*RST; fy+=dy/d*f*RST; }
-    hPos[i].vx=(hPos[i].vx+fx)*DMP;
-    hPos[i].vy=(hPos[i].vy+fy)*DMP;
-    hPos[i].x+=hPos[i].vx; hPos[i].y+=hPos[i].vy;
-    el.style.transform=`translate(${(hPos[i].x-tx).toFixed(2)}px,${(hPos[i].y-ty).toFixed(2)}px)`;
-  });
-}
-
-// Random letter glitch
-function glitchOne(){
-  if(!hEls.length) return;
-  const el=hEls[ri(0,hEls.length-1)];
-  const orig=el.dataset.ch;
-  let n=0, max=ri(4,9);
-  const iv=setInterval(()=>{
-    el.textContent=GC[ri(0,GC.length-1)];
-    el.style.color=['#CAFF00','#FF2D78','#00FFEA'][ri(0,2)];
-    if(++n>=max){ clearInterval(iv); el.textContent=orig; el.style.color=''; }
-  },55);
-}
-setInterval(() => setTimeout(glitchOne, rand(0,500)), rand(1800,2600));
-
-/* ─── ROTATING SUBTITLE ─── */
-const subEl = $('hero-sub-text');
-// ✏️ EDIT: your phrases — or just leave this empty
-const PHRASES = [
-  '',
-  'tyler emdur.',
-  'yeah, hi.',
-  'tyler@tyleremdur.com',
-];
-let pi = 0;
-subEl.textContent = PHRASES[0];
-
-setInterval(() => {
-  subEl.style.opacity='0';
-  setTimeout(() => {
-    pi=(pi+1)%PHRASES.length;
-    subEl.textContent=PHRASES[pi];
-    subEl.style.transition='opacity .5s';
-    subEl.style.opacity='1';
-  },440);
-},3400);
-
-/* ─── LIVE CLOCK ─── */
-const clk = $('live-clock');
-const glC = '0123456789#!@';
-function tick(){
-  const n=new Date();
-  const h=String(n.getHours()).padStart(2,'0');
-  const m=String(n.getMinutes()).padStart(2,'0');
-  const s=String(n.getSeconds()).padStart(2,'0');
-  if(Math.random()<.025){
-    const g=()=>glC[ri(0,glC.length-1)];
-    clk.textContent=`${g()}${g()}:${g()}${g()}:${g()}${g()}`;
-    setTimeout(()=>clk.textContent=`${h}:${m}:${s}`,90);
-  } else {
-    clk.textContent=`${h}:${m}:${s}`;
+  function mkStars(){
+    resize();
+    stars=Array.from({length:220},()=>({
+      x:Math.random()*cv.width, y:Math.random()*cv.height,
+      r:Math.random()*1.6+.15, spd:Math.random()*.18+.03,
+      tw:Math.random()*Math.PI*2,
+      col:['#ffffff','#bbbbff','#ffbbff','#bbffbb','#ffffc0'][0|Math.random()*5]
+    }));
   }
-}
-setInterval(tick,1000); tick();
-
-/* ─── TEXT SCRAMBLE ─── */
-const SCHAR='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&';
-function scramble(el){
-  const target=el.dataset.target||el.textContent;
-  let frame=0, total=24;
-  const iv=setInterval(()=>{
-    let out='';
-    for(let i=0;i<target.length;i++){
-      const lock=Math.floor((i/target.length)*total*.65);
-      out+=frame>=lock?target[i]:(target[i]===' '?' ':SCHAR[ri(0,SCHAR.length-1)]);
-    }
-    el.textContent=out;
-    if(++frame>total) clearInterval(iv);
-  },42);
-}
-
-/* ─── SCROLL REVEAL ─── */
-const revObs=new IntersectionObserver(entries=>{
-  entries.forEach(e=>{
-    if(e.isIntersecting){
-      e.target.classList.add('in');
-      e.target.querySelectorAll('.scramble').forEach(h=>scramble(h));
-    }
-  });
-},{threshold:.1});
-document.querySelectorAll('.reveal').forEach(el=>revObs.observe(el));
-
-/* ─── PLAYGROUND ─── */
-const pg=$('playground');
-const pcv=$('play-canvas');
-const pcx=pcv.getContext('2d');
-const fobjs=Array.from(document.querySelectorAll('.fobj'));
-let held=null,hox=0,hoy=0;
-
-function rsPc(){ pcv.width=pg.offsetWidth; pcv.height=pg.offsetHeight; }
-rsPc(); addEventListener('resize',rsPc);
-
-function scatterFobjs(){
-  const pw=pg.offsetWidth,ph=pg.offsetHeight;
-  fobjs.forEach(o=>{
-    o.style.left=rand(50,pw-140)+'px';
-    o.style.top =rand(60,ph-60)+'px';
-  });
-}
-scatterFobjs();
-
-fobjs.forEach(o=>{
-  o.addEventListener('mousedown',e=>{
-    held=o;
-    const r=o.getBoundingClientRect(),pr=pg.getBoundingClientRect();
-    hox=e.clientX-r.left; hoy=e.clientY-r.top;
-    o.classList.add('held');
-    e.preventDefault();
-  });
-});
-document.addEventListener('mousemove',e=>{
-  if(!held) return;
-  const pr=pg.getBoundingClientRect();
-  held.style.left=clamp(e.clientX-pr.left-hox,0,pr.width-120)+'px';
-  held.style.top =clamp(e.clientY-pr.top-hoy ,0,pr.height-45)+'px';
-});
-document.addEventListener('mouseup',()=>{ if(held){held.classList.remove('held');held=null;} });
-
-function ctr(o){
-  const pr=pg.getBoundingClientRect(),r=o.getBoundingClientRect();
-  return{x:r.left-pr.left+r.width/2,y:r.top-pr.top+r.height/2,col:getComputedStyle(o).color};
-}
-
-function drawPlay(){
-  pcx.clearRect(0,0,pcv.width,pcv.height);
-  const lit=new Set();
-  const cs=fobjs.map(ctr);
-  for(let i=0;i<cs.length;i++){
-    for(let j=i+1;j<cs.length;j++){
-      const d=Math.hypot(cs[i].x-cs[j].x,cs[i].y-cs[j].y);
-      if(d<200){
-        const a=(1-d/200)*.7;
-        pcx.beginPath();
-        pcx.strokeStyle=cs[i].col;
-        pcx.globalAlpha=a;
-        pcx.lineWidth=1;
-        pcx.shadowBlur=8; pcx.shadowColor=cs[i].col;
-        pcx.moveTo(cs[i].x,cs[i].y);
-        pcx.lineTo(cs[j].x,cs[j].y);
-        pcx.stroke(); pcx.shadowBlur=0;
-        if(d<100){lit.add(i);lit.add(j);}
-      }
-    }
+  function frame(){
+    cx.clearRect(0,0,cv.width,cv.height);
+    stars.forEach(s=>{
+      s.tw+=.016; s.x-=s.spd;
+      if(s.x<0) s.x=cv.width;
+      cx.beginPath(); cx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      cx.fillStyle=s.col; cx.globalAlpha=.35+.65*Math.abs(Math.sin(s.tw)); cx.fill();
+    });
+    cx.globalAlpha=1; requestAnimationFrame(frame);
   }
-  pcx.globalAlpha=1;
-  fobjs.forEach((o,i)=>{
-    if(lit.has(i))o.classList.add('lit'); else o.classList.remove('lit');
+  mkStars(); addEventListener('resize',mkStars); frame();
+
+  let playing=false;
+  document.getElementById('npplay').addEventListener('click',function(){
+    playing=!playing; this.innerHTML=playing?'||':'&#9654;';
   });
-}
-
-/* ─── TERMINAL ─── */
-const tOut=$('term-out');
-const tIn=$('term-in');
-
-// ✏️ EDIT: make these responses yours
-const CMDS={
-  help:[
-    {t:'commands:',c:'hi'},
-    {t:'  about      who is this'},
-    {t:'  work        what\'s been made'},
-    {t:'  contact     how to reach me'},
-    {t:'  secret      ?'},
-    {t:'  clear        wipe'},
-    {t:''},
-    {t:'others exist',c:'cy'},
-  ],
-  about:[
-    {t:'Tyler Emdur.',c:'hi'},
-    {t:'—'},
-  ],
-  work:[
-    {t:'things:',c:'hi'},
-    {t:'  → this site'},
-    {t:'  → other things'},
-    {t:'  → more coming'},
-  ],
-  contact:[
-    {t:'tyler@tyleremdur.com',c:'cy'},
-  ],
-  secret:[
-    {t:'konami code.',c:'cy'},
-    {t:'↑↑↓↓←→←→BA'},
-  ],
-  // hidden
-  meow:[{t:'🐈',c:'hi'},{t:'yes.'}],
-  whoami:[{t:'tyler@emdur.com',c:'cy'}],
-  ls:[{t:'hero/  about/  playground/  terminal/  links/',c:'cy'}],
-  pwd:[{t:'/Users/tyler/website',c:'cy'}],
-  sudo:[{t:'no.',c:'er'}],
-  exit:[{t:'there is no exit.',c:'er'}],
-  hello:[{t:'hello.',c:'hi'}],
-  hi:[{t:'hey.',c:'hi'}],
-};
-
-function tprint(text,cls){
-  const d=document.createElement('div'); d.className='tl';
-  const s=document.createElement('span');
-  s.className='to'+(cls?' '+cls:''); s.textContent=text;
-  d.appendChild(s); tOut.appendChild(d);
-  tOut.scrollTop=tOut.scrollHeight;
-}
-
-function runCmd(raw){
-  const cmd=raw.trim().toLowerCase();
-  const echo=document.createElement('div'); echo.className='tl';
-  echo.innerHTML=`<span class="tp">~ $</span> <span style="color:rgba(240,237,232,.85)">${raw}</span>`;
-  tOut.appendChild(echo);
-  if(!cmd) return;
-  if(cmd==='clear'){ tOut.innerHTML=''; return; }
-  if(cmd==='status'){
-    [{t:'state:',c:'hi'},{t:`  time — ${new Date().toLocaleTimeString()}`},{t:'  mode — on'}]
-      .forEach(({t,c})=>tprint(t,c));
-  } else if(CMDS[cmd]){
-    CMDS[cmd].forEach(({t,c})=>tprint(t,c));
-  } else {
-    tprint(`not found: ${cmd}`,'er');
-    tprint('try help');
-  }
-  tOut.scrollTop=tOut.scrollHeight;
-}
-
-tIn.addEventListener('keydown',e=>{ if(e.key==='Enter'){ runCmd(tIn.value); tIn.value=''; } });
-$('term-win').addEventListener('click',()=>tIn.focus());
-
-/* ─── KONAMI ─── */
-const KSEQ=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','KeyB','KeyA'];
-let ki=0;
-const kov=$('konami');
-document.addEventListener('keydown',e=>{
-  if(e.code===KSEQ[ki]){
-    if(++ki===KSEQ.length){
-      kov.classList.add('on'); ki=0;
-      document.body.style.filter='invert(1)';
-      setTimeout(()=>document.body.style.filter='',130);
-    }
-  } else { ki=0; }
-});
-kov.addEventListener('click',()=>kov.classList.remove('on'));
-
-/* ─── MAIN LOOP ─── */
-function loop(){
-  drawBg();
-  stepCursor();
-  stepLetters();
-  drawPlay();
-  requestAnimationFrame(loop);
-}
-requestAnimationFrame(loop);
-
 })();
 </script>
 </body>
