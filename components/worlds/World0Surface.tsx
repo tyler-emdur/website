@@ -139,6 +139,7 @@ export default function World0Surface() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
   const trafficRef = useRef<HTMLDivElement>(null)
+  const ipRef = useRef<HTMLDivElement>(null)
 
   const go = useCallback(() => navigateTo(1, { type: 'door' }), [navigateTo])
 
@@ -174,6 +175,16 @@ export default function World0Surface() {
     script.type = 'text/javascript'
     // colors: bc=bg, tc=text, brd1=border, lnk=link, hc=header bg, hfc=header text, nc=new visitor
     script.src = '//cdn.livetrafficfeed.com/static/v6/live.js?bc=000033&tc=9999cc&brd1=3333aa&lnk=3366cc&hc=7700bb&hfc=ffff00&nc=00ff00&vv=255&tft=10&ro=0&res=0'
+    container.appendChild(script)
+    return () => { if (container.contains(script)) container.removeChild(script) }
+  }, [])
+
+  useEffect(() => {
+    const container = ipRef.current
+    if (!container) return
+    const script = document.createElement('script')
+    script.type = 'text/javascript'
+    script.src = '//cdn.livetrafficfeed.com/static/ip-widget/live.v3.js?ro=0&un=0&type=1'
     container.appendChild(script)
     return () => { if (container.contains(script)) container.removeChild(script) }
   }, [])
@@ -734,14 +745,8 @@ export default function World0Surface() {
             <div ref={trafficRef} style={{ fontSize: 10 }} />
           </MiniPanel>
 
-          <MiniPanel label="LINK LOG" headerStyle={{ background: 'linear-gradient(90deg, #993300 0%, #551100 100%)', borderBottom: '1px solid #b94411' }}>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-              <div style={{ fontSize: 9.5, lineHeight: 1.5, color: '#888899', flex: 1 }}>
-                An <button className="w0-link" style={{ color: '#00ccff' }}>IN SYNC WITH &apos;N SYNC</button> fan site.<br />
-                <button className="w0-link" onClick={go} style={{ color: '#00ccff' }}>Join the club now &rarr;</button>
-              </div>
-              <img className="w0-img" src={img('group')} alt="" style={{ width: 44, height: 44, flexShrink: 0, border: `1px inset ${BORDER}` }} />
-            </div>
+          <MiniPanel label="> INCOMING CONNECTION" headerStyle={{ background: 'linear-gradient(90deg, #004400 0%, #002200 100%)', borderBottom: '1px solid #006600' }}>
+            <div ref={ipRef} style={{ fontSize: 10 }} />
           </MiniPanel>
 
         </div>
