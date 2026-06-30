@@ -1,323 +1,226 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
-// ── High scores ──────────────────────────────────────────────────────────────
-const HIGH_SCORES = [
-  { name: 'T.E.', score: 999990 },
-  { name: 'AAA', score: 88700 },
-  { name: '???', score: 47047 },
-  { name: 'AAA', score: 12345 },
-  { name: 'AAA', score: 1000 },
+const FACTS = [
+  'The average person will spend 6 months of their life waiting for red lights to turn green.',
+  'Honey never spoils. Archaeologists have found 3000-year-old honey in Egyptian tombs that was still perfectly edible.',
+  'A group of flamingos is called a "flamboyance." A group of crows is called a "murder." A group of owls is called a "parliament."',
+  'The inventors of the Pringles can are now buried inside one. (Partial remains. It is a long story.)',
+  'There are more possible iterations of a game of chess than there are atoms in the observable universe.',
+  'The sound of thunder is caused by the rapid expansion of air around a lightning bolt. You already knew this but did you really KNOW it?',
+  'Bananas are technically berries. Strawberries are technically not berries. Botanists have decided to be difficult.',
+  'If you folded a piece of paper 42 times it would reach the moon. You cannot fold it 42 times. Nobody can.',
 ]
 
-// ── Memory match game ─────────────────────────────────────────────────────────
-const CARD_PAIRS = [
-  { label: 'DEPTH', color: '#0066cc' },
-  { label: 'SIGNAL', color: '#22c55e' },
-  { label: 'MALL', color: '#ff2d78' },
-  { label: 'SPIRAL', color: '#9933ff' },
-  { label: 'BROADCAST', color: '#ff6600' },
-  { label: 'ARCHIVE', color: '#8B6914' },
+const CALC_BUTTONS = [
+  ['sin','cos','tan','π'],
+  ['7','8','9','+'],
+  ['4','5','6','-'],
+  ['1','2','3','*'],
+  ['C','0','=','/'],
 ]
-
-interface Card { id: number; pairId: number; label: string; color: string; flipped: boolean; matched: boolean }
-
-function MemoryGame({ onWin }: { onWin: (score: number) => void }) {
-  const [cards, setCards] = useState<Card[]>(() => {
-    const base = CARD_PAIRS.flatMap((p, i) => [
-      { id: i*2, pairId: i, label: p.label, color: p.color, flipped: false, matched: false },
-      { id: i*2+1, pairId: i, label: p.label, color: p.color, flipped: false, matched: false },
-    ])
-    return base.sort(() => Math.random() - 0.5)
-  })
-  const [flipped, setFlipped] = useState<number[]>([])
-  const [locked, setLocked] = useState(false)
-  const [moves, setMoves] = useState(0)
-  const [startTime] = useState(Date.now())
-
-  const flip = (id: number) => {
-    if (locked) return
-    const card = cards.find(c => c.id === id)!
-    if (card.flipped || card.matched) return
-    const newFlipped = [...flipped, id]
-    setCards(cs => cs.map(c => c.id === id ? { ...c, flipped: true } : c))
-    if (newFlipped.length === 2) {
-      setLocked(true); setMoves(m => m + 1)
-      const [a, b] = newFlipped.map(fid => cards.find(c => c.id === fid)!)
-      if (a.pairId === b.pairId) {
-        setTimeout(() => {
-          setCards(cs => cs.map(c => newFlipped.includes(c.id) ? { ...c, matched: true } : c))
-          setFlipped([])
-          setLocked(false)
-          if (cards.filter(c => c.matched).length + 2 >= cards.length) {
-            const t = Math.round((Date.now() - startTime) / 1000)
-            onWin(Math.max(1000, 50000 - moves * 200 - t * 50))
-          }
-        }, 400)
-      } else {
-        setTimeout(() => {
-          setCards(cs => cs.map(c => newFlipped.includes(c.id) ? { ...c, flipped: false } : c))
-          setFlipped([])
-          setLocked(false)
-        }, 900)
-      }
-    } else {
-      setFlipped(newFlipped)
-    }
-  }
-
-  return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
-        {cards.map(card => (
-          <div key={card.id} onClick={() => flip(card.id)} style={{
-            height: 54, cursor: 'pointer', borderRadius: 3,
-            border: card.matched ? `2px solid ${card.color}` : '2px solid #333',
-            background: card.flipped || card.matched ? card.color + '22' : '#111',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, fontFamily: '"Press Start 2P", monospace',
-            color: card.flipped || card.matched ? card.color : '#333',
-            letterSpacing: '0.06em', transition: 'background 0.15s',
-            textShadow: card.flipped || card.matched ? `0 0 8px ${card.color}` : 'none',
-          }}>
-            {card.flipped || card.matched ? card.label : '?'}
-          </div>
-        ))}
-      </div>
-      <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: '#666', textAlign: 'right' }}>
-        MOVES: {moves}
-      </div>
-    </div>
-  )
-}
-
-// ── Reaction game ─────────────────────────────────────────────────────────────
-function ReactionGame({ onWin }: { onWin: (score: number) => void }) {
-  const [state, setState] = useState<'wait' | 'ready' | 'now' | 'result'>('wait')
-  const [result, setResult] = useState<number | null>(null)
-  const [early, setEarly] = useState(false)
-  const t = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const greenAt = useRef<number>(0)
-
-  useEffect(() => {
-    if (state === 'wait') {
-      const delay = 2000 + Math.random() * 3000
-      t.current = setTimeout(() => { greenAt.current = Date.now(); setState('now') }, delay)
-    }
-    return () => { if (t.current) clearTimeout(t.current) }
-  }, [state])
-
-  const handleClick = () => {
-    if (state === 'wait') { setEarly(true); setState('result'); setResult(null) }
-    else if (state === 'now') {
-      const ms = Date.now() - greenAt.current
-      setResult(ms)
-      setState('result')
-      onWin(Math.max(500, 5000 - ms * 8))
-    }
-  }
-
-  return (
-    <div>
-      <div onClick={handleClick} style={{
-        height: 120, borderRadius: 4, cursor: 'pointer',
-        background: state === 'now' ? '#00ff00' : state === 'result' ? '#333' : '#cc2200',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        border: '2px solid #444',
-        transition: 'background 0.05s',
-      }}>
-        <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 11, color: state === 'now' ? '#000' : '#fff', marginBottom: 6 }}>
-          {state === 'wait' && 'WAIT...'}
-          {state === 'now' && 'NOW!'}
-          {state === 'result' && (early ? 'TOO EARLY' : `${result}ms`)}
-        </div>
-        {state === 'result' && !early && (
-          <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: '#aaa' }}>
-            {result! < 250 ? 'EXCELLENT' : result! < 350 ? 'GOOD' : 'SLOW'}
-          </div>
-        )}
-      </div>
-      {state === 'result' && (
-        <button onClick={() => { setState('wait'); setEarly(false); setResult(null) }} style={{
-          marginTop: 8, padding: '6px 16px', background: '#222', color: '#ff006e',
-          border: '1px solid #ff006e', fontFamily: '"Press Start 2P", monospace',
-          fontSize: 8, cursor: 'pointer', width: '100%',
-        }}>PLAY AGAIN</button>
-      )}
-    </div>
-  )
-}
-
-// ── Cabinet screen ────────────────────────────────────────────────────────────
-type Mode = 'attract' | 'select' | 'memory' | 'reaction' | 'scores'
 
 export default function World11Flicker() {
-  const [mode, setMode] = useState<Mode>('attract')
-  const [credits, setCredits] = useState(0)
-  const [score, setScore] = useState(0)
-  const [blink, setBlink] = useState(true)
-  const [attractIdx, setAttractIdx] = useState(0)
+  const navigateTo = useWorldStore(s => s.navigateTo)
+  const [calcDisplay, setCalcDisplay] = useState('5318008')
+  const [calcInput, setCalcInput] = useState('')
+  const [factIdx, setFactIdx] = useState(0)
 
-  useEffect(() => { const iv = setInterval(() => setBlink(b => !b), 600); return () => clearInterval(iv) }, [])
-  useEffect(() => {
-    if (mode !== 'attract') return
-    const iv = setInterval(() => setAttractIdx(i => (i + 1) % 3), 3000)
-    return () => clearInterval(iv)
-  }, [mode])
-
-  const insertCoin = () => { setCredits(c => c + 1); setMode('select') }
-
-  const handleWin = (s: number) => {
-    setScore(prev => prev + s)
-    setTimeout(() => setMode('scores'), 800)
+  function pressCalc(key: string) {
+    if (key === 'C') { setCalcDisplay('0'); setCalcInput(''); return }
+    if (key === '=') {
+      try {
+        const result = Function('"use strict"; return (' + calcInput + ')')()
+        const r = String(result)
+        setCalcDisplay(r === '5318008' ? '5318008 😏' : r)
+        setCalcInput('')
+      } catch { setCalcDisplay('ERROR'); setCalcInput('') }
+      return
+    }
+    if (['sin','cos','tan','π'].includes(key)) {
+      const map: Record<string,string> = { sin: 'Math.sin(', cos: 'Math.cos(', tan: 'Math.tan(', π: 'Math.PI' }
+      const next = calcInput + map[key]
+      setCalcInput(next); setCalcDisplay(next)
+      return
+    }
+    const next = calcInput + key
+    setCalcInput(next); setCalcDisplay(next)
   }
 
-  const ATTRACT_MSGS = ['FLICKER ARCADE', '★★★★★', 'INSERT COIN']
-
   return (
-    <div data-world="11" style={{
-      position: 'fixed', inset: 0, background: '#0a0005',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    <div style={{
+      minHeight: '100vh', width: '100vw', position: 'fixed', inset: 0, overflowY: 'auto',
+      background: '#2a3a6e',
+      backgroundImage: [
+        'repeating-linear-gradient(0deg, rgba(0,0,0,0.3) 0px, rgba(0,0,0,0.3) 1px, transparent 1px, transparent 30px)',
+        'repeating-linear-gradient(90deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 30px)',
+      ].join(', '),
+      fontFamily: 'Arial, Helvetica, sans-serif',
+      color: '#ccddff',
     }}>
-      <HomeButton />
+      <style>{`
+        @keyframes w11-spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+        @keyframes w11-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes w11-glow { 0%,100%{box-shadow:0 0 6px #00ff00} 50%{box-shadow:0 0 20px #00ff00,0 0 40px rgba(0,255,0,0.3)} }
+        .w11-spin { animation: w11-spin 4s linear infinite }
+        .w11-bounce { animation: w11-bounce 2s ease-in-out infinite }
+        a { color: #88bbff; text-decoration: underline; cursor: pointer }
+        a:hover { color: #ffffff }
+      `}</style>
 
-      {/* Cabinet body */}
-      <div style={{
-        width: 'min(380px, 92vw)',
-        background: 'linear-gradient(160deg, #1a0a30, #0d0520)',
-        border: '2px solid #2a1a4a',
-        borderRadius: 8,
-        boxShadow: '0 0 60px rgba(180,0,255,0.15), 0 0 20px rgba(255,0,110,0.1)',
-        overflow: 'hidden',
-      }}>
-        {/* Marquee */}
-        <div style={{
-          background: 'linear-gradient(90deg, #ff006e, #8338ec, #3a86ff)',
-          padding: '6px 0', textAlign: 'center',
-          fontFamily: '"Press Start 2P", monospace', fontSize: 10,
-          color: '#fff', letterSpacing: '0.15em',
-          textShadow: '0 0 10px #fff',
-        }}>
-          ★ FLICKER ARCADE ★
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(90deg, #1a2255, #2a3a88, #1a2255)', borderBottom: '3px solid #4455aa', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, #4466ff, #2244cc)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🔬</div>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 'bold', color: '#ffffff', letterSpacing: '0.05em' }}>SCIENCE ZONE</div>
+          <div style={{ fontSize: 10, color: '#8899cc', letterSpacing: '0.15em' }}>Educational Resources For The Curious Mind</div>
         </div>
-
-        {/* Screen */}
-        <div style={{
-          margin: 12, background: '#000',
-          border: '3px solid #1a0a30',
-          borderRadius: 4,
-          boxShadow: 'inset 0 0 30px rgba(0,0,0,0.9)',
-          padding: 16,
-          minHeight: 260,
-          position: 'relative',
-          overflow: 'hidden',
-        }}>
-          {/* Scanlines */}
-          <div style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none',
-            background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.02) 3px, rgba(255,255,255,0.02) 4px)',
-          }} />
-
-          {/* Credits + score */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: '#ff006e', marginBottom: 12 }}>
-            <span>CREDITS {credits}</span>
-            <span>SCORE {String(score).padStart(6, '0')}</span>
-          </div>
-
-          {/* ATTRACT */}
-          {mode === 'attract' && (
-            <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: attractIdx === 0 ? 16 : 11, color: '#ff006e', marginBottom: 16, textShadow: '0 0 15px #ff006e', transition: 'font-size 0.2s' }}>
-                {ATTRACT_MSGS[attractIdx]}
-              </div>
-              {blink && (
-                <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 8, color: '#ffbe0b', letterSpacing: '0.1em' }}>
-                  PRESS COIN TO CONTINUE
-                </div>
-              )}
-              <div style={{ marginTop: 20 }}>
-                <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: '#444', marginBottom: 8 }}>HI-SCORES</div>
-                {HIGH_SCORES.slice(0,3).map((s,i) => (
-                  <div key={i} style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 7, color: i === 0 ? '#ffbe0b' : '#666', marginBottom: 4, display: 'flex', justifyContent: 'space-between', padding: '0 20px' }}>
-                    <span>{i + 1}. {s.name}</span><span>{s.score.toLocaleString()}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* SELECT */}
-          {mode === 'select' && (
-            <div>
-              <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 9, color: '#fff', textAlign: 'center', marginBottom: 16 }}>SELECT GAME</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[
-                  { label: 'MEMORY MATCH', sub: 'find the pairs', action: () => setMode('memory') },
-                  { label: 'REACTION TEST', sub: 'press when green', action: () => setMode('reaction') },
-                  { label: 'HIGH SCORES', sub: 'view leaderboard', action: () => setMode('scores') },
-                ].map((opt, i) => (
-                  <button key={i} onClick={opt.action} style={{
-                    padding: '10px 14px', background: '#0d0520', border: '1px solid #2a1a4a',
-                    color: '#ff006e', fontFamily: '"Press Start 2P", monospace', fontSize: 8,
-                    cursor: 'pointer', textAlign: 'left',
-                  }}>
-                    ▸ {opt.label}
-                    <div style={{ color: '#444', fontSize: 7, marginTop: 3 }}>{opt.sub}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* MEMORY */}
-          {mode === 'memory' && <MemoryGame onWin={handleWin} />}
-
-          {/* REACTION */}
-          {mode === 'reaction' && <ReactionGame onWin={handleWin} />}
-
-          {/* SCORES */}
-          {mode === 'scores' && (
-            <div>
-              <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 9, color: '#ffbe0b', textAlign: 'center', marginBottom: 14 }}>HALL OF RECORDS</div>
-              {[...HIGH_SCORES, { name: 'YOU', score }].sort((a,b) => b.score - a.score).slice(0,6).map((s,i) => (
-                <div key={i} style={{
-                  fontFamily: '"Press Start 2P", monospace', fontSize: 8,
-                  color: s.name === 'T.E.' ? '#ffbe0b' : s.name === 'YOU' ? '#06ffa5' : '#888',
-                  display: 'flex', justifyContent: 'space-between', marginBottom: 8, padding: '4px 8px',
-                  background: s.name === 'T.E.' ? 'rgba(255,190,11,0.05)' : 'transparent',
-                }}>
-                  <span>{i+1}. {s.name}</span><span>{s.score.toLocaleString()}</span>
-                </div>
-              ))}
-              <button onClick={() => setMode('select')} style={{
-                marginTop: 8, padding: '6px 0', width: '100%',
-                background: '#0d0520', border: '1px solid #333',
-                color: '#666', fontFamily: '"Press Start 2P", monospace', fontSize: 7, cursor: 'pointer',
-              }}>← BACK</button>
-            </div>
-          )}
-        </div>
-
-        {/* Controls row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px 14px' }}>
-          <button onClick={insertCoin} style={{
-            padding: '8px 14px', background: '#1a0a30', border: '1px solid #3a1a5a',
-            color: '#ffbe0b', fontFamily: '"Press Start 2P", monospace', fontSize: 7,
-            cursor: 'pointer', letterSpacing: '0.08em',
-          }}>INSERT COIN</button>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {['◁','△','▷'].map((b,i) => (
-              <div key={i} style={{
-                width: 24, height: 24, borderRadius: '50%',
-                background: ['#ff006e','#8338ec','#3a86ff'][i],
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 9, color: '#fff', boxShadow: `0 0 6px ${['#ff006e','#8338ec','#3a86ff'][i]}`,
-              }}>{b}</div>
-            ))}
-          </div>
+        <div style={{ marginLeft: 'auto', fontSize: 10, color: '#667799', fontStyle: 'italic' }}>
+          "Knowledge is power" — Someone Famous
         </div>
       </div>
+
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '18px 16px 40px' }}>
+
+        {/* Top row: Calculator + Gyroscope + Lava Lamp */}
+        <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 120px', gap: 14, marginBottom: 14 }}>
+
+          {/* The Calculator */}
+          <div style={{ background: '#1a2244', border: '2px solid #3355aa' }}>
+            <div style={{ background: '#112', padding: '4px 8px', fontSize: 9, color: '#4466ff', letterSpacing: '0.1em', borderBottom: '1px solid #3355aa' }}>
+              SCIENTIFIC CALCULATOR v2.0
+            </div>
+            {/* Display */}
+            <div className="w11-glow" style={{
+              margin: '8px', padding: '6px 10px',
+              background: '#003300', border: '2px inset #001100',
+              fontFamily: '"Courier New", monospace', fontSize: 20,
+              color: '#00ff00', textAlign: 'right', letterSpacing: '0.1em',
+              minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+            }}>
+              {calcDisplay.length > 12 ? calcDisplay.slice(-12) : calcDisplay}
+            </div>
+            {/* Buttons */}
+            <div style={{ padding: '4px 8px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {CALC_BUTTONS.map((row, ri) => (
+                <div key={ri} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
+                  {row.map(btn => (
+                    <button
+                      key={btn}
+                      onClick={() => pressCalc(btn)}
+                      style={{
+                        padding: '5px 2px', fontFamily: 'Arial, sans-serif', fontSize: 11,
+                        background: ['sin','cos','tan','π'].includes(btn) ? '#1a2255' : btn === '=' ? '#2244aa' : '#223',
+                        color: btn === '=' ? '#aaddff' : ['sin','cos','tan','π'].includes(btn) ? '#88aaff' : '#ccddff',
+                        border: '1px outset #3355aa', cursor: 'pointer', borderRadius: 2,
+                      }}
+                    >{btn}</button>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: '0 8px 8px', fontSize: 8, color: '#334477', textAlign: 'center' }}>
+              Try entering: 5318008 then flip upside down
+            </div>
+          </div>
+
+          {/* Main science facts column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Did you know */}
+            <div style={{ background: '#1a2244', border: '2px solid #3355aa', padding: '12px 14px', flex: 1 }}>
+              <div style={{ fontSize: 12, color: '#88aaff', fontWeight: 'bold', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>💡 DID YOU KNOW??</span>
+                <button
+                  onClick={() => setFactIdx(i => (i + 1) % FACTS.length)}
+                  style={{ fontSize: 9, background: '#223', border: '1px outset #3355aa', color: '#88aaff', padding: '2px 8px', cursor: 'pointer' }}
+                >NEXT FACT →</button>
+              </div>
+              <div style={{ fontSize: 12, color: '#ccd8ff', lineHeight: 1.85, fontStyle: 'italic' }}>
+                "{FACTS[factIdx]}"
+              </div>
+              <div style={{ marginTop: 8, fontSize: 8, color: '#445577' }}>
+                Fact {factIdx + 1} of {FACTS.length} · Source: The Internet
+              </div>
+            </div>
+
+            {/* Molecular structure decoration */}
+            <div style={{ background: '#1a2244', border: '2px solid #3355aa', padding: '12px 14px' }}>
+              <div style={{ fontSize: 11, color: '#88aaff', marginBottom: 8 }}>⚗️ Molecular Diagram (H₂O)</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, position: 'relative', height: 80 }}>
+                <div style={{ position: 'absolute', left: '25%', top: '50%', transform: 'translate(-50%,-50%)' }}>
+                  <div style={{ width: 26, height: 26, background: '#ff4444', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#fff', fontWeight: 'bold' }}>H</div>
+                </div>
+                <div style={{ position: 'absolute', left: '50%', top: '30%', transform: 'translate(-50%,-50%)' }}>
+                  <div style={{ width: 34, height: 34, background: '#4488ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 'bold' }}>O</div>
+                </div>
+                <div style={{ position: 'absolute', left: '75%', top: '50%', transform: 'translate(-50%,-50%)' }}>
+                  <div style={{ width: 26, height: 26, background: '#ff4444', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#fff', fontWeight: 'bold' }}>H</div>
+                </div>
+                <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 300 80">
+                  <line x1="80" y1="40" x2="150" y2="25" stroke="#667799" strokeWidth="2" />
+                  <line x1="150" y1="25" x2="220" y2="40" stroke="#667799" strokeWidth="2" />
+                </svg>
+              </div>
+              <div style={{ fontSize: 8, color: '#445577', textAlign: 'center', marginTop: 4 }}>
+                Water (H₂O) · Bond angle: ~104.5° · The molecule of life
+              </div>
+            </div>
+          </div>
+
+          {/* Lava lamp */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ fontSize: 9, color: '#667799', marginBottom: 6, textAlign: 'center' }}>LAVA LAMP</div>
+            <div style={{ width: 60, height: 140, background: 'linear-gradient(180deg, #1a0033 0%, #330066 100%)', borderRadius: '30px 30px 10px 10px', border: '3px solid #5544aa', position: 'relative', overflow: 'hidden' }}>
+              {[{ top: '20%', size: 20, delay: '0s' }, { top: '50%', size: 26, delay: '0.7s' }, { top: '70%', size: 16, delay: '1.4s' }].map(({ top, size, delay }, i) => (
+                <div key={i} className="w11-bounce" style={{
+                  position: 'absolute', left: '50%', top,
+                  width: size, height: size,
+                  background: 'radial-gradient(circle at 35% 35%, #ff66ff, #aa00cc)',
+                  borderRadius: '50%',
+                  transform: 'translateX(-50%)',
+                  animationDelay: delay,
+                  filter: 'blur(1px)',
+                }} />
+              ))}
+            </div>
+            <div style={{ width: 70, height: 14, background: 'linear-gradient(90deg, #333, #666, #333)', border: '2px solid #444', borderRadius: 3, marginTop: 4 }} />
+            <div style={{ fontSize: 8, color: '#445577', marginTop: 4, textAlign: 'center', lineHeight: 1.5 }}>
+              Invented 1963<br />Still cool
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          {[
+            { title: '🌍 Earth Facts', items: ['Circumference: 40,075 km', 'Age: 4.5 billion years', '71% covered in water', '1 moon (confirmed)', '7.9 billion humans (approx)'] },
+            { title: '⚡ Physics', items: ['Speed of light: 299,792,458 m/s', 'Gravity: 9.81 m/s²', 'Absolute zero: −273.15°C', 'Pi: 3.14159265358979...', 'e = mc² (Einstein said)'] },
+            { title: '🧬 Biology', items: ['DNA has 3 billion base pairs', 'Human body: 37 trillion cells', 'Brain: 86 billion neurons', 'Heart beats: 100,000/day', 'You share 60% DNA with a banana'] },
+          ].map(({ title, items }) => (
+            <div key={title} style={{ background: '#1a2244', border: '2px solid #3355aa', padding: '10px 12px' }}>
+              <div style={{ fontSize: 11, color: '#88aaff', fontWeight: 'bold', marginBottom: 8 }}>{title}</div>
+              <div style={{ fontSize: 9, color: '#aabbdd', lineHeight: 2 }}>
+                {items.map(item => <div key={item}>· {item}</div>)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div style={{ marginTop: 16, textAlign: 'center', borderTop: '1px solid #2a3a6e', paddingTop: 12 }}>
+          <div style={{ fontSize: 10, color: '#445577', lineHeight: 2 }}>
+            <a onClick={() => navigateTo(1, { type: 'door' })}>← Back to Universe</a>
+            &nbsp;·&nbsp; <a>Sign Guestbook</a> &nbsp;·&nbsp; <a>Web Ring</a>
+          </div>
+          <div style={{ fontSize: 8, color: '#334466', marginTop: 6 }}>
+            Science Zone · For Educational Purposes · All facts verified by the Internet
+          </div>
+        </div>
+
+      </div>
+      <HomeButton />
     </div>
   )
 }

@@ -1,505 +1,234 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
+import { useState } from 'react'
+import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
-const TILE = 20
-const GRAVITY = 0.55
-const JUMP = -11
-const MOVE = 4.2
-
-const PALETTE = ['#FF006E', '#FB5607', '#FFBE0B', '#8338EC', '#3A86FF', '#06FFA5', '#FF4365', '#00F5FF']
-const ACCESSIBLE_WARPS = [
-  { x: 10, y: 26, id: '1' },
-  { x: 18, y: 26, id: '2' },
-  { x: 27, y: 26, id: '3' },
-  { x: 37, y: 26, id: '4' },
-  { x: 48, y: 26, id: '5' },
-  { x: 60, y: 26, id: '6' },
-  { x: 73, y: 26, id: '7' },
-  { x: 87, y: 26, id: '8' },
-  { x: 104, y: 26, id: '9' },
-]
-const ACCESSIBLE_COINS = Array.from({ length: 24 }, (_, i) => ({ x: 5 + i * 5, y: 26 }))
-const WRONG_SIGNS = ['NOT A DOOR', 'PRESS NOTHING', 'WRONG FLOOR', 'COIN? NO', 'NOT THE EXIT', 'SCORE: MILK', 'LEFT IS ALSO RIGHT']
-
-// #: block  C: coin  P: spawn  1-9: warp id  ^: mover  !: spring
-const LEVEL = [
-  '################################################################################################################################',
-  '#..............C....C....C...................................C....C....C....C..........C....C....C..............................#',
-  '#...####...#######...#######...#######...#######...#######...#######...#######...#######...#######...#######...#######......#',
-  '#...#..#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#......#',
-  '#...#..#####.....#...#..^..#...#..1..#...#..2..#...#..3..#...#..4..#...#..!..#...#..5..#...#..6..#...#..7..#...#..8..#......#',
-  '#...#............#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#......#',
-  '#...####...#######...#######...#######...#######...#######...#######...#######...#######...#######...#######...#######......#',
-  '#.......C...............C...............C...............C...............C...............C...............C...............C....#',
-  '#...####...#######...#######...#######...#######...#######...#######...#######...#######...#######...#######...#######......#',
-  '#...#..#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#......#',
-  '#...#..#...#..^..#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#..9..#......#',
-  '#...#..#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#...#.....#......#',
-  '#...#..#####.....#...#######...#######...#######...#######...#######...#######...#######...#######...#######...#######......#',
-  '#...#............#...........................................................................................................#',
-  '#...####...#######...#######...#######...#######...#######...#######...#######...#######...#######...#######...#######......#',
-  '#.......C..........C..........C..........C..........C..........C..........C..........C..........C..........C..........C......#',
-  '#...........................................................................................................................#',
-  '#...........................................................................................................................#',
-  '#...........................................................................................................................#',
-  '#...........................................................................................................................#',
-  '#...........................................................................................................................#',
-  '#...........................................................................................................................#',
-  '#...........................................................................................................................#',
-  '#...........................................................................................................................#',
-  '#...........................................................................................................................#',
-  '#...........................................................................................................................#',
-  '################################################################################################################################',
-  '#P............................................................................................................................#',
-  '################################################################################################################################',
+const EMOTICONS = [
+  { em: ':-)', meaning: 'Smiley face (happy)' },
+  { em: ':-(', meaning: 'Sad face (unhappy)' },
+  { em: ';-)', meaning: 'Winky face (joking!!)' },
+  { em: ':-D', meaning: 'Big grin (very happy)' },
+  { em: ':-*', meaning: 'Kiss' },
+  { em: ':-9', meaning: 'Blowing a kiss (very romantic)' },
+  { em: ':-O', meaning: 'Surprised / shocked' },
+  { em: ':-P', meaning: 'Sticking tongue out (playful)' },
+  { em: '8-)', meaning: 'Wearing sunglasses (cool)' },
+  { em: ':-/', meaning: 'Skeptical / unsure' },
+  { em: 'B-)', meaning: 'Big glasses (nerdy but cool)' },
+  { em: '>:-)', meaning: 'Evil grin (mischievous)' },
+  { em: ":'-(", meaning: 'Crying (very sad)' },
+  { em: ':-|', meaning: 'Neutral / no comment' },
+  { em: '(((H)))', meaning: 'Big hug!!!' },
+  { em: '<3', meaning: 'Heart (I love you / I like this)' },
 ]
 
-const WARP_COIN_THRESHOLD = 10
-
-const WARPS: Record<string, { label: string; worldId: number }> = {
-  '1': { label: 'MALL', worldId: 7 },
-  '2': { label: 'TV', worldId: 3 },
-  '3': { label: 'SPIRAL', worldId: 13 },
-  '4': { label: 'FLICKER', worldId: 11 },
-  '5': { label: 'LOOP', worldId: 10 },
-  '6': { label: 'DIAL', worldId: 15 },
-  '7': { label: 'HALL', worldId: 4 },
-  '8': { label: '???', worldId: 8 },
-  '9': { label: 'UNIVERSE', worldId: 1 },
-}
-
-interface Mover { x: number; y: number; dir: number; minX: number; maxX: number }
-
-interface Player {
-  x: number
-  y: number
-  vx: number
-  vy: number
-  w: number
-  h: number
-  grounded: boolean
-  onMover: Mover | null
-}
-
-function parseLevel() {
-  const rows = LEVEL.length
-  const cols = LEVEL[0].length
-  const solids = new Set<string>()
-  const coins = new Set<string>()
-  const warps = new Map<string, string>()
-  const springs = new Set<string>()
-  const movers: Mover[] = []
-  let spawn = { x: 2 * TILE, y: 2 * TILE }
-
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      const ch = LEVEL[y][x]
-      const key = `${x},${y}`
-      if (ch === '#') solids.add(key)
-      else if (ch === 'C') coins.add(key)
-      else if (ch === 'P') spawn = { x: x * TILE, y: y * TILE }
-      else if (ch === '!') springs.add(key)
-      else if (ch === '^') {
-        solids.add(key)
-        movers.push({ x: x * TILE, y: y * TILE, dir: 1, minX: (x - 3) * TILE, maxX: (x + 3) * TILE })
-      } else if (ch >= '1' && ch <= '9') warps.set(key, ch)
-    }
-  }
-  ACCESSIBLE_WARPS.forEach(w => warps.set(`${w.x},${w.y}`, w.id))
-  ACCESSIBLE_COINS.forEach(c => coins.add(`${c.x},${c.y}`))
-  return { rows, cols, solids, coins, warps, springs, movers, spawn }
-}
-
-const LEVEL_DATA = parseLevel()
+const MESSAGES = [
+  { from: 'StarGazer99', time: '3:42pm', msg: "omg this page is so beautiful!! you are so creative :) i love the hearts everywhere!!!!" },
+  { from: 'MidnightRose', time: '11:58pm', msg: "found your page from a web ring and I am SO glad I did. This is the most beautiful page I have ever seen. You should be a professional web designer!!!!" },
+  { from: 'CrystalDream', time: '2:17pm', msg: "The emoticon chart is SO useful I printed it out and put it on my wall next to my n*sync poster!! :-D" },
+  { from: 'XxAngelxX', time: '8:31am', msg: "Hi I am new to the internet and I am leaving you a guestbook message because your page made me feel welcome :) Thank you for being so nice. <3" },
+  { from: 'TechWizard7', time: '6:14pm', msg: "I don't usually leave comments but I have to say this is really nice. The design is very heartfelt. P.S. that emoticon glossary is gold lol" },
+]
 
 export default function World14Pixel() {
-  const findSecret = useWorldStore(s => s.findSecret)
   const navigateTo = useWorldStore(s => s.navigateTo)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const keysRef = useRef<Record<string, boolean>>({})
-  const playerRef = useRef<Player>({ x: LEVEL_DATA.spawn.x, y: LEVEL_DATA.spawn.y, vx: 0, vy: 0, w: 14, h: 16, grounded: false, onMover: null })
-  const coinsRef = useRef(new Set(LEVEL_DATA.coins))
-  const moversRef = useRef(LEVEL_DATA.movers.map(m => ({ ...m })))
-  const camRef = useRef(0)
-  const rafRef = useRef(0)
-  const warpLock = useRef(false)
-  const [coinCount, setCoinCount] = useState(0)
-  const [msg, setMsg] = useState('arrows / wasd move · space jumps · collect coins · lower floor portals are real')
+  const [guestName, setGuestName] = useState('')
+  const [guestMsg, setGuestMsg] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+  const [messages, setMessages] = useState(MESSAGES)
 
-  const totalCoins = LEVEL_DATA.coins.size
-
-  const tryWarp = useCallback((id: string, playerY: number) => {
-    if (warpLock.current) return
-    const w = WARPS[id]
-    if (!w) return
-    warpLock.current = true
-    const collectedCoins = totalCoins - coinsRef.current.size
-    const isLowerFloor = playerY === 26
-    if (isLowerFloor && collectedCoins >= WARP_COIN_THRESHOLD) {
-      setMsg(`[ ${w.label} ] — PORTAL ACTIVE`)
-      findSecret(`pixel-warp-${id}`)
-      setTimeout(() => {
-        warpLock.current = false
-        navigateTo(w.worldId as WorldId, { type: 'vortex' as PortalType })
-      }, 800)
-    } else {
-      const wrongSign = isLowerFloor
-        ? `NEED ${WARP_COIN_THRESHOLD - collectedCoins} MORE COINS`
-        : WRONG_SIGNS[parseInt(id) % WRONG_SIGNS.length]
-      setMsg(`[ ${w.label} ] — ${wrongSign}`)
-      findSecret(`pixel-warp-${id}`)
-      setTimeout(() => { warpLock.current = false; setMsg('') }, 2000)
-    }
-  }, [findSecret, navigateTo, totalCoins])
-
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      keysRef.current[e.code] = true
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault()
-    }
-    const up = (e: KeyboardEvent) => { keysRef.current[e.code] = false }
-    window.addEventListener('keydown', down)
-    window.addEventListener('keyup', up)
-    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
-  }, [])
-
-  const setControl = (code: string, down: boolean) => {
-    keysRef.current[code] = down
+  function submitGuest() {
+    if (!guestName.trim() || !guestMsg.trim()) return
+    setMessages(m => [{ from: guestName, time: 'just now', msg: guestMsg }, ...m])
+    setGuestName('')
+    setGuestMsg('')
+    setSubmitted(true)
+    setTimeout(() => setSubmitted(false), 3000)
   }
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    canvas.focus()
-    const ctx = canvas.getContext('2d')!
-    let W = window.innerWidth
-    let H = window.innerHeight
-    const resize = () => {
-      W = window.innerWidth
-      H = window.innerHeight
-      canvas.width = W
-      canvas.height = H
-    }
-    resize()
-    window.addEventListener('resize', resize)
-
-    function tileAt(tx: number, ty: number, solids: Set<string>) {
-      if (tx < 0 || ty < 0 || tx >= LEVEL_DATA.cols || ty >= LEVEL_DATA.rows) return true
-      return solids.has(`${tx},${ty}`)
-    }
-
-    function collide(px: number, py: number, pw: number, ph: number, solids: Set<string>) {
-      const left = Math.floor(px / TILE)
-      const right = Math.floor((px + pw - 1) / TILE)
-      const top = Math.floor(py / TILE)
-      const bottom = Math.floor((py + ph - 1) / TILE)
-      for (let ty = top; ty <= bottom; ty++) {
-        for (let tx = left; tx <= right; tx++) {
-          if (tileAt(tx, ty, solids)) return true
-        }
-      }
-      return false
-    }
-
-    function loop() {
-      const p = playerRef.current
-      const keys = keysRef.current
-      const movers = moversRef.current
-
-      movers.forEach(m => {
-        m.x += m.dir * 1.2
-        if (m.x <= m.minX || m.x >= m.maxX) m.dir *= -1
-      })
-
-      const solids = new Set(LEVEL_DATA.solids)
-      movers.forEach(m => {
-        const tx = Math.floor(m.x / TILE)
-        const ty = Math.floor(m.y / TILE)
-        solids.add(`${tx},${ty}`)
-      })
-
-      if (keys.ArrowLeft || keys.KeyA) p.vx = -MOVE
-      else if (keys.ArrowRight || keys.KeyD) p.vx = MOVE
-      else p.vx *= 0.72
-
-      if ((keys.Space || keys.ArrowUp || keys.KeyW) && p.grounded) {
-        p.vy = JUMP
-        p.grounded = false
-      }
-
-      p.vy += GRAVITY
-      if (p.vy > 14) p.vy = 14
-
-      let nx = p.x + p.vx
-      if (!collide(nx, p.y, p.w, p.h, solids)) p.x = nx
-      else p.vx = 0
-
-      let ny = p.y + p.vy
-      p.grounded = false
-      p.onMover = null
-      if (!collide(p.x, ny, p.w, p.h, solids)) {
-        p.y = ny
-      } else {
-        if (p.vy > 0) {
-          p.y = Math.floor((p.y + p.h) / TILE) * TILE - p.h
-          p.grounded = true
-          p.vy = 0
-          movers.forEach(m => {
-            const tx = Math.floor(m.x / TILE)
-            const ty = Math.floor(m.y / TILE)
-            const px = Math.floor((p.x + p.w / 2) / TILE)
-            const py = Math.floor((p.y + p.h) / TILE)
-            if (px === tx && py === ty) {
-              p.onMover = m
-              p.x += m.dir * 1.2
-            }
-          })
-        } else {
-          p.y = (Math.floor(p.y / TILE) + 1) * TILE
-          p.vy = 0
-        }
-      }
-
-      const ptx = Math.floor((p.x + p.w / 2) / TILE)
-      const pty = Math.floor((p.y + p.h / 2) / TILE)
-      const pkey = `${ptx},${pty}`
-
-      if (LEVEL_DATA.springs.has(pkey) && p.grounded) {
-        p.vy = JUMP * 1.45
-        p.grounded = false
-      }
-
-      if (coinsRef.current.has(pkey)) {
-        coinsRef.current.delete(pkey)
-        const c = totalCoins - coinsRef.current.size
-        setCoinCount(c)
-        if (c === totalCoins) {
-          findSecret('pixel-coins-max')
-          setMsg(`ALL ${totalCoins} COINS. vault unlocked in the index.`)
-        }
-      }
-
-      const warpId = LEVEL_DATA.warps.get(pkey)
-      if (warpId) tryWarp(warpId, pty)
-
-      const targetCam = p.x - W * 0.35
-      camRef.current += (targetCam - camRef.current) * 0.1
-      const camX = Math.max(0, Math.min(camRef.current, LEVEL_DATA.cols * TILE - W))
-
-      // sky gradient
-      const grad = ctx.createLinearGradient(0, 0, 0, H)
-      grad.addColorStop(0, '#1a0a2e')
-      grad.addColorStop(0.5, '#3d0a6b')
-      grad.addColorStop(1, '#ff006e')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, W, H)
-
-      // stars
-      for (let i = 0; i < 80; i++) {
-        const sx = ((i * 137 + camX * 0.2) % (W + 100)) - 50
-        const sy = (i * 89) % (H * 0.6)
-        ctx.fillStyle = `rgba(255,255,255,${0.2 + (i % 5) * 0.1})`
-        ctx.fillRect(sx, sy, 2, 2)
-      }
-
-      ctx.save()
-      ctx.translate(-camX, 0)
-
-      for (let y = 0; y < LEVEL_DATA.rows; y++) {
-        for (let x = 0; x < LEVEL_DATA.cols; x++) {
-          const key = `${x},${y}`
-          const ch = LEVEL[y]?.[x]
-          const px = x * TILE
-          const py = y * TILE
-
-          if (ch === '#') {
-            const col = PALETTE[(x + y) % PALETTE.length]
-            ctx.fillStyle = col
-            ctx.fillRect(px, py, TILE, TILE)
-            ctx.fillStyle = 'rgba(255,255,255,0.25)'
-            ctx.fillRect(px, py, TILE, 3)
-            ctx.fillStyle = 'rgba(0,0,0,0.2)'
-            ctx.fillRect(px, py + TILE - 3, TILE, 3)
-          }
-          if (ch === '^') {
-            const mx = movers.find(m => Math.floor(m.x / TILE) === x && Math.floor(m.y / TILE) === y)
-            const ox = mx ? mx.x : px
-            ctx.fillStyle = '#00F5FF'
-            ctx.fillRect(ox, py + 8, TILE, 8)
-          }
-          if (ch === '!') {
-            ctx.fillStyle = '#FFBE0B'
-            ctx.fillRect(px + 4, py + 4, TILE - 8, TILE - 8)
-            ctx.fillStyle = '#FF006E'
-            ctx.font = '10px "Press Start 2P", monospace'
-            ctx.fillText('!', px + 6, py + 14)
-          }
-          if (ch && ch >= '1' && ch <= '9') {
-            const hue = parseInt(ch) * 40
-            ctx.fillStyle = `hsl(${hue}, 90%, 55%)`
-            ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4)
-            ctx.strokeStyle = '#fff'
-            ctx.lineWidth = 2
-            ctx.strokeRect(px + 2, py + 2, TILE - 4, TILE - 4)
-            ctx.fillStyle = '#fff'
-            ctx.font = '8px "Press Start 2P", monospace'
-            ctx.fillText(ch, px + 6, py + 14)
-          }
-          if (coinsRef.current.has(key)) {
-            ctx.fillStyle = '#FFBE0B'
-            ctx.beginPath()
-            ctx.arc(px + TILE / 2, py + TILE / 2, 5, 0, Math.PI * 2)
-            ctx.fill()
-            ctx.fillStyle = '#FB5607'
-            ctx.fillRect(px + TILE / 2 - 2, py + TILE / 2 - 1, 4, 2)
-          }
-        }
-      }
-
-      ACCESSIBLE_WARPS.forEach((door, i) => {
-        const px = door.x * TILE
-        const py = door.y * TILE
-        const hue = parseInt(door.id) * 40
-        ctx.fillStyle = `hsl(${hue}, 95%, 55%)`
-        ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4)
-        ctx.strokeStyle = i % 2 ? '#05030c' : '#fff'
-        ctx.lineWidth = 2
-        ctx.strokeRect(px + 2, py + 2, TILE - 4, TILE - 4)
-        ctx.fillStyle = '#fff'
-        ctx.font = '8px "Press Start 2P", monospace'
-        ctx.fillText(door.id, px + 6, py + 14)
-      })
-
-      WRONG_SIGNS.forEach((sign, i) => {
-        const sx = (14 + i * 16) * TILE
-        const sy = 24 * TILE + (i % 2) * 14
-        ctx.save()
-        ctx.translate(sx, sy)
-        ctx.rotate((i % 3 - 1) * 0.08)
-        ctx.fillStyle = 'rgba(0,0,0,0.45)'
-        ctx.fillRect(-4, -10, sign.length * 7 + 8, 15)
-        ctx.strokeStyle = 'rgba(255,255,255,0.16)'
-        ctx.strokeRect(-4, -10, sign.length * 7 + 8, 15)
-        ctx.fillStyle = i % 2 ? 'rgba(6,255,165,0.68)' : 'rgba(255,190,11,0.72)'
-        ctx.font = '7px "Press Start 2P", monospace'
-        ctx.fillText(sign, 0, 0)
-        ctx.restore()
-      })
-
-      // player
-      ctx.fillStyle = '#06FFA5'
-      ctx.fillRect(p.x, p.y, p.w, p.h)
-      ctx.fillStyle = '#1a1a2e'
-      ctx.fillRect(p.x + 3, p.y + 4, 3, 3)
-      ctx.fillRect(p.x + 8, p.y + 4, 3, 3)
-      ctx.fillStyle = '#FF006E'
-      ctx.fillRect(p.x + 4, p.y + 11, 6, 2)
-
-      ctx.restore()
-
-      rafRef.current = requestAnimationFrame(loop)
-    }
-
-    rafRef.current = requestAnimationFrame(loop)
-    return () => {
-      cancelAnimationFrame(rafRef.current)
-      window.removeEventListener('resize', resize)
-    }
-  }, [tryWarp, findSecret, totalCoins])
-
   return (
-    <div data-world="14" style={{ position: 'fixed', inset: 0, background: '#1a0a2e', overflow: 'hidden' }}>
-      <canvas ref={canvasRef} tabIndex={0} style={{ display: 'block', width: '100%', height: '100%', imageRendering: 'pixelated', outline: 'none' }} />
-      <div style={{
-        position: 'fixed',
-        top: 16,
-        left: 16,
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: 8,
-        color: '#FFBE0B',
-        lineHeight: 2.2,
-        textShadow: '2px 2px 0 #FF006E',
-        pointerEvents: 'none',
-        maxWidth: 320,
-      }}>
-        <div>★ PIXEL QUEST? ★</div>
-        <div style={{ color: '#06FFA5', fontSize: 7 }}>COINS {coinCount}/{totalCoins}</div>
-        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 6, marginTop: 8, lineHeight: 1.8 }}>{msg}</div>
-        <div style={{ color: 'rgba(255,255,255,0.28)', fontSize: 6, marginTop: 8, lineHeight: 1.8 }}>
-          {coinCount >= WARP_COIN_THRESHOLD
-            ? 'lower floor portals: unlocked · walk through them'
-            : `upper floor lies · lower floor needs ${WARP_COIN_THRESHOLD - coinCount} more coins`}
-        </div>
+    <div style={{
+      minHeight: '100vh', width: '100vw', position: 'fixed', inset: 0, overflowY: 'auto',
+      background: '#660033',
+      backgroundImage: [
+        'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255,0,100,0.3) 0%, transparent 60%)',
+        'radial-gradient(ellipse 60% 40% at 50% 100%, rgba(100,0,50,0.5) 0%, transparent 60%)',
+      ].join(', '),
+      fontFamily: '"Comic Sans MS", "Comic Sans", cursive',
+      color: '#ffccdd',
+    }}>
+      <style>{`
+        @keyframes w14-heart { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+        @keyframes w14-float { 0%{transform:translateY(100vh) scale(0.5);opacity:0} 100%{transform:translateY(-20px) scale(1);opacity:0.6} }
+        @keyframes w14-shimmer { 0%,100%{text-shadow:0 0 8px #ff0066,0 0 20px #cc0044} 50%{text-shadow:0 0 16px #ff66aa,0 0 40px #ff0066,0 0 60px rgba(255,0,100,0.4)} }
+        @keyframes w14-spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+        .w14-heart { animation: w14-heart 1.2s ease-in-out infinite }
+        .w14-float1 { animation: w14-float 4s ease-in infinite; animation-delay: 0s }
+        .w14-float2 { animation: w14-float 5s ease-in infinite; animation-delay: 1.3s }
+        .w14-float3 { animation: w14-float 6s ease-in infinite; animation-delay: 2.7s }
+        .w14-float4 { animation: w14-float 4.5s ease-in infinite; animation-delay: 0.8s }
+        .w14-shimmer { animation: w14-shimmer 2s ease-in-out infinite }
+        a { color: #ffaacc; text-decoration: underline; cursor: pointer }
+        a:hover { color: #ffffff }
+        input,textarea { font-family: "Comic Sans MS", cursive }
+      `}</style>
+
+      {/* Floating hearts */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
+        {['w14-float1','w14-float2','w14-float3','w14-float4'].map((cls, i) => (
+          <div key={i} className={cls} style={{ position: 'absolute', left: `${15 + i * 22}%`, bottom: 0, fontSize: 24 + i * 6, opacity: 0 }}>❤️</div>
+        ))}
       </div>
-      <div style={{
-        position: 'fixed',
-        right: 18,
-        top: 18,
-        fontFamily: '"Press Start 2P", monospace',
-        fontSize: 6,
-        color: 'rgba(255,255,255,0.36)',
-        lineHeight: 2,
-        textAlign: 'right',
-        pointerEvents: 'none',
-        textShadow: '1px 1px 0 #3A86FF',
-      }}>
-        <div>MAP CERTAINTY: 12%</div>
-        <div>FLOOR INDEX: WRONG</div>
-        <div>PLAYER: UNSORTED</div>
-      </div>
-      <div style={{
-        position: 'fixed',
-        left: 18,
-        right: 18,
-        bottom: 18,
-        display: 'flex',
-        justifyContent: 'space-between',
-        pointerEvents: 'none',
-      }}>
-        <div style={{ display: 'flex', gap: 8, pointerEvents: 'all' }}>
-          {[
-            ['ArrowLeft', '<'],
-            ['ArrowRight', '>'],
-          ].map(([code, label]) => (
-            <button
-              key={code}
-              onPointerDown={() => setControl(code, true)}
-              onPointerUp={() => setControl(code, false)}
-              onPointerLeave={() => setControl(code, false)}
-              style={{
-                width: 46,
-                height: 46,
-                border: '1px solid rgba(255,255,255,0.18)',
-                background: 'rgba(0,0,0,0.42)',
-                color: '#FFBE0B',
-                fontFamily: '"Press Start 2P", monospace',
-                fontSize: 13,
-                cursor: 'none',
-              }}
-            >
-              {label}
-            </button>
-          ))}
+
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', padding: '24px 16px 16px', borderBottom: '3px double rgba(255,150,180,0.4)' }}>
+          <div className="w14-heart" style={{ fontSize: 40, display: 'block', marginBottom: 10 }}>💝</div>
+          <div className="w14-shimmer" style={{ fontSize: 'clamp(1.8rem,7vw,4rem)', color: '#ff6699', lineHeight: 1.1 }}>
+            Welcome to My Heart
+          </div>
+          <div style={{ fontSize: 13, color: 'rgba(255,180,200,0.8)', marginTop: 8, fontStyle: 'italic' }}>
+            A place of love, beauty, and feelings ❤️ ~*~ Est. 1999 ~*~
+          </div>
+          <div style={{ marginTop: 12, fontSize: 20, letterSpacing: '0.4em' }}>
+            💕 💗 💖 💓 💞 💕
+          </div>
         </div>
-        <button
-          onPointerDown={() => setControl('Space', true)}
-          onPointerUp={() => setControl('Space', false)}
-          onPointerLeave={() => setControl('Space', false)}
-          style={{
-            width: 74,
-            height: 46,
-            border: '1px solid rgba(255,255,255,0.18)',
-            background: 'rgba(0,0,0,0.42)',
-            color: '#06FFA5',
-            fontFamily: '"Press Start 2P", monospace',
-            fontSize: 8,
-            cursor: 'none',
-          }}
-        >
-          LIFT?
-        </button>
+
+        <div style={{ maxWidth: 780, margin: '0 auto', padding: '18px 14px 40px' }}>
+
+          {/* Welcome message */}
+          <div style={{ border: '2px solid rgba(255,100,150,0.5)', padding: '14px 18px', marginBottom: 16, background: 'rgba(100,0,40,0.6)', textAlign: 'center' }}>
+            <div style={{ fontSize: 15, color: '#ffaabb', textDecoration: 'underline', marginBottom: 10 }}>
+              💌 Hello and Welcome!!
+            </div>
+            <div style={{ fontSize: 12, color: '#ffccdd', lineHeight: 2 }}>
+              Hi! This is my little heart on the internet. I made this page because I believe in love
+              and I wanted somewhere to put all my feelings and share them with the world!!<br />
+              I hope you feel welcome here. Please sign my guestbook and let me know you visited!! <br />
+              <span style={{ color: '#ff88aa' }}>~*~ love, Tyler ~*~</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+
+            {/* Emoticon glossary */}
+            <div style={{ border: '2px solid rgba(255,100,150,0.5)', padding: '12px 14px', background: 'rgba(80,0,30,0.6)' }}>
+              <div style={{ fontSize: 13, color: '#ff99bb', textDecoration: 'underline', marginBottom: 10 }}>
+                😊 Emoticon Glossary
+              </div>
+              <div style={{ fontSize: 10, lineHeight: 2.2 }}>
+                {EMOTICONS.map(({ em, meaning }) => (
+                  <div key={em} style={{ display: 'flex', gap: 8 }}>
+                    <span style={{ color: '#ffddee', fontFamily: 'monospace', minWidth: 60 }}>{em}</span>
+                    <span style={{ color: 'rgba(255,200,220,0.8)' }}>= {meaning}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right column */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* About */}
+              <div style={{ border: '2px solid rgba(255,100,150,0.5)', padding: '12px 14px', background: 'rgba(80,0,30,0.6)' }}>
+                <div style={{ fontSize: 13, color: '#ff99bb', textDecoration: 'underline', marginBottom: 8 }}>
+                  💖 About Me
+                </div>
+                <div style={{ fontSize: 11, color: '#ffccdd', lineHeight: 2 }}>
+                  Name: Tyler<br />
+                  Location: Boulder, CO 🏔️<br />
+                  Sign: <a>Taurus ♉</a><br />
+                  Favorite: Purple & crimson<br />
+                  Loves: Mountains, code, music<br />
+                  Status: 💕 in love with life
+                </div>
+              </div>
+
+              {/* Favorites */}
+              <div style={{ border: '2px solid rgba(255,100,150,0.5)', padding: '12px 14px', background: 'rgba(80,0,30,0.6)' }}>
+                <div style={{ fontSize: 13, color: '#ff99bb', textDecoration: 'underline', marginBottom: 8 }}>
+                  🌹 Things I Love
+                </div>
+                <div style={{ fontSize: 10, color: '#ffccdd', lineHeight: 2.2 }}>
+                  ❤️ Trail running at dawn<br />
+                  💜 Building things from nothing<br />
+                  💙 Mountains after rain<br />
+                  💚 Music nobody else knows<br />
+                  🧡 Finishing what I start<br />
+                  🤍 3am when it all clicks
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Guestbook sign */}
+          <div style={{ border: '2px solid rgba(255,100,150,0.5)', padding: '14px', marginBottom: 14, background: 'rgba(80,0,30,0.6)' }}>
+            <div style={{ fontSize: 13, color: '#ff99bb', textDecoration: 'underline', marginBottom: 12 }}>
+              📝 Sign My Guestbook!!!
+            </div>
+            {submitted ? (
+              <div style={{ textAlign: 'center', fontSize: 13, color: '#ff88aa', padding: '14px', border: '1px solid rgba(255,100,150,0.4)' }}>
+                💕 Thank you for signing!! You made my day!! 💕
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input
+                  value={guestName} onChange={e => setGuestName(e.target.value)}
+                  placeholder="Your name..."
+                  style={{ padding: '6px 10px', background: 'rgba(100,0,40,0.8)', border: '1px solid rgba(255,100,150,0.4)', color: '#ffccdd', fontSize: 11, outline: 'none' }}
+                />
+                <textarea
+                  value={guestMsg} onChange={e => setGuestMsg(e.target.value)}
+                  placeholder="Leave a message!! :-)"
+                  rows={3}
+                  style={{ padding: '6px 10px', background: 'rgba(100,0,40,0.8)', border: '1px solid rgba(255,100,150,0.4)', color: '#ffccdd', fontSize: 11, outline: 'none', resize: 'vertical' }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={submitGuest}
+                    style={{ padding: '6px 18px', background: '#880033', border: '2px outset #cc4466', color: '#ffccdd', fontSize: 11, cursor: 'pointer' }}
+                  >
+                    Sign!! 💕
+                  </button>
+                  <span style={{ fontSize: 10, color: 'rgba(255,180,200,0.5)', alignSelf: 'center' }}>
+                    (be nice!! this is a love zone)
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Guestbook messages */}
+          <div style={{ border: '2px solid rgba(255,100,150,0.5)', padding: '12px 14px', marginBottom: 16, background: 'rgba(80,0,30,0.6)' }}>
+            <div style={{ fontSize: 13, color: '#ff99bb', textDecoration: 'underline', marginBottom: 10 }}>
+              💬 Guestbook Messages
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {messages.map((m, i) => (
+                <div key={i} style={{ padding: '8px 10px', background: 'rgba(120,0,50,0.5)', borderLeft: '3px solid rgba(255,100,150,0.5)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 10, color: '#ff88aa', fontWeight: 'bold' }}>{m.from}</span>
+                    <span style={{ fontSize: 8, color: 'rgba(255,180,200,0.4)' }}>{m.time}</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: '#ffccdd', lineHeight: 1.7 }}>{m.msg}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={{ textAlign: 'center', borderTop: '2px double rgba(255,100,150,0.4)', paddingTop: 14 }}>
+            <div style={{ fontSize: 18, letterSpacing: '0.3em', marginBottom: 10 }}>💝 💗 💖 💓 💞</div>
+            <div style={{ fontSize: 11, lineHeight: 2.4 }}>
+              <a onClick={() => navigateTo(1, { type: 'door' })}>← Return to Universe</a>
+              &nbsp;·&nbsp; <a>Web Ring of Hearts</a> &nbsp;·&nbsp; <a>My Favorite Love Songs</a>
+            </div>
+            <div style={{ fontSize: 9, color: 'rgba(255,180,200,0.4)', marginTop: 10, lineHeight: 2 }}>
+              This page is dedicated to everyone who has ever felt something deeply.<br />
+              © 1999–2026 · Made with lots of love and Comic Sans
+            </div>
+          </div>
+        </div>
       </div>
       <HomeButton />
     </div>
