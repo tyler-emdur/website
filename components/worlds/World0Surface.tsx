@@ -499,6 +499,72 @@ export default function World0Surface() {
         .w0-widget-wrap, .w0-widget-wrap * { max-width: 100% !important; box-sizing: border-box !important; }
         .w0-widget-wrap table { width: 100% !important; border-collapse: collapse !important; }
         .w0-widget-wrap td, .w0-widget-wrap th { font-family: "Courier New", monospace !important; font-size: 9px !important; word-break: break-all; }
+
+        /* ===  More GIF-like retro decorations === */
+        @keyframes w0-bounce {
+          0%,100% { transform: translateY(0) rotate(0deg); }
+          30% { transform: translateY(-11px) rotate(-6deg); }
+          60% { transform: translateY(-5px) rotate(4deg); }
+        }
+        .w0-bounce { animation: w0-bounce 0.85s ease-in-out infinite; display: inline-block; }
+
+        @keyframes w0-wiggle-gif {
+          0%,100% { transform: rotate(-8deg) scale(1); }
+          50% { transform: rotate(8deg) scale(1.1); }
+        }
+        .w0-wiggle-gif { animation: w0-wiggle-gif 0.38s ease-in-out infinite; display: inline-block; }
+
+        @keyframes w0-twinkle {
+          0%,100% { opacity:1; transform:scale(1) rotate(0deg); color:#ffff00; }
+          25% { opacity:0.25; transform:scale(0.75) rotate(20deg); color:#ff00ff; }
+          50% { opacity:1; transform:scale(1.25) rotate(0deg); color:#00ffff; }
+          75% { opacity:0.5; transform:scale(0.85) rotate(-20deg); color:#ff8800; }
+        }
+        .w0-twinkle   { animation: w0-twinkle 1.1s ease-in-out infinite; display:inline-block; }
+        .w0-twinkle-b { animation: w0-twinkle 1.1s ease-in-out infinite 0.37s; display:inline-block; }
+        .w0-twinkle-c { animation: w0-twinkle 1.1s ease-in-out infinite 0.74s; display:inline-block; }
+
+        @keyframes w0-rainbow-hr {
+          0%   { background-position: 0% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+        .w0-hr-rainbow {
+          height: 5px; border: none; margin: 7px 0;
+          background: linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000);
+          background-size: 200% auto;
+          animation: w0-rainbow-hr 1.4s linear infinite;
+        }
+
+        @keyframes w0-gb-flash {
+          0%,49% { background:#ff6600; color:#fff; border-color:#ff9900; }
+          50%,100% { background:#ffff00; color:#cc0000; border-color:#ff0000; }
+        }
+        .w0-guestbook {
+          animation: w0-gb-flash 0.75s step-end infinite;
+          display:block; text-align:center; width:calc(100% - 8px);
+          font-family:"Arial Black",Arial,sans-serif; font-size:9px; font-weight:900;
+          padding:5px 4px; cursor:pointer; border:2px outset #ff9900;
+          text-decoration:none; letter-spacing:1px; margin:4px;
+        }
+
+        @keyframes w0-click-pulse {
+          0%,100% { transform:scale(1); box-shadow:0 0 4px #ff0; }
+          50% { transform:scale(1.04); box-shadow:0 0 14px #ff0, 0 0 28px #f80; }
+        }
+        .w0-click-here {
+          animation: w0-click-pulse 0.9s ease-in-out infinite;
+          display:inline-block; background:linear-gradient(180deg,#ff4400,#cc0000);
+          color:#fff; font-family:"Press Start 2P",monospace; font-size:8px;
+          padding:6px 16px; border:3px outset #ff8800; cursor:pointer;
+          text-shadow:1px 1px 0 #000; letter-spacing:1px;
+        }
+
+        @keyframes w0-pixel-float {
+          0%,100% { transform: translateY(0px) rotate(0deg); }
+          33% { transform: translateY(-8px) rotate(5deg); }
+          66% { transform: translateY(-4px) rotate(-3deg); }
+        }
+        .w0-pixel-float { animation: w0-pixel-float 3s ease-in-out infinite; display:inline-block; }
       `}</style>
 
       {/* Browser chrome */}
@@ -595,6 +661,28 @@ export default function World0Surface() {
             </div>
           </MiniPanel>
 
+          {/* GeoCities decoration strip */}
+          <div style={{ padding: '6px 4px', textAlign: 'center', borderTop: `2px groove ${BORDER}`, background: '#000044' }}>
+            <div style={{ fontSize: 18, lineHeight: 1.4, letterSpacing: 4 }}>
+              <span className="w0-twinkle">★</span>
+              <span className="w0-bounce" style={{ fontSize: 16 }}>✦</span>
+              <span className="w0-twinkle-b">✺</span>
+              <span className="w0-wiggle-gif" style={{ fontSize: 14 }}>♦</span>
+              <span className="w0-twinkle-c">★</span>
+            </div>
+            <button className="w0-guestbook" onClick={go}>✍ SIGN MY GUESTBOOK</button>
+            <div style={{ fontSize: 18, lineHeight: 1.4, letterSpacing: 4 }}>
+              <span className="w0-twinkle-c">★</span>
+              <span className="w0-wiggle-gif" style={{ fontSize: 14 }}>♦</span>
+              <span className="w0-twinkle-b">✺</span>
+              <span className="w0-bounce" style={{ fontSize: 16 }}>✦</span>
+              <span className="w0-twinkle">★</span>
+            </div>
+            <div style={{ marginTop: 5, fontSize: 8, color: '#555588', fontFamily: '"Press Start 2P", monospace', lineHeight: 1.7 }}>
+              free webpage<br />hosted on earth
+            </div>
+          </div>
+
         </div>
 
         {/* CENTER */}
@@ -625,8 +713,13 @@ export default function World0Surface() {
               <div style={{ fontFamily: 'VT323, monospace', fontSize: 22, color: '#00ff00', textShadow: '0 0 8px #00ff00', marginBottom: 4 }}>
                 17 worlds. Infinite possibilities.
               </div>
-              <div style={{ fontSize: 11, color: '#aaaacc', marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#aaaacc', marginBottom: 8 }}>
                 Choose your destination<span className="w0-cursor">_</span>
+              </div>
+              <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center', gap: 10, alignItems: 'center' }}>
+                <span className="w0-twinkle" style={{ fontSize: 13 }}>✦</span>
+                <button className="w0-click-here" onClick={go}>CLICK HERE!!!</button>
+                <span className="w0-twinkle-b" style={{ fontSize: 13 }}>✦</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
                 <button className="w0-ebtn" onClick={go} style={{ background: 'linear-gradient(180deg,#00cc44,#006622)', color: '#fff', borderColor: '#00ff88' }}>
@@ -639,6 +732,19 @@ export default function World0Surface() {
             </div>
             <img className="w0-img w0-spin" src={img('globe')} alt="" style={{ position: 'absolute', bottom: 12, left: 20, width: 48, height: 48, zIndex: 4, opacity: 0.75, animationDuration: '14s' }} />
             <img className="w0-img w0-rocket" src={img('rocket')} alt="" style={{ position: 'absolute', top: '36%', right: '5%', width: 68, height: 42, transform: 'rotate(-18deg)', zIndex: 4, opacity: 0.85 }} />
+            {/* Floating decorative GIF-like elements */}
+            <span className="w0-pixel-float" style={{ position: 'absolute', top: '12%', left: '8%', fontSize: 22, zIndex: 4 }}>
+              <span className="w0-twinkle">✺</span>
+            </span>
+            <span className="w0-pixel-float" style={{ position: 'absolute', top: '20%', right: '18%', fontSize: 18, zIndex: 4, animationDelay: '1s' }}>
+              <span className="w0-twinkle-b">★</span>
+            </span>
+            <span className="w0-pixel-float" style={{ position: 'absolute', bottom: '25%', right: '22%', fontSize: 20, zIndex: 4, animationDelay: '2s' }}>
+              <span className="w0-twinkle-c">✦</span>
+            </span>
+            <span className="w0-pixel-float" style={{ position: 'absolute', bottom: '18%', left: '30%', fontSize: 16, zIndex: 4, animationDelay: '0.5s' }}>
+              <span className="w0-twinkle">♦</span>
+            </span>
           </div>
 
           {/* Welcome + Log */}
@@ -646,17 +752,17 @@ export default function World0Surface() {
             <div className="w0-welcome" style={{ padding: 0 }}>
               <div className="w0-construct" title="under construction" />
               <div style={{ padding: '8px 10px 10px', position: 'relative', zIndex: 12 }}>
-                <div style={{ textAlign: 'center', marginBottom: 8 }}>
-                  <span className="w0-gif-star" style={{ fontSize: 16, marginRight: 4 }}>★</span>
+                <div style={{ textAlign: 'center', marginBottom: 6 }}>
+                  <span className="w0-twinkle" style={{ fontSize: 16, marginRight: 4 }}>★</span>
                   <span className="w0-flash-ad">NEW!</span>
                   {' '}
                   <span className="w0-rainbow w0-wobble" style={{ fontSize: 12, fontWeight: 'bold', fontFamily: '"Comic Sans MS",cursive' }}>
                     WELCOME TO MY HOMEPAGE!!!
                   </span>
                   {' '}
-                  <span className="w0-gif-star" style={{ fontSize: 16, marginLeft: 4, animationDelay: '0.6s' }}>★</span>
+                  <span className="w0-twinkle-b" style={{ fontSize: 16, marginLeft: 4 }}>★</span>
                 </div>
-                <hr />
+                <div className="w0-hr-rainbow" />
                 <p style={{ fontSize: 11, lineHeight: 1.7, color: '#222', marginBottom: 7, textAlign: 'center', position: 'relative', zIndex: 12 }}>
                   <b>Hello and welcome!</b> I&apos;m a software engineer and everything I build is cool.
                 </p>
@@ -664,7 +770,7 @@ export default function World0Surface() {
                   This multiverse of <b>17 websites</b> represents my work and interests.
                   Tell your friends. Add me to your webring.
                 </p>
-                <hr />
+                <div className="w0-hr-rainbow" />
                 <p style={{ fontSize: 11, lineHeight: 1.6, color: '#222', marginBottom: 5, position: 'relative', zIndex: 12 }}>
                   Boulder, CO &bull; <span className="w0-gif-mail" style={{ fontSize: 13 }}>✉</span>{' '}
                   <a href="mailto:tyler@tyleremdur.com" style={{ color: '#0000cc' }}>tyler@tyleremdur.com</a><br />
