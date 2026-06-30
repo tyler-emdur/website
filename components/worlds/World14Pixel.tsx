@@ -99,7 +99,7 @@ function parseLevel() {
       const key = `${x},${y}`
       if (ch === '#') solids.add(key)
       else if (ch === 'C') coins.add(key)
-      else if (ch === 'P') spawn = { x: x * TILE, y: y * TILE - 8 }
+      else if (ch === 'P') spawn = { x: x * TILE, y: y * TILE }
       else if (ch === '!') springs.add(key)
       else if (ch === '^') {
         solids.add(key)

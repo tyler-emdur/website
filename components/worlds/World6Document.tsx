@@ -146,23 +146,22 @@ You got here. That's something.`,
 // ─── STRING CONNECTIONS ──────────────────────────────────────────────────────
 // [from_id, to_id, color]
 const STRINGS: [string, string, string][] = [
-  ['note1', 'doc1', '#cc4422'],
-  ['note1', 'redact1', '#cc4422'],
-  ['note2', 'doc1', '#cc8822'],
-  ['note2', 'card1', '#bb3311'],
-  ['doc2', 'card2', '#334488'],
-  ['redact2', 'card1', '#882222'],
+  ['note1', 'doc1',    'rgba(200,60,30,0.65)'],
+  ['note1', 'redact1', 'rgba(200,60,30,0.65)'],
+  ['note2', 'doc1',    'rgba(180,140,20,0.55)'],
+  ['note2', 'card1',   'rgba(200,60,30,0.55)'],
+  ['doc2',  'card2',   'rgba(40,80,200,0.55)'],
+  ['redact2','card1',  'rgba(190,30,30,0.65)'],
 ]
 
 // ─── HELPER: pin shape ───────────────────────────────────────────────────────
 function Pin({ color }: { color: string }) {
   return (
     <div style={{
-      position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
+      position: 'absolute', top: -5, left: '50%', transform: 'translateX(-50%)',
       zIndex: 2,
     }}>
-      <div style={{ width: 14, height: 14, borderRadius: '50%', background: color, boxShadow: `0 2px 6px rgba(0,0,0,0.6), 0 0 0 2px rgba(0,0,0,0.3)`, margin: '0 auto' }} />
-      <div style={{ width: 2, height: 8, background: 'rgba(0,0,0,0.4)', margin: '0 auto' }} />
+      <div style={{ width: 5, height: 5, borderRadius: '50%', background: color, opacity: 0.6, margin: '0 auto' }} />
     </div>
   )
 }
@@ -250,54 +249,43 @@ export default function World6Document() {
       data-world="6"
       style={{
         position: 'fixed', inset: 0,
-        background: '#1c1208',
+        background: '#b89b72',
         overflow: 'hidden',
         cursor: dragging ? 'grabbing' : 'default',
       }}
       onClick={() => setFocused(null)}
     >
-      {/* Overhead lamp glow */}
+      {/* Cork texture overlay */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: '60%',
-        background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,200,80,0.07) 0%, transparent 80%)',
-        pointerEvents: 'none',
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        backgroundImage: `repeating-linear-gradient(45deg, rgba(0,0,0,0.03) 0px, transparent 2px, transparent 8px, rgba(0,0,0,0.025) 10px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.04) 0px, transparent 3px, transparent 9px, rgba(255,255,255,0.03) 12px)`,
+        backgroundSize: '14px 14px, 14px 14px',
+      }} />
+      {/* Subtle radial light source */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        background: 'radial-gradient(ellipse 80% 70% at 50% 40%, rgba(255,255,255,0.08) 0%, transparent 70%)',
       }} />
 
       {/* Header */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '10px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 50, pointerEvents: 'none' }}>
-        <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,160,60,0.4)', letterSpacing: '0.3em' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 50, pointerEvents: 'none', background: 'rgba(100,75,45,0.5)', borderBottom: '1px solid rgba(0,0,0,0.15)' }}>
+        <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 8, color: 'rgba(255,245,230,0.75)', letterSpacing: '0.3em' }}>
           INVESTIGATION FILE · SUBJECT: T.E. · CONFIDENTIAL
         </div>
-        <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,160,60,0.25)', letterSpacing: '0.15em' }}>
+        <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 8, color: 'rgba(255,245,230,0.45)', letterSpacing: '0.15em' }}>
           {items.filter(i => i.type === 'redacted' && i.unredacted).length}/{items.filter(i => i.type === 'redacted').length} REDACTIONS CLEARED
         </div>
       </div>
 
-      {/* Corkboard */}
+      {/* Canvas — dark, open space */}
       <div
         ref={boardRef}
         style={{
           position: 'absolute',
-          top: 36, left: 12, right: 12, bottom: 12,
-          backgroundImage: `
-            radial-gradient(circle at 30% 40%, rgba(180,130,70,0.18) 0%, transparent 50%),
-            radial-gradient(circle at 70% 60%, rgba(160,110,50,0.12) 0%, transparent 45%)
-          `,
-          backgroundColor: '#3d2b14',
-          borderRadius: 4,
-          border: '6px solid #2a1c08',
-          boxShadow: 'inset 0 0 40px rgba(0,0,0,0.5)',
+          top: 36, left: 0, right: 0, bottom: 0,
           overflow: 'hidden',
         }}
       >
-        {/* Cork texture overlay */}
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          backgroundImage: `
-            repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.03) 3px, rgba(0,0,0,0.03) 4px),
-            repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(0,0,0,0.02) 3px, rgba(0,0,0,0.02) 4px)
-          `,
-        }} />
 
         {/* SVG strings */}
         <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
@@ -327,12 +315,17 @@ export default function World6Document() {
 
           const w = item.type === 'photo' ? 170 : item.type === 'note' ? 180 : item.type === 'card' ? 200 : 240
           const bg = item.type === 'note'
-            ? '#f5e060'
+            ? '#f5e83a'
             : item.type === 'photo'
-            ? '#e8e0d0'
+            ? '#f8f4ed'
             : item.type === 'redacted' && !item.unredacted
-            ? '#e8e8e0'
-            : '#f5f0e8'
+            ? '#fff0ee'
+            : '#faf7f1'
+          const borderColor = item.type === 'note'
+            ? 'rgba(160,140,0,0.25)'
+            : item.type === 'redacted' && !item.unredacted
+            ? 'rgba(180,40,40,0.2)'
+            : 'rgba(0,0,0,0.12)'
 
           return (
             <div
@@ -350,80 +343,82 @@ export default function World6Document() {
                 zIndex: isFocused ? 100 : zIndex,
                 transition: dragging === item.id ? 'none' : 'transform 0.15s, box-shadow 0.15s',
                 boxShadow: isFocused
-                  ? '4px 6px 24px rgba(0,0,0,0.7)'
-                  : '2px 4px 12px rgba(0,0,0,0.5)',
+                  ? `0 12px 36px rgba(0,0,0,0.35), 0 0 0 1px ${borderColor}`
+                  : `0 4px 14px rgba(0,0,0,0.22), 0 0 0 1px ${borderColor}`,
                 userSelect: 'none',
               }}
             >
-              <Pin color={item.pinColor || '#cc2222'} />
+              <Pin color={item.pinColor || '#cc4444'} />
 
               <div style={{
                 background: bg,
-                padding: item.type === 'photo' ? '10px 10px 30px' : '12px 14px',
+                border: `1px solid ${borderColor}`,
+                padding: item.type === 'photo' ? '10px 10px 24px' : '14px 16px',
                 fontFamily: item.type === 'note'
                   ? '"Special Elite", Georgia, serif'
-                  : '"Unna", Georgia, serif',
+                  : '"JetBrains Mono", monospace',
                 minHeight: item.type === 'photo' ? 140 : undefined,
               }}>
                 {/* Photo inner */}
                 {item.type === 'photo' && (
-                  <div style={{ width: '100%', height: 110, background: 'rgba(80,60,40,0.2)', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.08)' }}>
-                    <div style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(80,60,40,0.4)', letterSpacing: '0.1em' }}>[{item.title}]</div>
+                  <div style={{ width: '100%', height: 110, background: '#e8e0d0', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.08)' }}>
+                    <div style={{ fontSize: 8, fontFamily: '"JetBrains Mono", monospace', color: 'rgba(0,0,0,0.3)', letterSpacing: '0.1em' }}>[{item.title}]</div>
                   </div>
                 )}
 
                 {item.title && item.type !== 'photo' && (
-                  <div style={{ fontSize: 8, fontFamily: 'monospace', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.18em', marginBottom: 8, textTransform: 'uppercase' }}>{item.title}</div>
+                  <div style={{ fontSize: 7, fontFamily: '"JetBrains Mono", monospace', color: 'rgba(0,0,0,0.35)', letterSpacing: '0.22em', marginBottom: 10, textTransform: 'uppercase' }}>{item.title}</div>
                 )}
 
                 {/* Redacted body */}
                 {isRedacted ? (
-                  <div style={{ fontSize: 9, lineHeight: 1.8, color: 'rgba(0,0,0,0.7)', whiteSpace: 'pre-wrap' }}>
+                  <div style={{ fontSize: 9, lineHeight: 1.9, color: 'rgba(30,20,10,0.7)', whiteSpace: 'pre-wrap' }}>
                     {(item.redactedBody || '').split('[REDACTED]').map((seg, i, arr) => (
                       <span key={i}>
                         {seg}
                         {i < arr.length - 1 && (
                           <span style={{
-                            background: prog > i ? 'transparent' : '#1a1a1a',
-                            color: prog > i ? 'rgba(0,0,0,0.7)' : 'transparent',
+                            background: prog > i ? 'transparent' : 'rgba(20,10,5,0.85)',
+                            color: prog > i ? 'rgba(30,20,10,0.7)' : 'transparent',
                             padding: '0 2px', cursor: 'pointer',
-                            transition: 'background 0.3s, color 0.3s',
+                            transition: 'background 0.4s, color 0.4s',
+                            borderRadius: 1,
                           }}>
                             {'████████████'.slice(0, 8 + i * 2)}
                           </span>
                         )}
                       </span>
                     ))}
-                    <div style={{ marginTop: 8, fontSize: 7, color: 'rgba(0,0,0,0.2)', fontFamily: 'monospace' }}>
+                    <div style={{ marginTop: 10, fontSize: 7, color: 'rgba(30,20,10,0.3)', fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.1em' }}>
                       CLICK TO REVEAL ({prog}/5)
                     </div>
                   </div>
                 ) : (
-                  <div style={{ fontSize: item.type === 'note' ? 10 : 9, lineHeight: 1.9, color: 'rgba(0,0,0,0.65)', whiteSpace: 'pre-wrap' }}>
+                  <div style={{ fontSize: item.type === 'note' ? 10 : 9, lineHeight: 1.9, color: item.type === 'note' ? 'rgba(40,35,0,0.75)' : 'rgba(20,15,10,0.65)', whiteSpace: 'pre-wrap' }}>
                     {item.body}
                   </div>
                 )}
 
                 {/* Unredacted CTA */}
                 {item.type === 'redacted' && item.unredacted && item.worldId && (
-                  <div style={{ marginTop: 10, padding: '6px 10px', background: 'rgba(0,0,0,0.08)', textAlign: 'center', fontFamily: 'monospace', fontSize: 8, color: 'rgba(0,0,0,0.5)', cursor: 'pointer', letterSpacing: '0.1em' }}>
+                  <div style={{ marginTop: 12, padding: '6px 10px', background: 'rgba(0,0,0,0.06)', textAlign: 'center', fontFamily: '"JetBrains Mono", monospace', fontSize: 7, color: 'rgba(0,0,0,0.4)', cursor: 'pointer', letterSpacing: '0.15em' }}>
                     CONTINUE READING →
                   </div>
                 )}
 
                 {/* Photo caption */}
                 {item.type === 'photo' && (
-                  <div style={{ fontFamily: '"Special Elite", Georgia, serif', fontSize: 9, color: 'rgba(60,40,20,0.5)', textAlign: 'center', whiteSpace: 'pre-wrap' }}>{item.body}</div>
+                  <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 8, color: 'rgba(0,0,0,0.45)', textAlign: 'center', whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>{item.body}</div>
                 )}
 
                 {/* CLASSIFIED stamp on redacted docs */}
                 {item.type === 'redacted' && !item.unredacted && (
                   <div style={{
                     position: 'absolute', bottom: 10, right: 10,
-                    border: '2px solid rgba(180,30,30,0.5)',
-                    color: 'rgba(180,30,30,0.5)',
-                    fontFamily: 'monospace', fontSize: 8,
-                    padding: '2px 8px', letterSpacing: '0.2em',
+                    border: '2px solid rgba(190,30,30,0.6)',
+                    color: 'rgba(190,30,30,0.6)',
+                    fontFamily: '"JetBrains Mono", monospace', fontSize: 7,
+                    padding: '2px 8px', letterSpacing: '0.22em',
                     transform: 'rotate(-8deg)',
                   }}>CLASSIFIED</div>
                 )}
@@ -439,43 +434,44 @@ export default function World6Document() {
           onClick={() => setExpandedCard(null)}
           style={{
             position: 'absolute', inset: 0, zIndex: 200,
-            background: 'rgba(0,0,0,0.75)',
+            background: 'rgba(80,55,25,0.6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backdropFilter: 'blur(2px)',
           }}
         >
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: '#f5f0e8',
+              background: '#faf6ee',
+              borderTop: '3px solid #cc2222',
               padding: '32px 36px',
               maxWidth: 480, width: '90vw',
               maxHeight: '80vh', overflowY: 'auto',
-              boxShadow: '0 20px 80px rgba(0,0,0,0.8)',
-              fontFamily: '"Unna", Georgia, serif',
+              boxShadow: '0 16px 60px rgba(0,0,0,0.4)',
               position: 'relative',
             }}
           >
             {expandedCard.title && (
-              <div style={{ fontSize: 9, fontFamily: 'monospace', color: 'rgba(0,0,0,0.4)', letterSpacing: '0.2em', marginBottom: 16, textTransform: 'uppercase' }}>
+              <div style={{ fontSize: 8, fontFamily: '"JetBrains Mono", monospace', color: 'rgba(0,0,0,0.3)', letterSpacing: '0.24em', marginBottom: 20, textTransform: 'uppercase' }}>
                 {expandedCard.title} · UNREDACTED
               </div>
             )}
-            <div style={{ fontSize: 12, lineHeight: 2.1, color: 'rgba(0,0,0,0.75)', whiteSpace: 'pre-wrap' }}>
+            <div style={{ fontSize: 11, lineHeight: 2.2, color: 'rgba(0,0,0,0.7)', whiteSpace: 'pre-wrap', fontFamily: '"IM Fell English", Georgia, serif', fontStyle: 'italic' }}>
               {expandedCard.body}
             </div>
-            <div style={{ marginTop: 24, fontFamily: 'monospace', fontSize: 8, color: 'rgba(0,0,0,0.25)', letterSpacing: '0.15em' }}>
+            <div style={{ marginTop: 28, fontFamily: '"JetBrains Mono", monospace', fontSize: 7, color: 'rgba(0,0,0,0.2)', letterSpacing: '0.18em' }}>
               CLEARANCE LEVEL: GRANTED · {new Date().toLocaleDateString()}
             </div>
             <div
               onClick={() => setExpandedCard(null)}
-              style={{ marginTop: 12, fontFamily: 'monospace', fontSize: 8, color: 'rgba(0,0,0,0.3)', cursor: 'pointer', letterSpacing: '0.1em' }}
+              style={{ marginTop: 14, fontFamily: '"JetBrains Mono", monospace', fontSize: 7, color: 'rgba(0,0,0,0.35)', cursor: 'pointer', letterSpacing: '0.14em' }}
             >[ close ]</div>
           </div>
         </div>
       )}
 
       {/* Drag hint */}
-      <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', fontFamily: 'monospace', fontSize: 8, color: 'rgba(200,160,60,0.2)', letterSpacing: '0.2em', pointerEvents: 'none' }}>
+      <div style={{ position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', fontFamily: '"JetBrains Mono", monospace', fontSize: 7, color: 'rgba(60,40,10,0.3)', letterSpacing: '0.3em', pointerEvents: 'none' }}>
         DRAG · CLICK · UNREDACT
       </div>
 

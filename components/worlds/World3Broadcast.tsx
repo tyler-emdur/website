@@ -675,6 +675,21 @@ export default function World3Broadcast() {
   }, [])
 
   const ch = CHANNELS[chIdx]
+
+  // Galekto-style: room glow reacts to channel
+  const CHANNEL_GLOW: Record<number, string> = {
+    2:  'rgba(40,40,40,0.08)',
+    4:  'rgba(60,100,180,0.09)',
+    7:  'rgba(60,140,60,0.09)',
+    9:  'rgba(200,150,40,0.09)',
+    13: 'rgba(200,40,40,0.10)',
+    22: 'rgba(200,160,30,0.10)',
+    44: 'rgba(100,100,160,0.08)',
+    66: 'rgba(0,160,80,0.08)',
+    88: 'rgba(0,180,140,0.10)',
+  }
+  const roomGlow = switching ? 'rgba(20,20,20,0.05)' : (CHANNEL_GLOW[ch] ?? 'rgba(160,120,60,0.10)')
+
   const screenContent = () => {
     if (switching) return <StaticScreen />
     switch (ch) {
@@ -702,10 +717,11 @@ export default function World3Broadcast() {
         display:'flex', alignItems:'center', justifyContent:'center',
         overflow:'hidden',
       }}>
-        {/* Screen glow spreading into room */}
+        {/* Screen glow spreading into room — reacts to channel */}
         <div style={{
           position:'absolute', inset:0, pointerEvents:'none',
-          background:'radial-gradient(ellipse 55% 45% at 50% 48%, rgba(160,120,60,0.10) 0%, rgba(100,80,30,0.04) 45%, transparent 72%)',
+          background:`radial-gradient(ellipse 60% 50% at 50% 48%, ${roomGlow} 0%, transparent 72%)`,
+          transition: 'background 1.2s ease',
         }} />
         {/* Deep room vignette beyond monitor */}
         <div style={{

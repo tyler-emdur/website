@@ -35,13 +35,13 @@ const WORLD_TITLES: Record<WorldId, string> = {
   7: 'this tab has been open too long',
   8: 'good evening',
   9: 'Tyler Emdur — tyleremdur.com',
-  10: 'room 10 · room 10 · room 10',
+  10: 'developer · stop · fixer',
   11: 'match the pairs · or dont',
-  12: 'root@wormhole:~#',
-  13: 'falling · falling · falling',
+  12: 'something follows the light',
+  13: 'drag to explore · look up',
   14: '★ PIXEL QUEST ★ press start',
-  15: '··· tuning · · · static · · ·',
-  16: 'master catalog · index incomplete',
+  15: "3:17 · it's always been 3:17",
+  16: 'the attic · everything ends up here',
 }
 
 interface WorldState {
@@ -180,13 +180,13 @@ export function getWorldLog(): string {
     7: 'THE MALL',
     8: 'THE SIGNAL',
     9: 'THE CONTACT PAGE',
-    10: 'THE LOOP',
+    10: 'THE DARKROOM',
     11: 'THE FLICKER',
-    12: 'THE TERMINAL',
-    13: 'THE SPIRAL',
+    12: 'THE MOTH',
+    13: 'THE NIGHT SKY',
     14: 'THE PIXEL',
-    15: 'THE DIAL',
-    16: 'THE CATALOG',
+    15: 'THE KITCHEN',
+    16: 'THE ATTIC',
   }
   const secrets = loadSecrets()
   const lines = [

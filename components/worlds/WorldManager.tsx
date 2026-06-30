@@ -12,13 +12,13 @@ import World6Document from './World6Document'
 import World7Mall from './World7Mall'
 import World8Signal from './World8Signal'
 import World9Contact from './World9Contact'
-import World10Loop from './World10Loop'
+import World10Darkroom from './World10Darkroom'
 import World11Flicker from './World11Flicker'
-import World12Terminal from './World12Terminal'
-import World13Spiral from './World13Spiral'
+import World12Moth from './World12Moth'
+import World13NightSky from './World13NightSky'
 import World14Pixel from './World14Pixel'
-import World15Dial from './World15Dial'
-import World16Catalog from './World16Catalog'
+import World15Kitchen from './World15Kitchen'
+import World16Attic from './World16Attic'
 
 const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
   0: World0Surface,
@@ -31,13 +31,13 @@ const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
   7: World7Mall,
   8: World8Signal,
   9: World9Contact,
-  10: World10Loop,
+  10: World10Darkroom,
   11: World11Flicker,
-  12: World12Terminal,
-  13: World13Spiral,
+  12: World12Moth,
+  13: World13NightSky,
   14: World14Pixel,
-  15: World15Dial,
-  16: World16Catalog,
+  15: World15Kitchen,
+  16: World16Attic,
 }
 
 function WorldConsoleSetup() {

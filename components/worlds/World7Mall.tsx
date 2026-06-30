@@ -1,754 +1,465 @@
 'use client'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
-// ─── STORE DATA ───────────────────────────────────────────────────────────────
+// ── Window data ───────────────────────────────────────────────────────────────
 
-const VEND_ITEMS = [
-  { label: 'CERTAINTY', price: '$4.99', responses: ['MACHINE REGISTERS SELECTION.\nNO DISPENSING MECHANISM FOUND.', 'CHECKING INVENTORY…\nINVENTORY OFFLINE.', 'FOUND SOME.\nCONDITION: UNLISTED.', 'MECHANISM ENGAGES.\nNOTHING FALLS.'] },
-  { label: 'SLEEP', price: '$2.11', responses: ['DISPENSING…\n[MECHANISM JAMS]', '6–8 HOURS\n(ESTIMATE UNVERIFIED)', 'ALREADY DISPENSED.\nEXACT LOCATION UNCLEAR.', 'PROCESSING.\nNO RESULT.'] },
-  { label: 'PURPOSE', price: '$∞', responses: ['MACHINE VIBRATES.\nGOES QUIET.', 'COLUMN B SELECTED.\nCOLUMN B DOES NOT EXIST.', 'PROCESSING…\nSTILL PROCESSING.', 'RECEIPT PRINTED.\nRECEIPT IS BLANK.'] },
-  { label: 'REASONS', price: 'FREE', responses: ['TAKING TOO MANY', 'DISPENSING 3.\nYOU ASKED FOR 1.', 'NONE LISTED IN INVENTORY.', 'MACHINE FLICKERS.\nCOIN RETURNED.'] },
-  { label: 'STATIC', price: '$0.01', responses: ['ALWAYS IN STOCK', '░░▒▓█\n█▓▒░░', 'FRESH BATCH', 'THIS ONE HAS TEETH'] },
-  { label: 'THE ORIGINAL\nIDEA', price: '$???', responses: ['ALREADY YOURS.\nSOMEONE ELSE BOUGHT THE COPY.', 'SOLD 1,200 TIMES.\nSTILL ONE LEFT.', 'MACHINE HUMS.\nTHEN GOES DARK.', 'RECEIPT PRINTED.\nNO CHARGE.'] },
-]
-
-const FOOD_ITEMS = [
-  { name: 'HOUSE SOUP', desc: 'broth, rotating stock', price: '$3.50', responses: ['SERVING IN ~12 MINUTES.\nMINUTES ARE APPROXIMATE.', 'HOT. EXTREMELY HOT.\nCOOLING TIME: UNKNOWN.', 'SOURCE CONFIRMED.\nFLAVOR: FAMILIAR.', 'ORDER PLACED.\nETA: WHENEVER.'] },
-  { name: "YESTERDAY'S SPECIAL", desc: 'out of stock', price: '$0.00', responses: ['OUT OF STOCK.\nWAS IN STOCK YESTERDAY.', 'CHECKED THE BACK.\nNOT THERE ANYMORE.', 'SORRY.\nTRY TOMORROW.', 'NONE LEFT.'] },
-  { name: 'STATIC LG', desc: 'complimentary', price: 'always', responses: ['░░▒▓█ DISPENSING █▓▒░░', 'ALWAYS IN STOCK.\nALWAYS.', 'COMPLIMENTARY.\nNO RECEIPT.', '░▒▓ ENJOY ▓▒░'] },
-  { name: 'PENDING ORDER', desc: 'estimated: 3 business days', price: '$CONTACT', responses: ['ORDER PLACED.\nESTIMATED: 3 BUSINESS DAYS.', 'PROCESSING.', 'WE WILL REACH OUT.', 'RECEIPT ISSUED.\nSTILL PENDING.'] },
-  { name: 'DAILY SPECIAL', desc: 'limited qty', price: 'ask cashier', responses: ['CASHIER UNAVAILABLE.', 'LIMITED QTY: 1.\nALREADY ACCOUNTED FOR.', 'CANNOT BE ORDERED.\nONLY ENCOUNTERED.', 'ASK CASHIER.\nCASHIER IS NOT HERE.'] },
-  { name: 'FRIES', desc: 'see main counter', price: '$3.25', responses: ['AVAILABLE.\nFRYER STATUS: UNCERTAIN.', 'CRISPY. PROBABLY.', 'ORDER CONFIRMED.\nSTATION B IS UNMANNED.', 'FOUND SOME IN BACK.\nCONDITION: UNCHECKED.'] },
-]
-
-const MANNEQUIN_LINES = [
-  'the eyes are\npainted on',
-  'this position has\nnot changed since 1994',
-  'inventory tag:\nremoved',
-  'the joints still move.\nnobody has checked why',
-  'someone dusts this\nevery week',
-  'no response\nis expected',
-]
-
-const PA_LINES = [
-  'Attention shoppers: nothing has happened yet.',
-  'The food court is open. It has always been open.',
-  'Attention: the exit has relocated. New coordinates pending.',
-  'Lost and found contains: one left shoe, a frequency.',
-  'Store closing in 30 minutes. Store closing has been ongoing.',
-  'Frequency 88.7 is currently unavailable in this location.',
-  'All shoppers are reminded that this level continues.',
-]
-
-
-// ─── STORES ALONG THE CORRIDOR ─────────────────────────────────────────────
-// Each store: worldX position (0=center), worldZ depth, side, color, name
-interface StoreDef {
+interface Win {
   id: string
-  z: number       // depth into corridor (1=near, 20=far)
-  side: 'L' | 'R'
-  color: string
-  accentColor: string
-  name: string
-  sign: string
-  interiorKey: 'vending' | 'food' | 'mannequins' | 'escalator'
+  title: string
+  barColor: string
+  x: number
+  y: number
+  w: number
+  h: number
+  content: React.ReactNode
 }
 
-const STORES: StoreDef[] = [
-  { id: 'vending', z: 3, side: 'L', color: '#d01060', accentColor: '#ff85af', name: 'MACHINES', sign: 'CERTAINTY · SLEEP · PURPOSE', interiorKey: 'vending' },
-  { id: 'food', z: 5.5, side: 'R', color: '#d06000', accentColor: '#ffc066', name: 'FOOD COURT', sign: 'HOUSE SOUP · DAILY SPECIAL · STATIC', interiorKey: 'food' },
-  { id: 'mannequins', z: 9, side: 'L', color: '#0080a0', accentColor: '#80d8f0', name: 'GALLERY', sign: 'UNIT A · UNIT B · UNIT C · UNIT D', interiorKey: 'mannequins' },
-  { id: 'escalator', z: 13, side: 'R', color: '#5020a0', accentColor: '#c090ff', name: 'ESCALATOR', sign: 'DESTINATION UNCONFIRMED', interiorKey: 'escalator' },
-]
+// ── Mini site content components ──────────────────────────────────────────────
 
-// ─── PERSPECTIVE MATH ──────────────────────────────────────────────────────
-const FL = 380 // focal length
-function project(wx: number, wy: number, wz: number, camZ: number, W: number, H: number) {
-  const relZ = wz - camZ
-  if (relZ <= 0.01) return null
-  const sx = W / 2 + (wx / relZ) * FL
-  const sy = H * 0.46 + (wy / relZ) * FL
-  return { x: sx, y: sy, scale: FL / relZ }
-}
-
-function drawCorridor(ctx: CanvasRenderingContext2D, W: number, H: number, camZ: number) {
-  ctx.clearRect(0, 0, W, H)
-
-  const vpy = H * 0.46
-  const vpx = W / 2
-
-  // ── Ceiling ──
-  ctx.fillStyle = '#f0ece4'
-  ctx.fillRect(0, 0, W, vpy)
-
-  // ── Floor ──
-  ctx.fillStyle = '#ddd8cc'
-  ctx.fillRect(0, vpy, W, H - vpy)
-
-  // ── Floor tile grid ──
-  ctx.strokeStyle = 'rgba(180,170,155,0.4)'
-  ctx.lineWidth = 0.5
-  for (let gz = 1; gz <= 30; gz++) {
-    for (let gx = -8; gx <= 8; gx++) {
-      const p1 = project(gx, 1, gz, camZ, W, H)
-      const p2 = project(gx + 1, 1, gz, camZ, W, H)
-      const p3 = project(gx + 1, 1, gz + 1, camZ, W, H)
-      const p4 = project(gx, 1, gz + 1, camZ, W, H)
-      if (!p1 || !p2 || !p3 || !p4) continue
-      if (p1.x < -W || p3.x > W * 2) continue
-      const isLight = (gx + gz) % 2 === 0
-      ctx.fillStyle = isLight ? 'rgba(240,236,230,0.6)' : 'rgba(215,210,200,0.6)'
-      ctx.beginPath()
-      ctx.moveTo(p1.x, p1.y)
-      ctx.lineTo(p2.x, p2.y)
-      ctx.lineTo(p3.x, p3.y)
-      ctx.lineTo(p4.x, p4.y)
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
-    }
-  }
-
-  // ── Ceiling light strips ──
-  for (let lz = 2; lz <= 28; lz += 4) {
-    const top1 = project(-0.6, -1.2, lz, camZ, W, H)
-    const top2 = project(0.6, -1.2, lz, camZ, W, H)
-    const top3 = project(0.6, -1.2, lz + 1.5, camZ, W, H)
-    const top4 = project(-0.6, -1.2, lz + 1.5, camZ, W, H)
-    if (!top1 || !top2 || !top3 || !top4) continue
-    ctx.fillStyle = 'rgba(255,255,240,0.9)'
-    ctx.beginPath()
-    ctx.moveTo(top1.x, top1.y)
-    ctx.lineTo(top2.x, top2.y)
-    ctx.lineTo(top3.x, top3.y)
-    ctx.lineTo(top4.x, top4.y)
-    ctx.closePath()
-    ctx.fill()
-    // glow
-    const gx = (top1.x + top3.x) / 2
-    const gy = (top1.y + top3.y) / 2
-    const gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, top1.scale * 3)
-    gr.addColorStop(0, 'rgba(255,255,220,0.12)')
-    gr.addColorStop(1, 'rgba(255,255,220,0)')
-    ctx.fillStyle = gr
-    ctx.fillRect(0, 0, W, vpy)
-  }
-
-  // ── Wall horizon lines ──
-  // Left wall edge
-  const lwall1 = project(-1, -1.2, 1, camZ, W, H)
-  const lwall2 = project(-1, 1, 1, camZ, W, H)
-  const lwallFar1 = project(-1, -1.2, 30, camZ, W, H)
-  const lwallFar2 = project(-1, 1, 30, camZ, W, H)
-  if (lwall1 && lwall2 && lwallFar1 && lwallFar2) {
-    ctx.fillStyle = '#e0dbd0'
-    ctx.beginPath()
-    ctx.moveTo(0, 0)
-    ctx.lineTo(lwall1.x, lwall1.y)
-    ctx.lineTo(lwallFar1.x, lwallFar1.y)
-    ctx.lineTo(vpx, vpy)
-    ctx.lineTo(lwallFar2.x, lwallFar2.y)
-    ctx.lineTo(lwall2.x, lwall2.y)
-    ctx.lineTo(0, H)
-    ctx.closePath()
-    ctx.fill()
-  }
-
-  // Right wall edge
-  const rwall1 = project(1, -1.2, 1, camZ, W, H)
-  const rwall2 = project(1, 1, 1, camZ, W, H)
-  const rwallFar1 = project(1, -1.2, 30, camZ, W, H)
-  const rwallFar2 = project(1, 1, 30, camZ, W, H)
-  if (rwall1 && rwall2 && rwallFar1 && rwallFar2) {
-    ctx.fillStyle = '#e0dbd0'
-    ctx.beginPath()
-    ctx.moveTo(W, 0)
-    ctx.lineTo(rwall1.x, rwall1.y)
-    ctx.lineTo(rwallFar1.x, rwallFar1.y)
-    ctx.lineTo(vpx, vpy)
-    ctx.lineTo(rwallFar2.x, rwallFar2.y)
-    ctx.lineTo(rwall2.x, rwall2.y)
-    ctx.lineTo(W, H)
-    ctx.closePath()
-    ctx.fill()
-  }
-}
-
-function drawStore(
-  ctx: CanvasRenderingContext2D, store: StoreDef,
-  W: number, H: number, camZ: number,
-  hovered: boolean
-) {
-  const wallX = store.side === 'L' ? -1 : 1
-  const storeZ = store.z
-  const storeW = 2.2 // width in world units
-
-  // Top left, top right, bottom right, bottom left — floor to head-height
-  const pts = [
-    project(wallX, -1, storeZ, camZ, W, H),              // top near
-    project(wallX, -1, storeZ + storeW, camZ, W, H),     // top far
-    project(wallX, 1, storeZ + storeW, camZ, W, H),      // bottom far
-    project(wallX, 1, storeZ, camZ, W, H),               // bottom near
-  ]
-
-  if (pts.some(p => p === null)) return
-  const [tln, tlf, blf, bln] = pts as NonNullable<typeof pts[0]>[]
-
-  // Store face
-  ctx.save()
-  ctx.beginPath()
-  ctx.moveTo(tln.x, tln.y)
-  ctx.lineTo(tlf.x, tlf.y)
-  ctx.lineTo(blf.x, blf.y)
-  ctx.lineTo(bln.x, bln.y)
-  ctx.closePath()
-
-  // Store face fill
-  const faceGrad = ctx.createLinearGradient(tln.x, tln.y, bln.x, bln.y)
-  faceGrad.addColorStop(0, hovered ? store.color : store.color + 'cc')
-  faceGrad.addColorStop(1, hovered ? store.color + 'dd' : store.color + '88')
-  ctx.fillStyle = faceGrad
-  ctx.fill()
-
-  // Hover brightness
-  if (hovered) {
-    ctx.fillStyle = 'rgba(255,255,255,0.12)'
-    ctx.fill()
-  }
-
-  // Store sign band at top
-  const signH = (bln.y - tln.y) * 0.28
-  ctx.beginPath()
-  ctx.moveTo(tln.x, tln.y)
-  ctx.lineTo(tlf.x, tlf.y)
-  ctx.lineTo(tlf.x, tlf.y + signH)
-  ctx.lineTo(tln.x, tln.y + signH)
-  ctx.closePath()
-  ctx.fillStyle = store.accentColor
-  ctx.fill()
-
-  // Store name on sign
-  const signCx = (tln.x + tlf.x) / 2
-  const signCy = tln.y + signH / 2
-  const fontSize = Math.max(8, tln.scale * 14)
-  ctx.fillStyle = '#fff'
-  ctx.font = `bold ${fontSize}px Arial Black, Arial`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(store.name, signCx, signCy)
-
-  // Window area in lower 2/3
-  const winT = tln.y + signH + (bln.y - tln.y - signH) * 0.1
-  const winB = bln.y - (bln.y - tln.y) * 0.08
-  const winL = tln.x + (tlf.x - tln.x) * 0.1
-  const winR = tlf.x - (tlf.x - tln.x) * 0.1
-  ctx.beginPath()
-  ctx.moveTo(winL, winT)
-  ctx.lineTo(winR, winT)
-  ctx.lineTo(winR, winB)
-  ctx.lineTo(winL, winB)
-  ctx.closePath()
-  ctx.fillStyle = 'rgba(200,240,255,0.15)'
-  ctx.fill()
-  ctx.strokeStyle = 'rgba(255,255,255,0.3)'
-  ctx.lineWidth = 1
-  ctx.stroke()
-
-  // Sub-text below sign
-  const subFontSize = Math.max(5, tln.scale * 7)
-  ctx.fillStyle = 'rgba(255,255,255,0.5)'
-  ctx.font = `${subFontSize}px Arial`
-  ctx.fillText(store.sign, signCx, tln.y + signH + (bln.y - tln.y - signH) * 0.6)
-
-  ctx.restore()
-}
-
-// ─── STORE INTERIOR OVERLAYS ──────────────────────────────────────────────
-
-function VendingInterior() {
-  const [vendIdx, setVendIdx] = useState<number | null>(null)
-  const [vendResponse, setVendResponse] = useState('')
-  const [vendPurchases, setVendPurchases] = useState(0)
+function RunningLog() {
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', padding: 4 }}>
-      <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,133,175,0.6)', letterSpacing: '0.2em' }}>ROW C · PURCHASES: {vendPurchases}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: 1 }}>
-        {VEND_ITEMS.map((item, i) => (
-          <div key={i} style={{ background: '#0d0008', border: `1px solid ${vendIdx === i ? '#ff85af' : 'rgba(255,45,120,0.2)'}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ background: '#080006', padding: '10px 8px', minHeight: 54, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: `1px solid rgba(255,45,120,0.15)` }}>
-              <div style={{ fontFamily: 'monospace', fontSize: 9, color: vendIdx === i ? '#ff85af' : 'rgba(255,133,175,0.45)', textAlign: 'center', letterSpacing: '0.06em', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                {vendIdx === i ? vendResponse : item.label}
-              </div>
-            </div>
-            <div style={{ padding: '6px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,133,175,0.4)' }}>{item.price}</span>
-              <button onClick={() => { const r = item.responses[Math.floor(Math.random() * item.responses.length)]; setVendIdx(i); setVendResponse(r); setVendPurchases(v => v + 1) }}
-                style={{ background: '#ff2d78', border: 'none', color: '#fff', fontFamily: '"Arial Black", sans-serif', fontSize: 8, padding: '3px 10px', cursor: 'pointer' }}>
-                SELECT
-              </button>
-            </div>
-          </div>
-        ))}
+    <div style={{ background: '#ffffff', height: '100%', padding: '8px 10px', fontFamily: 'Arial, Helvetica, sans-serif', fontSize: 11, overflowY: 'auto' }}>
+      <div style={{ background: '#006600', color: '#fff', padding: '4px 8px', fontWeight: 'bold', fontSize: 12, marginBottom: 6 }}>
+        🏃 COLORADO TRAIL RUNNING — Tyler's Personal Log
       </div>
-      {vendPurchases >= 6 && (
-        <div
-          style={{ padding: '10px', background: '#0d0008', border: '1px solid rgba(255,45,120,0.3)', textAlign: 'center', fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,133,175,0.6)', lineHeight: 1.8 }}>
-          ⚠ MACHINE C-7 MALFUNCTION<br /><span style={{ opacity: 0.5 }}>exit sealed · use ← universe</span>
-        </div>
-      )}
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+        <thead>
+          <tr style={{ background: '#ccddcc' }}>
+            <th style={{ border: '1px solid #999', padding: '3px 5px', textAlign: 'left' }}>Race / Route</th>
+            <th style={{ border: '1px solid #999', padding: '3px 5px' }}>Date</th>
+            <th style={{ border: '1px solid #999', padding: '3px 5px' }}>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            ['Boulder Marathon', 'Oct 2024', '3:41:22'],
+            ['Golden Gate Canyon 25K', 'Jun 2024', 'muddy — completed'],
+            ['Pikes Peak 14er', 'Aug 2024', 'wake-up 3am, summit 9:40am'],
+            ['Mt. Elbert (14,439 ft)', 'Sep 2023', 'highest in CO, summited'],
+            ['Maroon Bells Loop', 'Sep 2023', '6h 10m, 5am start'],
+          ].map(([r, d, t], i) => (
+            <tr key={i} style={{ background: i % 2 ? '#f5f5f5' : '#fff' }}>
+              <td style={{ border: '1px solid #ccc', padding: '3px 5px' }}>{r}</td>
+              <td style={{ border: '1px solid #ccc', padding: '3px 5px', textAlign: 'center', color: '#555' }}>{d}</td>
+              <td style={{ border: '1px solid #ccc', padding: '3px 5px', fontFamily: 'monospace', fontSize: 9 }}>{t}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ marginTop: 8, fontSize: 9, color: '#888', borderTop: '1px solid #ddd', paddingTop: 6 }}>
+        Pattern: voluntary difficulty. | <span style={{ color: '#0000ee', textDecoration: 'underline', cursor: 'pointer' }}>Email me about running</span>
+      </div>
     </div>
   )
 }
 
-function FoodInterior() {
-  const [activeIdx, setActiveIdx] = useState<number | null>(null)
-  const [response, setResponse] = useState('')
-  const [orders, setOrders] = useState(0)
+function PageNotFound() {
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', padding: 4 }}>
-      <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,204,102,0.6)', letterSpacing: '0.2em' }}>TODAY'S MENU · ORDERS: {orders}</div>
-      <div style={{ background: '#110800', border: '1px solid rgba(255,149,0,0.2)', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {FOOD_ITEMS.map((item, i) => (
-          <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid rgba(255,149,0,0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontFamily: '"Arial Black", sans-serif', fontSize: 10, color: '#ffc066', lineHeight: 1.2, whiteSpace: 'pre-wrap' }}>{item.name}</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,204,102,0.4)', fontStyle: 'italic' }}>{item.desc}</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#ffc066' }}>{item.price}</span>
-                <button onClick={() => { const r = item.responses[Math.floor(Math.random() * item.responses.length)]; setActiveIdx(i); setResponse(r); setOrders(o => o + 1) }}
-                  style={{ background: '#d06000', border: 'none', color: '#fff', fontFamily: '"Arial Black", sans-serif', fontSize: 8, padding: '3px 10px', cursor: 'pointer' }}>
-                  ORDER
-                </button>
-              </div>
-            </div>
-            {activeIdx === i && (
-              <div style={{ marginTop: 6, fontFamily: 'monospace', fontSize: 8, color: '#ffc066', background: '#080400', padding: '6px 8px', border: '1px solid rgba(255,149,0,0.2)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                {response}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      {orders >= 5 && (
-        <div style={{ padding: '10px', background: '#0d0800', border: '1px solid rgba(255,149,0,0.3)', textAlign: 'center', fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,204,102,0.6)', lineHeight: 1.8 }}>
-          ⚠ SYSTEM NOTE: YOU HAVE ORDERED EVERYTHING<br /><span style={{ opacity: 0.5 }}>the cashier is watching · use ← universe</span>
+    <div style={{ background: '#ffffff', height: '100%', padding: '14px 16px', fontFamily: 'Times New Roman, serif', fontSize: 12 }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #ccc' }}>
+        <span style={{ fontSize: 36, lineHeight: 1 }}>🚫</span>
+        <div>
+          <div style={{ fontSize: 16, fontFamily: 'Arial, sans-serif', fontWeight: 'bold', color: '#000080', marginBottom: 2 }}>The page cannot be found</div>
+          <div style={{ fontSize: 9, color: '#666', fontFamily: 'Arial, sans-serif' }}>HTTP 404 - File not found | Internet Explorer</div>
         </div>
-      )}
+      </div>
+      <div style={{ fontSize: 11, lineHeight: 1.7, color: '#333' }}>
+        <p>The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.</p>
+        <p><b>Please try the following:</b></p>
+        <ul style={{ paddingLeft: 18, fontSize: 10 }}>
+          <li>Make sure that the Web site address is spelled correctly</li>
+          <li>Click the <span style={{ color: '#0000ee', textDecoration: 'underline' }}>Back</span> button to try another link</li>
+          <li>Click <span style={{ color: '#0000ee', textDecoration: 'underline' }}>Search</span> to look for information</li>
+        </ul>
+      </div>
+      <div style={{ marginTop: 10, fontSize: 9, color: '#999', borderTop: '1px solid #eee', paddingTop: 8 }}>
+        Cannot find server | Error: 404
+      </div>
     </div>
   )
 }
 
-const MIRROR_LINES = [
-  'the mirror shows you, approximately.',
-  'the mirror shows someone who has been here before.',
-  'the mirror shows the same outfit.\nthe date does not match.',
-  'the mirror shows: you are in the right place.',
-  'the mirror reflects nothing.\nthis is also normal.',
-  'the mirror shows a person making a decision.\nyou recognize them.',
-  'the mirror is on a slight delay.\nthis has been reported. not fixed.',
-]
-
-function FittingRoom({ unit, onClose }: { unit: string; onClose: () => void }) {
-  const [mirrorMsg, setMirrorMsg] = useState('')
-  const [tries, setTries] = useState(0)
-  const tryMirror = () => {
-    setMirrorMsg(MIRROR_LINES[tries % MIRROR_LINES.length])
-    setTries(t => t + 1)
-  }
+function CoolestInWorld() {
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 60,
-      background: 'rgba(0,0,0,0.8)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }} onClick={onClose}>
+    <div style={{ background: '#9966cc', height: '100%', padding: '10px 12px', fontFamily: '"Comic Sans MS", cursive', overflowY: 'auto' }}>
+      <div style={{ fontSize: 16, color: '#ffff00', fontWeight: 'bold', textShadow: '1px 1px #000', marginBottom: 8 }}>
+        Welcome to My Page!!!
+      </div>
+      <div style={{ background: '#ffffff', padding: '8px 10px', marginBottom: 8, fontSize: 11, color: '#000', lineHeight: 1.7 }}>
+        I'm the coolest in the world and everything i do is cool.
+        So the following page of pictures of me and my friends is cool.
+      </div>
+      <div style={{ fontSize: 10, color: '#ffffff', lineHeight: 1.9, marginBottom: 8 }}>
+        <div style={{ background: '#cc44cc', padding: '2px 6px', marginBottom: 4, display: 'inline-block' }}>ABOUT ME</div><br />
+        Name: Tyler<br />
+        Age: [redacted]<br />
+        Location: Boulder, CO<br />
+        Likes: Code, Mountains, Music<br />
+        Quote: "if it compiles, ship it"
+      </div>
+      <div style={{ fontSize: 9, color: '#ffff44', borderTop: '1px solid #aa44aa', paddingTop: 6 }}>
+        ✉️ Sign my guestbook! | 💬 ICQ: [offline] | 🔗 Web ring
+      </div>
+    </div>
+  )
+}
+
+function UnderConstruction() {
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#ffffff', gap: 12, padding: 16 }}>
       <div style={{
-        width: 'min(340px, 88vw)',
-        background: '#0a1820',
-        border: '2px solid #00b4d8',
-        padding: '20px',
-      }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(144,224,239,0.6)', letterSpacing: '0.2em', marginBottom: 16 }}>
-          FITTING ROOM {unit}
+        backgroundImage: 'repeating-linear-gradient(45deg,#ffff00,#ffff00 10px,#000 10px,#000 20px)',
+        padding: '6px', width: '100%',
+      }}>
+        <div style={{ background: '#ffffff', padding: '8px', textAlign: 'center' }}>
+          <div style={{ fontSize: 24, marginBottom: 4 }}>⚠️ 🚧 ⚠️</div>
+          <div style={{ fontFamily: '"Comic Sans MS", cursive', fontSize: 13, fontWeight: 'bold', color: '#000' }}>
+            UNDER CONSTRUCTION
+          </div>
         </div>
-        {/* Mirror */}
-        <div
-          onClick={tryMirror}
-          style={{
-            background: 'linear-gradient(135deg, rgba(0,180,216,0.06) 0%, rgba(144,224,239,0.12) 50%, rgba(0,180,216,0.06) 100%)',
-            border: '1px solid rgba(0,180,216,0.35)',
-            height: 160,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', marginBottom: 14, position: 'relative', overflow: 'hidden',
-          }}
-        >
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'repeating-linear-gradient(0deg, transparent, transparent 6px, rgba(0,180,216,0.04) 6px, rgba(0,180,216,0.04) 7px)',
-            pointerEvents: 'none',
-          }} />
-          {mirrorMsg ? (
-            <div style={{
-              fontFamily: 'monospace', fontSize: 10, color: 'rgba(144,224,239,0.8)',
-              textAlign: 'center', padding: '0 20px', lineHeight: 1.8,
-              whiteSpace: 'pre-line', animation: 'mirrorFade 0.4s ease',
-            }}>{mirrorMsg}</div>
-          ) : (
-            <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(0,180,216,0.3)', letterSpacing: '0.2em' }}>
-              TAP TO LOOK
-            </div>
-          )}
-        </div>
-        <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(144,224,239,0.25)', lineHeight: 1.8, marginBottom: 14 }}>
-          MIRROR ACCURACY: {tries === 0 ? 'UNCHECKED' : tries < 3 ? 'APPROXIMATE' : 'UNRELIABLE'}<br />
-          LIGHTING: UNCERTAIN
-        </div>
-        <button onClick={onClose} style={{
-          width: '100%', padding: '7px 0', background: 'rgba(0,0,0,0.4)',
-          border: '1px solid rgba(0,180,216,0.3)', color: 'rgba(144,224,239,0.5)',
-          fontFamily: '"Arial Black", sans-serif', fontSize: 9, cursor: 'pointer',
-          letterSpacing: '0.1em',
-        }}>← BACK TO GALLERY</button>
       </div>
-      <style>{`@keyframes mirrorFade { from { opacity:0 } to { opacity:1 } }`}</style>
+      <div style={{ fontFamily: '"Comic Sans MS", cursive', fontSize: 11, color: '#555', textAlign: 'center', lineHeight: 1.7 }}>
+        This section of the site is not ready yet.<br />
+        Please check back soon!!!<br />
+        <br />
+        <span style={{ fontSize: 9, color: '#999' }}>Last attempted: June 1997</span>
+      </div>
     </div>
   )
 }
 
-function MannequinInterior() {
-  const [mannResponse, setMannResponse] = useState<{ idx: number; text: string } | null>(null)
-  const mouseRef = useRef({ x: 0, y: 0 })
-  const mannRefs = useRef<(HTMLDivElement | null)[]>([])
-  const [mannAngles, setMannAngles] = useState([0, 0, 0, 0])
-  const [fittingRoom, setFittingRoom] = useState<string | null>(null)
-  const responseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => () => { if (responseTimerRef.current) clearTimeout(responseTimerRef.current) }, [])
-
-  useEffect(() => {
-    const move = (e: MouseEvent) => { mouseRef.current = { x: e.clientX, y: e.clientY } }
-    window.addEventListener('mousemove', move)
-    return () => window.removeEventListener('mousemove', move)
-  }, [])
-
-  useEffect(() => {
-    let raf = 0
-    function tick() {
-      const angles = mannRefs.current.map(el => {
-        if (!el) return 0
-        const rect = el.getBoundingClientRect()
-        const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2
-        const angle = Math.atan2(mouseRef.current.y - cy, mouseRef.current.x - cx) * (180 / Math.PI)
-        return Math.max(-45, Math.min(45, angle * 0.3))
-      })
-      setMannAngles(angles)
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [])
-
+function HowTheInternetWorks() {
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(144,224,239,0.6)', letterSpacing: '0.15em' }}>SECTION C · MOVE YOUR CURSOR</div>
-      <div style={{ flex: 1, display: 'flex', gap: 16, justifyContent: 'center', alignItems: 'flex-end', background: '#0a1a20', padding: '16px' }}>
-        {[0, 1, 2, 3].map(i => (
-          <div key={i} onClick={() => {
-            const t = MANNEQUIN_LINES[Math.floor(Math.random() * MANNEQUIN_LINES.length)]
-            setMannResponse({ idx: i, text: t })
-            if (responseTimerRef.current) clearTimeout(responseTimerRef.current)
-            responseTimerRef.current = setTimeout(() => setMannResponse(null), 3000)
-          }}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', position: 'relative' }}>
-            <div ref={el => { mannRefs.current[i] = el }}
-              style={{ width: 28, height: 28, borderRadius: '50%', background: '#d8d0c0', border: '2px solid #00b4d8', marginBottom: 2, transform: `rotate(${mannAngles[i]}deg)`, transition: 'transform 0.05s', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#333' }} />
-                <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#333' }} />
-              </div>
-              {mannResponse?.idx === i && (
-                <div style={{ position: 'absolute', bottom: 34, left: '50%', transform: 'translateX(-50%)', background: '#fff', border: '2px solid #00b4d8', padding: '6px 10px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 9, color: '#0a1a20', minWidth: 120, textAlign: 'center', zIndex: 10 }}>
-                  {mannResponse.text}
-                </div>
-              )}
-            </div>
-            <div style={{ width: 3, height: 10, background: '#b0a890' }} />
-            <div style={{ width: 36, height: 60, background: i % 2 === 0 ? '#cc1122' : '#0044cc', border: '1px solid rgba(0,180,216,0.3)' }} />
-            <div style={{ display: 'flex', gap: 4 }}>
-              <div style={{ width: 10, height: 42, background: '#333' }} />
-              <div style={{ width: 10, height: 42, background: '#333' }} />
-            </div>
-            <div style={{ fontFamily: 'monospace', fontSize: 7, color: 'rgba(144,224,239,0.4)', marginTop: 4 }}>UNIT {String.fromCharCode(65 + i)}</div>
+    <div style={{ background: '#000066', height: '100%', padding: '10px 12px', overflowY: 'auto', fontFamily: 'Times New Roman, serif' }}>
+      <div style={{ color: '#00ffff', fontSize: 14, fontWeight: 'bold', marginBottom: 8, textDecoration: 'underline' }}>
+        HOW THE INTERNET WORKS
+      </div>
+      <div style={{ fontSize: 10, color: '#ccccff', lineHeight: 1.9 }}>
+        <p>The Internet is a worldwide system of interconnected computer networks that use the TCP/IP protocol to serve billions of users daily.</p>
+        <p><span style={{ color: '#ffff00' }}>Q: What is a website?</span><br />
+        A website is a collection of related web pages including multimedia content, typically identified with a common domain name.</p>
+        <p><span style={{ color: '#ffff00' }}>Q: What is HTML?</span><br />
+        HTML stands for HyperText Markup Language. It is the standard markup language for creating Web pages.</p>
+        <p style={{ color: '#ff9900' }}>Fun Fact: There are now over 1 BILLION websites on the internet (many of them are very weird).</p>
+      </div>
+      <div style={{ fontSize: 9, color: '#6666aa', borderTop: '1px solid #333', marginTop: 8, paddingTop: 6 }}>
+        Source: The Internet itself | Last verified: 1999
+      </div>
+    </div>
+  )
+}
+
+function Digger() {
+  return (
+    <div style={{ background: '#1a0033', height: '100%', padding: '10px 12px', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid rgba(200,0,255,0.3)' }}>
+        <div style={{ width: 28, height: 28, background: 'linear-gradient(135deg,#9900cc,#cc00ff)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🎵</div>
+        <div>
+          <div style={{ color: '#cc44ff', fontFamily: 'Arial, sans-serif', fontWeight: 'bold', fontSize: 13 }}>DIGGER</div>
+          <div style={{ color: '#888', fontSize: 9, fontFamily: 'Arial, sans-serif' }}>Music You Didn't Know You Needed</div>
+        </div>
+      </div>
+      <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 10, color: '#ccc', lineHeight: 1.9 }}>
+        {['Boards of Canada — Music Has the Right to Children', 'Four Tet — Rounds', 'Aphex Twin — Selected Ambient Works', 'Burial — Untrue', 'Jon Hopkins — Immunity'].map((t, i) => (
+          <div key={i} style={{ padding: '4px 8px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span style={{ color: '#666', fontSize: 8, width: 12 }}>{i + 1}</span>
+            <span style={{ color: '#cc44ff' }}>▶</span>
+            <span>{t}</span>
           </div>
         ))}
+        <div style={{ marginTop: 8, fontSize: 9, color: '#666' }}>
+          Deployed 2024 · <span style={{ color: '#cc44ff', textDecoration: 'underline', cursor: 'pointer' }}>Open Digger →</span>
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        {['A', 'B', 'C'].map(unit => (
-          <button key={unit} onClick={() => setFittingRoom(unit)} style={{
-            flex: 1, padding: '8px 0', background: 'rgba(0,20,30,0.8)',
-            border: '1px solid rgba(0,180,216,0.25)', color: 'rgba(144,224,239,0.5)',
-            fontFamily: '"Arial Black", sans-serif', fontSize: 9, cursor: 'pointer',
-            letterSpacing: '0.08em',
-          }}>FITTING {unit}</button>
-        ))}
-      </div>
-      {fittingRoom && <FittingRoom unit={fittingRoom} onClose={() => setFittingRoom(null)} />}
     </div>
   )
 }
 
-function EscalatorInterior() {
-  const [escUsed, setEscUsed] = useState(0)
-  const [escWarning, setEscWarning] = useState('')
-  const handleEscalator = useCallback(() => {
-    const n = escUsed + 1
-    setEscUsed(n)
-    if (n === 1) { setEscWarning('CALIBRATING...'); return }
-    if (n === 2) { setEscWarning('WARNING: DESTINATION UNCONFIRMED'); return }
-    setEscWarning('ERROR: ALL EXITS SEALED')
-  }, [escUsed])
+function FreeSearch() {
+  return (
+    <div style={{ background: '#ffffff', height: '100%', padding: '12px 14px', fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ textAlign: 'center', marginBottom: 10 }}>
+        <div style={{ fontSize: 24, fontWeight: 'bold', letterSpacing: '-0.03em' }}>
+          <span style={{ color: '#3366cc' }}>F</span>
+          <span style={{ color: '#cc0000' }}>R</span>
+          <span style={{ color: '#ff9900' }}>E</span>
+          <span style={{ color: '#3366cc' }}>E</span>
+          <span style={{ color: '#009900' }}>!</span>
+          <span style={{ fontSize: 11, color: '#000', fontWeight: 'normal', letterSpacing: 'normal', marginLeft: 6 }}>searches powered by</span>
+          {' '}
+          <span style={{ color: '#3366cc', fontWeight: 'bold', fontSize: 18 }}>G</span>
+          <span style={{ color: '#cc0000', fontWeight: 'bold', fontSize: 18 }}>o</span>
+          <span style={{ color: '#ff9900', fontWeight: 'bold', fontSize: 18 }}>o</span>
+          <span style={{ color: '#3366cc', fontWeight: 'bold', fontSize: 18 }}>g</span>
+          <span style={{ color: '#009900', fontWeight: 'bold', fontSize: 18 }}>l</span>
+          <span style={{ color: '#cc0000', fontWeight: 'bold', fontSize: 18 }}>e</span>
+          <span style={{ color: '#ff9900', fontWeight: 'bold', fontSize: 18 }}>!</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        <input
+          type="text"
+          placeholder="Enter search phrase here......"
+          style={{ flex: 1, padding: '4px 8px', border: '1px solid #999', fontSize: 11, outline: 'none' }}
+        />
+        <button style={{ padding: '4px 10px', background: '#cccccc', border: '1px outset #999', fontSize: 10, cursor: 'pointer', fontFamily: 'Arial, sans-serif' }}>Search!</button>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px', background: '#f5f5f5', border: '1px solid #ddd' }}>
+        <div style={{ fontSize: 22 }}>🕷️</div>
+        <div style={{ fontSize: 10, color: '#333', lineHeight: 1.6 }}>
+          Click the spider to<br />search the WEB!
+        </div>
+      </div>
+      <div style={{ marginTop: 8, fontSize: 9, color: '#999', textAlign: 'center' }}>
+        This is a real search! (it doesn't work) | Free since 1998
+      </div>
+    </div>
+  )
+}
+
+// ── Draggable window component ────────────────────────────────────────────────
+
+function BrowserWindow({
+  win, zIndex, onFocus, onUpdate,
+}: {
+  win: Win
+  zIndex: number
+  onFocus: () => void
+  onUpdate: (x: number, y: number) => void
+}) {
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null)
+  const elRef = useRef<HTMLDivElement>(null)
+  const posRef = useRef({ x: win.x, y: win.y })
+
+  const onPD = (e: React.PointerEvent<HTMLDivElement>) => {
+    onFocus()
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: posRef.current.x, oy: posRef.current.y }
+    e.currentTarget.setPointerCapture(e.pointerId)
+    e.preventDefault()
+  }
+
+  const onPM = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return
+    const nx = dragRef.current.ox + e.clientX - dragRef.current.sx
+    const ny = dragRef.current.oy + e.clientY - dragRef.current.sy
+    posRef.current = { x: nx, y: ny }
+    if (elRef.current) { elRef.current.style.left = nx + 'px'; elRef.current.style.top = ny + 'px' }
+  }
+
+  const onPU = () => {
+    if (!dragRef.current) return
+    dragRef.current = null
+    onUpdate(posRef.current.x, posRef.current.y)
+  }
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 0' }}>
-      <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(199,125,255,0.6)', letterSpacing: '0.2em' }}>
-        DESTINATION: {escUsed === 0 ? 'LEVEL 2' : escUsed === 1 ? 'CALCULATING...' : 'UNRESOLVABLE'}
+    <div
+      ref={elRef}
+      onClick={onFocus}
+      style={{
+        position: 'absolute', left: win.x, top: win.y,
+        width: win.w, height: win.h,
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '2px 2px 0 rgba(0,0,0,0.6), inset 1px 1px rgba(255,255,255,0.5)',
+        zIndex,
+        border: '2px outset #c0c0c0',
+      }}
+    >
+      {/* Title bar */}
+      <div
+        onPointerDown={onPD}
+        onPointerMove={onPM}
+        onPointerUp={onPU}
+        style={{
+          background: `linear-gradient(90deg, ${win.barColor} 0%, rgba(0,0,80,0.9) 100%)`,
+          padding: '3px 6px 3px 8px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          cursor: 'default', userSelect: 'none', flexShrink: 0,
+        }}
+      >
+        <span style={{ color: '#ffffff', fontSize: 11, fontFamily: 'Arial, sans-serif', fontWeight: 'bold', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', maxWidth: win.w - 70 }}>
+          {win.title}
+        </span>
+        <div style={{ display: 'flex', gap: 2 }}>
+          {['_','□','×'].map((sym, i) => (
+            <div key={i} style={{
+              width: 16, height: 14, background: '#c0c0c0',
+              border: '1px outset #ffffff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 9, fontFamily: 'Arial, sans-serif', cursor: 'pointer',
+              color: '#000',
+            }}>{sym}</div>
+          ))}
+        </div>
       </div>
-      {/* Escalator graphic */}
-      <div style={{ width: 160, height: 120, background: '#0a0018', border: '2px solid #7b2d8b', overflow: 'hidden', position: 'relative' }}>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} style={{ position: 'absolute', left: 0, right: 0, height: 14, top: `${i * 14}px`, background: i % 2 === 0 ? 'rgba(123,45,139,0.25)' : 'rgba(199,125,255,0.08)', borderBottom: '1px solid rgba(123,45,139,0.3)', animation: `escMove ${1.2}s linear infinite`, animationDelay: `${i * -0.15}s` }} />
+      {/* Menu bar */}
+      <div style={{
+        background: '#c0c0c0', padding: '1px 6px',
+        borderBottom: '1px solid #808080',
+        display: 'flex', gap: 12, flexShrink: 0,
+      }}>
+        {['File','Edit','View','Favorites','Help'].map(m => (
+          <span key={m} style={{ fontSize: 10, fontFamily: 'Arial, sans-serif', color: '#000', cursor: 'pointer', padding: '1px 4px' }}>
+            <u>{m[0]}</u>{m.slice(1)}
+          </span>
         ))}
-        <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', fontFamily: '"Arial Black", sans-serif', fontSize: 12, color: '#c077ff' }}>↑ ↑ ↑</div>
       </div>
-      {escWarning && <div style={{ fontFamily: '"Arial Black", sans-serif', fontSize: 10, color: '#c077ff', letterSpacing: '0.1em', textAlign: 'center' }}>{escWarning}</div>}
-      <button onClick={handleEscalator}
-        style={{ background: '#7b2d8b', border: 'none', color: '#fff', fontFamily: '"Arial Black", sans-serif', fontSize: 13, padding: '12px 36px', cursor: 'pointer', letterSpacing: '0.1em' }}>
-        {escUsed === 0 ? '↑  RIDE' : escUsed === 1 ? '↑  PROCEED' : '↑  DEPART'}
-      </button>
-      <div style={{ fontFamily: 'monospace', fontSize: 8, color: 'rgba(199,125,255,0.3)', textAlign: 'center', lineHeight: 2 }}>
-        MANAGEMENT NOT RESPONSIBLE FOR DESTINATION
+      {/* Content */}
+      <div style={{ flex: 1, overflow: 'hidden', background: '#ffffff' }}>
+        {win.content}
       </div>
-      <style>{`@keyframes escMove { 0% { transform:translateY(-14px) } 100% { transform:translateY(0) } }`}</style>
+      {/* Status bar */}
+      <div style={{ background: '#c0c0c0', padding: '1px 6px', borderTop: '1px solid #808080', fontSize: 9, fontFamily: 'Arial, sans-serif', color: '#000', flexShrink: 0 }}>
+        Done
+      </div>
     </div>
   )
 }
 
-// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function World7Mall() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const rafRef = useRef(0)
-  const [W, setW] = useState(0)
-  const [H, setH] = useState(0)
-  const [camZ, setCamZ] = useState(0.5) // camera Z position in world space
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState(0)
-  const [camStart, setCamStart] = useState(0)
-  const [activeStore, setActiveStore] = useState<StoreDef | null>(null)
-  const [hoveredStore, setHoveredStore] = useState<string | null>(null)
-  const [paLine, setPaLine] = useState('')
-  const [paVisible, setPaVisible] = useState(false)
-  const paIdx = useRef(0)
-  const mousePosRef = useRef({ x: 0, y: 0 })
+  const navigateTo = useWorldStore(s => s.navigateTo)
 
-  // PA system
-  useEffect(() => {
-    const showPA = () => {
-      setPaLine(PA_LINES[paIdx.current % PA_LINES.length])
-      paIdx.current++
-      setPaVisible(true)
-      setTimeout(() => setPaVisible(false), 7000)
-    }
-    const t1 = setTimeout(showPA, 3000)
-    const iv = setInterval(showPA, 24000)
-    return () => { clearTimeout(t1); clearInterval(iv) }
+  const INITIAL_WINDOWS: Win[] = [
+    {
+      id: 'running', title: "Tyler's Colorado Trail Running Log - Netscape",
+      barColor: '#006600', x: 18, y: 48, w: 400, h: 260,
+      content: <RunningLog />,
+    },
+    {
+      id: 'error', title: 'The page cannot be found',
+      barColor: '#444444', x: 290, y: 160, w: 360, h: 230,
+      content: <PageNotFound />,
+    },
+    {
+      id: 'coolest', title: "Welcome to Tyler's Homepage!!! - Netscape 4.0",
+      barColor: '#663399', x: 60, y: 280, w: 310, h: 250,
+      content: <CoolestInWorld />,
+    },
+    {
+      id: 'construction', title: 'Digger — Under Construction',
+      barColor: '#884400', x: 440, y: 40, w: 290, h: 220,
+      content: <UnderConstruction />,
+    },
+    {
+      id: 'internet', title: 'HOW THE INTERNET WORKS - Educational Resource',
+      barColor: '#000066', x: 520, y: 240, w: 340, h: 270,
+      content: <HowTheInternetWorks />,
+    },
+    {
+      id: 'digger', title: 'Digger Music Discovery - Beta v0.9',
+      barColor: '#440066', x: 140, y: 420, w: 320, h: 240,
+      content: <Digger />,
+    },
+    {
+      id: 'search', title: 'Free Internet Search - Powered by Google!',
+      barColor: '#115522', x: 470, y: 420, w: 340, h: 210,
+      content: <FreeSearch />,
+    },
+  ]
+
+  const [windows, setWindows] = useState(INITIAL_WINDOWS)
+  const [zOrders, setZOrders] = useState<Record<string, number>>(() =>
+    Object.fromEntries(INITIAL_WINDOWS.map((w, i) => [w.id, i + 1]))
+  )
+  const zTop = useRef(INITIAL_WINDOWS.length + 1)
+
+  const focus = useCallback((id: string) => {
+    zTop.current++
+    setZOrders(z => ({ ...z, [id]: zTop.current }))
   }, [])
 
-  // Canvas sizing
-  useEffect(() => {
-    const resize = () => { setW(window.innerWidth); setH(window.innerHeight) }
-    resize()
-    window.addEventListener('resize', resize)
-    return () => window.removeEventListener('resize', resize)
+  const updatePos = useCallback((id: string, x: number, y: number) => {
+    setWindows(ws => ws.map(w => w.id === id ? { ...w, x, y } : w))
   }, [])
-
-  // Canvas render loop
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas || W === 0 || H === 0) return
-    canvas.width = W; canvas.height = H
-    const ctx = canvas.getContext('2d')!
-
-    function render() {
-      drawCorridor(ctx, W, H, camZ)
-
-      // Draw stores back-to-front
-      const sorted = [...STORES].sort((a, b) => b.z - a.z)
-      for (const store of sorted) {
-        drawStore(ctx, store, W, H, camZ, hoveredStore === store.id)
-      }
-
-      rafRef.current = requestAnimationFrame(render)
-    }
-    rafRef.current = requestAnimationFrame(render)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [W, H, camZ, hoveredStore])
-
-  // Hit test: which store is under mouse?
-  const getHoveredStore = useCallback((mx: number, my: number): string | null => {
-    if (W === 0 || H === 0) return null
-    for (const store of STORES) {
-      const wallX = store.side === 'L' ? -1 : 1
-      const pts = [
-        project(wallX, -1, store.z, camZ, W, H),
-        project(wallX, -1, store.z + 2.2, camZ, W, H),
-        project(wallX, 1, store.z + 2.2, camZ, W, H),
-        project(wallX, 1, store.z, camZ, W, H),
-      ]
-      if (pts.some(p => p === null)) continue
-      const [tln, tlf, blf, bln] = pts as NonNullable<typeof pts[0]>[]
-      // Simple bounding box test
-      const minX = Math.min(tln.x, tlf.x, blf.x, bln.x)
-      const maxX = Math.max(tln.x, tlf.x, blf.x, bln.x)
-      const minY = Math.min(tln.y, tlf.y, blf.y, bln.y)
-      const maxY = Math.max(tln.y, tlf.y, blf.y, bln.y)
-      if (mx >= minX && mx <= maxX && my >= minY && my <= maxY) return store.id
-    }
-    return null
-  }, [W, H, camZ])
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    mousePosRef.current = { x: e.clientX, y: e.clientY }
-    if (isDragging) {
-      const delta = (e.clientX - dragStart) / W * 15
-      setCamZ(Math.max(0, Math.min(16, camStart - delta)))
-    } else {
-      setHoveredStore(getHoveredStore(e.clientX, e.clientY))
-    }
-  }, [isDragging, dragStart, camStart, W, getHoveredStore])
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true)
-    setDragStart(e.clientX)
-    setCamStart(camZ)
-  }
-
-  const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    setIsDragging(false)
-    // If barely dragged, treat as click
-    if (Math.abs(e.clientX - dragStart) < 6) {
-      const store = STORES.find(s => s.id === getHoveredStore(e.clientX, e.clientY))
-      if (store) setActiveStore(store)
-    }
-  }, [dragStart, getHoveredStore])
-
-  const activeColor = activeStore
-    ? { bg: activeStore.color, accent: activeStore.accentColor }
-    : { bg: '#1a1a2e', accent: '#aaa' }
 
   return (
     <div
       data-world="7"
-      style={{ position: 'fixed', inset: 0, overflow: 'hidden', userSelect: 'none' }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+      style={{
+        position: 'fixed', inset: 0,
+        background: '#008080',
+        backgroundImage: 'repeating-linear-gradient(45deg, rgba(0,0,0,0.04) 0px, rgba(0,0,0,0.04) 1px, transparent 1px, transparent 8px)',
+        overflow: 'hidden',
+      }}
     >
-      {/* Perspective mall canvas */}
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: 'absolute', inset: 0,
-          cursor: isDragging ? 'grabbing' : hoveredStore ? 'pointer' : 'grab',
-        }}
-      />
-
-      {/* Mall header sign */}
+      {/* Windows taskbar at bottom */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0,
-        background: 'linear-gradient(180deg, rgba(26,26,46,0.95) 0%, rgba(26,26,46,0) 100%)',
-        padding: '14px 28px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        pointerEvents: 'none', zIndex: 10,
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: 32,
+        background: '#c0c0c0',
+        borderTop: '2px outset #ffffff',
+        display: 'flex', alignItems: 'center', padding: '0 4px', gap: 4, zIndex: 9999,
       }}>
-        <div style={{ fontFamily: '"Arial Black", sans-serif', fontSize: 18, color: '#fff', letterSpacing: '0.2em', textShadow: '0 0 20px rgba(255,45,120,0.6)' }}>
-          SIGNAL RIDGE MALL
-        </div>
-        <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.15em' }}>
-          EST. 1993 · ALWAYS OPEN · NEVER CLOSING
-        </div>
-      </div>
-
-      {/* PA announcement */}
-      {paVisible && (
+        {/* Start button */}
         <div style={{
-          position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(26,26,46,0.92)', border: '1px solid rgba(255,45,120,0.3)',
-          padding: '10px 24px', zIndex: 30,
-          display: 'flex', alignItems: 'center', gap: 12,
-          animation: 'paFade 7s both',
-          pointerEvents: 'none',
+          padding: '3px 10px', background: '#c0c0c0', border: '2px outset #ffffff',
+          fontFamily: 'Arial, sans-serif', fontWeight: 'bold', fontSize: 11,
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
         }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#ff2d78', boxShadow: '0 0 8px #ff2d78', animation: 'paBlink 0.5s step-end infinite' }} />
-          <div style={{ fontFamily: 'monospace', fontSize: 10, color: '#fff', letterSpacing: '0.08em' }}>{paLine}</div>
+          <span style={{ fontSize: 14 }}>⊞</span> Start
         </div>
-      )}
-
-      {/* Walk hint */}
-      <div style={{
-        position: 'absolute', bottom: 18, right: 24,
-        fontFamily: 'monospace', fontSize: 9,
-        color: 'rgba(0,0,0,0.3)', letterSpacing: '0.15em', pointerEvents: 'none',
-      }}>
-        DRAG TO WALK
+        {/* Separator */}
+        <div style={{ width: 2, height: 20, background: '#808080', borderRight: '1px solid #fff', margin: '0 2px' }} />
+        {/* Window buttons */}
+        {windows.map(w => (
+          <div
+            key={w.id}
+            onClick={() => focus(w.id)}
+            style={{
+              padding: '2px 10px', background: '#c0c0c0', border: '2px outset #ffffff',
+              fontFamily: 'Arial, sans-serif', fontSize: 10, cursor: 'pointer',
+              maxWidth: 140, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+            }}
+          >
+            {w.title.split(' - ')[0].slice(0, 22)}
+          </div>
+        ))}
+        {/* Clock */}
+        <div style={{ marginLeft: 'auto', padding: '2px 8px', border: '1px inset #808080', fontFamily: 'Arial', fontSize: 11 }}>
+          {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </div>
       </div>
 
-      {/* Store interior panel */}
-      {activeStore && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 40,
-          background: 'rgba(0,0,0,0.75)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-          onClick={e => { if (e.target === e.currentTarget) setActiveStore(null) }}
-        >
-          <div style={{
-            width: 'min(92vw, 540px)',
-            maxHeight: '85vh',
-            background: '#0a0808',
-            border: `3px solid ${activeColor.bg}`,
-            display: 'flex', flexDirection: 'column',
-            boxShadow: `0 0 60px ${activeColor.bg}40`,
-            overflow: 'hidden',
-          }}>
-            {/* Store header */}
-            <div style={{ background: activeColor.bg, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-              <div style={{ fontFamily: '"Arial Black", sans-serif', fontSize: 16, color: '#fff', letterSpacing: '0.1em' }}>
-                {activeStore.name}
-              </div>
-              <button onClick={() => setActiveStore(null)}
-                style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)', color: '#fff', fontFamily: '"Arial Black", sans-serif', fontSize: 11, padding: '4px 14px', cursor: 'pointer' }}>
-                ← BACK
-              </button>
-            </div>
-            {/* Store content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-              {activeStore.interiorKey === 'vending' && <VendingInterior />}
-              {activeStore.interiorKey === 'food' && <FoodInterior />}
-              {activeStore.interiorKey === 'mannequins' && <MannequinInterior />}
-              {activeStore.interiorKey === 'escalator' && <EscalatorInterior />}
-            </div>
+      {/* Desktop icons */}
+      <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 1 }}>
+        {[
+          { icon: '🌐', label: 'My Website' },
+          { icon: '📁', label: 'My Documents' },
+          { icon: '🗑️', label: 'Recycle Bin' },
+          { icon: '💾', label: 'Projects' },
+        ].map(({ icon, label }) => (
+          <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer', width: 56 }}>
+            <div style={{ fontSize: 26, filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.5))' }}>{icon}</div>
+            <div style={{
+              fontSize: 9, fontFamily: 'Arial, sans-serif', color: '#fff',
+              textAlign: 'center', lineHeight: 1.2,
+              textShadow: '1px 1px 2px rgba(0,0,0,0.9)',
+            }}>{label}</div>
           </div>
+        ))}
+        <div
+          onClick={() => navigateTo(1, { type: 'door' })}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer', width: 56, marginTop: 8 }}
+        >
+          <div style={{ fontSize: 26, filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.5))' }}>🚪</div>
+          <div style={{ fontSize: 9, fontFamily: 'Arial, sans-serif', color: '#fff', textAlign: 'center', lineHeight: 1.2, textShadow: '1px 1px 2px rgba(0,0,0,0.9)' }}>Universe</div>
         </div>
-      )}
+      </div>
 
-      <style>{`
-        @keyframes paFade { 0% { opacity:0 } 10% { opacity:1 } 80% { opacity:1 } 100% { opacity:0 } }
-        @keyframes paBlink { 0%,100% { opacity:1 } 50% { opacity:0 } }
-      `}</style>
+      {/* Browser windows */}
+      {windows.map(w => (
+        <BrowserWindow
+          key={w.id}
+          win={w}
+          zIndex={zOrders[w.id] || 1}
+          onFocus={() => focus(w.id)}
+          onUpdate={(x, y) => updatePos(w.id, x, y)}
+        />
+      ))}
+
       <HomeButton />
     </div>
   )
