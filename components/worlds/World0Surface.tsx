@@ -135,7 +135,7 @@ export default function World0Surface() {
   const navigateTo = useWorldStore(s => s.navigateTo)
   const [time, setTime] = useState('')
   const [weather, setWeather] = useState<{ temp: number; label: string } | null>(null)
-  const [ghUpdate, setGhUpdate] = useState<{ label: string; message: string } | null>(null)
+  const [ghCommits, setGhCommits] = useState<{ label: string; shortDate: string; message: string }[] | null>(null)
   const { label: lastUpdatedLabel } = getLastUpdated()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
@@ -171,15 +171,20 @@ export default function World0Surface() {
   }, [])
 
   useEffect(() => {
-    fetch('https://api.github.com/repos/tyler-emdur/website/commits?per_page=1')
+    fetch('https://api.github.com/repos/tyler-emdur/website/commits?per_page=5')
       .then(r => r.json())
       .then(d => {
-        const commit = Array.isArray(d) ? d[0] : null
-        const dateStr = commit?.commit?.committer?.date
-        if (!dateStr) return
-        const label = new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-        const message = (commit?.commit?.message ?? '').split('\n')[0]
-        setGhUpdate({ label, message })
+        if (!Array.isArray(d)) return
+        const commits = d.map(commit => {
+          const dateStr = commit?.commit?.committer?.date
+          const date = dateStr ? new Date(dateStr) : null
+          return {
+            label: date ? date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '',
+            shortDate: date ? date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }).replace(/\//g, '.') : '',
+            message: ((commit?.commit?.message ?? '').split('\n')[0]) as string,
+          }
+        }).filter(c => c.shortDate)
+        if (commits.length) setGhCommits(commits)
       })
       .catch(() => {})
   }, [])
@@ -687,9 +692,9 @@ export default function World0Surface() {
               <span className="w0-mono" style={{ fontSize: 10, color: GREEN }}>Online</span>
             </div>
             <div className="w0-mono" style={{ fontSize: 9, color: '#00ff77' }}>
-              Last updated: <b>{ghUpdate?.label ?? lastUpdatedLabel}</b>
-              {ghUpdate?.message && (
-                <><br />&quot;{ghUpdate.message}&quot;</>
+              Last updated: <b>{ghCommits?.[0]?.label ?? lastUpdatedLabel}</b>
+              {ghCommits?.[0]?.message && (
+                <><br />&quot;{ghCommits[0].message}&quot;</>
               )}
             </div>
             <div style={{ fontSize: 9, marginTop: 4 }}>
@@ -789,21 +794,35 @@ export default function World0Surface() {
               <div style={{ padding: '8px 10px 10px', position: 'relative', zIndex: 12 }}>
                 <div style={{ textAlign: 'center', marginBottom: 6 }}>
                   <span className="w0-twinkle" style={{ fontSize: 16, marginRight: 4 }}>★</span>
-                  <span className="w0-flash-ad">NEW!</span>
+                  <span className="w0-flash-ad">LIVE</span>
                   {' '}
                   <span className="w0-rainbow w0-wobble" style={{ fontSize: 12, fontWeight: 'bold', fontFamily: '"Comic Sans MS",cursive' }}>
-                    WELCOME TO MY HOMEPAGE!!!
+                    MISSION CONTROL
                   </span>
                   {' '}
                   <span className="w0-twinkle-b" style={{ fontSize: 16, marginLeft: 4 }}>★</span>
                 </div>
                 <div className="w0-hr-rainbow" />
-                <p style={{ fontSize: 11, lineHeight: 1.7, color: '#222', marginBottom: 7, textAlign: 'center', position: 'relative', zIndex: 12 }}>
-                  <b>Hello and welcome!</b> I&apos;m a software engineer and everything I build is cool.
-                </p>
-                <p style={{ fontSize: 11, lineHeight: 1.7, color: '#222', marginBottom: 7, position: 'relative', zIndex: 12 }}>
-                  This multiverse of <b>17 websites</b> represents my work and interests. Tell your friends.
-                </p>
+                <div style={{
+                  background: '#001100', border: '2px inset #003300', padding: '8px 9px', margin: '2px 0 7px',
+                  position: 'relative', zIndex: 12, fontFamily: '"Courier New",monospace', fontSize: 10,
+                  lineHeight: 1.6, color: '#33ff66', textAlign: 'left',
+                }}>
+                  <div style={{ marginBottom: 1 }}>
+                    <span className="w0-led" style={{ width: 7, height: 7, borderRadius: '50%', background: '#33ff66', display: 'inline-block', marginRight: 5, boxShadow: '0 0 4px #33ff66' }} />
+                    STATUS: <b style={{ color: '#fff' }}>Building World 17</b>
+                  </div>
+                  <div>LATEST ADDITION: <b style={{ color: '#fff' }}>{ghCommits?.[0]?.message ?? 'Weather System'}</b></div>
+                  <div style={{ marginBottom: 6 }}>NEXT PLANNED WORLD: <b style={{ color: '#fff' }}>????</b></div>
+                  <div style={{ color: '#88ffaa', borderTop: '1px dotted #115522', paddingTop: 5, marginBottom: 3 }}>RECENT TRANSMISSIONS:</div>
+                  {ghCommits ? ghCommits.slice(0, 4).map((c, i) => (
+                    <div key={i} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ color: '#117733' }}>{c.shortDate}</span> &mdash; {c.message}
+                    </div>
+                  )) : (
+                    <div style={{ color: '#117733' }}>connecting to mission log&hellip;</div>
+                  )}
+                </div>
                 <div className="w0-hr-rainbow" />
                 <p style={{ fontSize: 11, lineHeight: 1.6, color: '#222', marginBottom: 5, position: 'relative', zIndex: 12 }}>
                   Boulder, CO &bull; <span className="w0-gif-mail" style={{ fontSize: 13 }}>✉</span>{' '}
