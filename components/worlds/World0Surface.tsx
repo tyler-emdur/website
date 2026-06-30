@@ -66,13 +66,13 @@ function PanelHeader({ label, style }: { label: string; style?: React.CSSPropert
   )
 }
 
-function MiniPanel({ label, children, style, headerStyle }: {
-  label: string; children: React.ReactNode; style?: React.CSSProperties; headerStyle?: React.CSSProperties
+function MiniPanel({ label, children, style, headerStyle, noPad }: {
+  label: string; children: React.ReactNode; style?: React.CSSProperties; headerStyle?: React.CSSProperties; noPad?: boolean
 }) {
   return (
-    <div style={{ border: `2px solid ${BORDER}`, margin: 4, background: '#000033', ...style }}>
+    <div style={{ border: `2px solid ${BORDER}`, margin: 4, background: '#000033', overflow: 'hidden', ...style }}>
       <PanelHeader label={label} style={headerStyle} />
-      <div style={{ padding: '6px 8px' }}>{children}</div>
+      <div style={noPad ? undefined : { padding: '6px 8px' }}>{children}</div>
     </div>
   )
 }
@@ -494,6 +494,11 @@ export default function World0Surface() {
 
         @keyframes w0-cursor-blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
         .w0-cursor { animation:w0-cursor-blink 0.9s step-end infinite; font-weight:900; }
+
+        /* Force third-party widgets to respect container width */
+        .w0-widget-wrap, .w0-widget-wrap * { max-width: 100% !important; box-sizing: border-box !important; }
+        .w0-widget-wrap table { width: 100% !important; border-collapse: collapse !important; }
+        .w0-widget-wrap td, .w0-widget-wrap th { font-family: "Courier New", monospace !important; font-size: 9px !important; word-break: break-all; }
       `}</style>
 
       {/* Browser chrome */}
@@ -716,7 +721,7 @@ export default function World0Surface() {
         </div>
 
         {/* RIGHT */}
-        <div style={{ width: 185, flexShrink: 0, overflow: 'hidden', background: '#000033' }}>
+        <div style={{ width: 210, flexShrink: 0, overflow: 'hidden', background: '#000033' }}>
 
           <MiniPanel label="INDEX" headerStyle={{ background: 'linear-gradient(90deg, #aa0088 0%, #770055 100%)', borderBottom: '1px solid #c900aa' }}>
             <div style={{ margin: '-6px -8px', padding: 4 }}>
@@ -741,12 +746,12 @@ export default function World0Surface() {
             </div>
           </MiniPanel>
 
-          <MiniPanel label="> WHO'S WATCHING" style={{ border: '2px dashed #3333aa' }}>
-            <div ref={trafficRef} style={{ fontSize: 10 }} />
+          <MiniPanel label="> WHO'S WATCHING" style={{ border: '2px dashed #3333aa' }} noPad>
+            <div className="w0-widget-wrap" ref={trafficRef} style={{ width: '100%', overflow: 'hidden' }} />
           </MiniPanel>
 
-          <MiniPanel label="> INCOMING CONNECTION" headerStyle={{ background: 'linear-gradient(90deg, #004400 0%, #002200 100%)', borderBottom: '1px solid #006600' }}>
-            <div ref={ipRef} style={{ fontSize: 10 }} />
+          <MiniPanel label="> INCOMING CONNECTION" headerStyle={{ background: 'linear-gradient(90deg, #004400 0%, #002200 100%)', borderBottom: '1px solid #006600' }} noPad>
+            <div className="w0-widget-wrap" ref={ipRef} style={{ width: '100%', overflow: 'hidden' }} />
           </MiniPanel>
 
         </div>
