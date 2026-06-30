@@ -1,5 +1,3 @@
-export type AreaId = 'run' | 'build' | 'archive' | 'explore' | 'lab'
-
 export interface Run {
   id: string
   name: string
