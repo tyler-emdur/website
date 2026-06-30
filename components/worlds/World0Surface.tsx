@@ -140,6 +140,7 @@ export default function World0Surface() {
   const heroRef = useRef<HTMLDivElement>(null)
   const trafficRef = useRef<HTMLDivElement>(null)
   const ipRef = useRef<HTMLDivElement>(null)
+  const lastSparkleRef = useRef<number>(0)
 
   const go = useCallback(() => navigateTo(1, { type: 'door' }), [navigateTo])
 
@@ -173,8 +174,7 @@ export default function World0Surface() {
     if (!container) return
     const script = document.createElement('script')
     script.type = 'text/javascript'
-    // colors: bc=bg, tc=text, brd1=border, lnk=link, hc=header bg, hfc=header text, nc=new visitor
-    script.src = '//cdn.livetrafficfeed.com/static/v6/live.js?bc=000033&tc=9999cc&brd1=3333aa&lnk=3366cc&hc=7700bb&hfc=ffff00&nc=00ff00&vv=255&tft=10&ro=0&res=0'
+    script.src = '//cdn.livetrafficfeed.com/static/v6/live.js?bc=000011&tc=00ff88&brd1=006633&lnk=00ccff&hc=003322&hfc=00ff88&nc=ffff00&vv=255&tft=10&ro=0&res=0'
     container.appendChild(script)
     return () => { if (container.contains(script)) container.removeChild(script) }
   }, [])
@@ -187,6 +187,24 @@ export default function World0Surface() {
     script.src = '//cdn.livetrafficfeed.com/static/ip-widget/live.v3.js?ro=0&un=0&type=1'
     container.appendChild(script)
     return () => { if (container.contains(script)) container.removeChild(script) }
+  }, [])
+
+  useEffect(() => {
+    const chars = ['★', '✦', '✺', '·', '*', '♦', '✨']
+    const colors = ['#ffff00', '#ff00ff', '#00ffff', '#ff8800', '#00ff00', '#ffffff', '#ff00aa']
+    const onMove = (e: MouseEvent) => {
+      const now = performance.now()
+      if (now - lastSparkleRef.current < 35) return
+      lastSparkleRef.current = now
+      const el = document.createElement('span')
+      el.textContent = chars[Math.floor(Math.random() * chars.length)]
+      const sz = Math.floor(Math.random() * 10) + 8
+      el.style.cssText = `position:fixed;pointer-events:none;z-index:99999;left:${e.clientX - sz / 2}px;top:${e.clientY - sz / 2}px;font-size:${sz}px;color:${colors[Math.floor(Math.random() * colors.length)]};animation:w0-sparkle-fade 0.75s ease-out forwards;user-select:none;line-height:1`
+      document.body.appendChild(el)
+      setTimeout(() => el.remove(), 800)
+    }
+    window.addEventListener('mousemove', onMove)
+    return () => window.removeEventListener('mousemove', onMove)
   }, [])
 
   useEffect(() => {
@@ -495,11 +513,6 @@ export default function World0Surface() {
         @keyframes w0-cursor-blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
         .w0-cursor { animation:w0-cursor-blink 0.9s step-end infinite; font-weight:900; }
 
-        /* Force third-party widgets to respect container width */
-        .w0-widget-wrap, .w0-widget-wrap * { max-width: 100% !important; box-sizing: border-box !important; }
-        .w0-widget-wrap table { width: 100% !important; border-collapse: collapse !important; }
-        .w0-widget-wrap td, .w0-widget-wrap th { font-family: "Courier New", monospace !important; font-size: 9px !important; word-break: break-all; }
-
         /* ===  More GIF-like retro decorations === */
         @keyframes w0-bounce {
           0%,100% { transform: translateY(0) rotate(0deg); }
@@ -535,18 +548,6 @@ export default function World0Surface() {
           animation: w0-rainbow-hr 1.4s linear infinite;
         }
 
-        @keyframes w0-gb-flash {
-          0%,49% { background:#ff6600; color:#fff; border-color:#ff9900; }
-          50%,100% { background:#ffff00; color:#cc0000; border-color:#ff0000; }
-        }
-        .w0-guestbook {
-          animation: w0-gb-flash 0.75s step-end infinite;
-          display:block; text-align:center; width:calc(100% - 8px);
-          font-family:"Arial Black",Arial,sans-serif; font-size:9px; font-weight:900;
-          padding:5px 4px; cursor:pointer; border:2px outset #ff9900;
-          text-decoration:none; letter-spacing:1px; margin:4px;
-        }
-
         @keyframes w0-click-pulse {
           0%,100% { transform:scale(1); box-shadow:0 0 4px #ff0; }
           50% { transform:scale(1.04); box-shadow:0 0 14px #ff0, 0 0 28px #f80; }
@@ -565,6 +566,30 @@ export default function World0Surface() {
           66% { transform: translateY(-4px) rotate(-3deg); }
         }
         .w0-pixel-float { animation: w0-pixel-float 3s ease-in-out infinite; display:inline-block; }
+
+        @keyframes w0-sparkle-fade {
+          0% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-22px) scale(0.2); }
+        }
+
+        @keyframes w0-award-glow {
+          0%,100% { color: #ffff00; text-shadow: 0 0 5px #ffff00; }
+          33% { color: #ff00ff; text-shadow: 0 0 5px #ff00ff; }
+          66% { color: #00ffff; text-shadow: 0 0 5px #00ffff; }
+        }
+        .w0-award-text { animation: w0-award-glow 1.8s step-end infinite; }
+
+        @keyframes w0-note-dance {
+          0%,100% { transform: rotate(-14deg) translateY(0); }
+          50% { transform: rotate(14deg) translateY(-4px); }
+        }
+        .w0-note { animation: w0-note-dance 0.5s ease-in-out infinite; display: inline-block; }
+
+        .w0-marquee-band {
+          display:inline-block; animation:w0-scroll 30s linear infinite;
+          font-family:"Comic Sans MS",cursive; font-size:11px; font-weight:bold;
+          letter-spacing:1px; padding-left:100%; color:#ffff00; white-space:nowrap;
+        }
       `}</style>
 
       {/* Browser chrome */}
@@ -670,16 +695,12 @@ export default function World0Surface() {
               <span className="w0-wiggle-gif" style={{ fontSize: 14 }}>♦</span>
               <span className="w0-twinkle-c">★</span>
             </div>
-            <button className="w0-guestbook" onClick={go}>✍ SIGN MY GUESTBOOK</button>
-            <div style={{ fontSize: 18, lineHeight: 1.4, letterSpacing: 4 }}>
+            <div style={{ fontSize: 18, lineHeight: 1.4, letterSpacing: 4, marginTop: 6 }}>
               <span className="w0-twinkle-c">★</span>
               <span className="w0-wiggle-gif" style={{ fontSize: 14 }}>♦</span>
               <span className="w0-twinkle-b">✺</span>
               <span className="w0-bounce" style={{ fontSize: 16 }}>✦</span>
               <span className="w0-twinkle">★</span>
-            </div>
-            <div style={{ marginTop: 5, fontSize: 8, color: '#555588', fontFamily: '"Press Start 2P", monospace', lineHeight: 1.7 }}>
-              free webpage<br />hosted on earth
             </div>
           </div>
 
@@ -716,7 +737,7 @@ export default function World0Surface() {
               <div style={{ fontSize: 11, color: '#aaaacc', marginBottom: 10 }}>
                 Choose your destination<span className="w0-cursor">_</span>
               </div>
-              <div>
+              <div style={{ paddingBottom: 18 }}>
                 <span className="w0-twinkle" style={{ fontSize: 18 }}>✦ </span>
                 <button className="w0-click-here" onClick={go} style={{ fontSize: 14, padding: '10px 36px', letterSpacing: 2 }}>
                   CLICK TO ENTER
@@ -741,6 +762,9 @@ export default function World0Surface() {
             </span>
           </div>
 
+          {/* Divider */}
+          <div style={{ height: 10, background: 'linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)', flexShrink: 0 }} />
+
           {/* Welcome + Log */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px', background: '#000033', flex: '0 0 auto' }}>
             <div className="w0-welcome" style={{ padding: 0 }}>
@@ -761,8 +785,7 @@ export default function World0Surface() {
                   <b>Hello and welcome!</b> I&apos;m a software engineer and everything I build is cool.
                 </p>
                 <p style={{ fontSize: 11, lineHeight: 1.7, color: '#222', marginBottom: 7, position: 'relative', zIndex: 12 }}>
-                  This multiverse of <b>17 websites</b> represents my work and interests.
-                  Tell your friends. Add me to your webring.
+                  This multiverse of <b>17 websites</b> represents my work and interests. Tell your friends.
                 </p>
                 <div className="w0-hr-rainbow" />
                 <p style={{ fontSize: 11, lineHeight: 1.6, color: '#222', marginBottom: 5, position: 'relative', zIndex: 12 }}>
@@ -848,12 +871,12 @@ export default function World0Surface() {
             </div>
           </MiniPanel>
 
-          <MiniPanel label="> WHO'S WATCHING" style={{ border: '2px dashed #3333aa' }} noPad>
-            <div className="w0-widget-wrap" ref={trafficRef} style={{ width: '100%', overflow: 'hidden' }} />
+          <MiniPanel label="> WHO'S WATCHING" style={{ border: '2px dashed #006633' }} headerStyle={{ background: 'linear-gradient(90deg, #003322 0%, #001111 100%)', borderBottom: '1px solid #006633' }} noPad>
+            <div ref={trafficRef} style={{ width: '100%', overflow: 'hidden' }} />
           </MiniPanel>
 
           <MiniPanel label="> INCOMING CONNECTION" headerStyle={{ background: 'linear-gradient(90deg, #004400 0%, #002200 100%)', borderBottom: '1px solid #006600' }} noPad>
-            <div className="w0-widget-wrap" ref={ipRef} style={{ width: '100%', overflow: 'hidden' }} />
+            <div ref={ipRef} style={{ width: '100%', overflow: 'hidden' }} />
           </MiniPanel>
 
         </div>
