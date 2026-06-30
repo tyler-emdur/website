@@ -716,12 +716,12 @@ export default function World0Surface() {
               <div style={{ fontSize: 11, color: '#aaaacc', marginBottom: 8 }}>
                 Choose your destination<span className="w0-cursor">_</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 12, alignItems: 'center' }}>
-                <span className="w0-twinkle" style={{ fontSize: 18 }}>✦</span>
+              <div>
+                <span className="w0-twinkle" style={{ fontSize: 18 }}>✦ </span>
                 <button className="w0-click-here" onClick={go} style={{ fontSize: 14, padding: '14px 36px', letterSpacing: 2 }}>
                   CLICK TO ENTER
                 </button>
-                <span className="w0-twinkle-b" style={{ fontSize: 18 }}>✦</span>
+                <span className="w0-twinkle-b" style={{ fontSize: 18 }}> ✦</span>
               </div>
             </div>
             <img className="w0-img w0-spin" src={img('globe')} alt="" style={{ position: 'absolute', bottom: 12, left: 20, width: 48, height: 48, zIndex: 4, opacity: 0.75, animationDuration: '14s' }} />
