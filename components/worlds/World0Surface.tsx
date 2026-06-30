@@ -135,6 +135,7 @@ export default function World0Surface() {
   const navigateTo = useWorldStore(s => s.navigateTo)
   const [time, setTime] = useState('')
   const [weather, setWeather] = useState<{ temp: number; label: string } | null>(null)
+  const [ghUpdate, setGhUpdate] = useState<{ label: string; message: string } | null>(null)
   const { label: lastUpdatedLabel } = getLastUpdated()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
@@ -167,6 +168,20 @@ export default function World0Surface() {
         setWeather({ temp, label: WEATHER_LABELS[code] ?? 'unknown' })
       })
       .catch(() => setWeather({ temp: 0, label: 'offline' }))
+  }, [])
+
+  useEffect(() => {
+    fetch('https://api.github.com/repos/tyler-emdur/website/commits?per_page=1')
+      .then(r => r.json())
+      .then(d => {
+        const commit = Array.isArray(d) ? d[0] : null
+        const dateStr = commit?.commit?.committer?.date
+        if (!dateStr) return
+        const label = new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        const message = (commit?.commit?.message ?? '').split('\n')[0]
+        setGhUpdate({ label, message })
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -488,15 +503,6 @@ export default function World0Surface() {
         }
         .w0-rocket { animation:w0-rocket-drift 5.5s ease-in-out infinite; }
 
-        @keyframes w0-star-spin {
-          0%   { transform:rotate(0deg);   color:#ffff00; }
-          25%  { transform:rotate(90deg);  color:#ff00ff; }
-          50%  { transform:rotate(180deg); color:#00ffff; }
-          75%  { transform:rotate(270deg); color:#ff8800; }
-          100% { transform:rotate(360deg); color:#ffff00; }
-        }
-        .w0-gif-star { animation:w0-star-spin 0.9s linear infinite; display:inline-block; line-height:1; user-select:none; }
-
         @keyframes w0-mail-bounce {
           0%,100% { transform:translateY(0) rotate(0deg); }
           30% { transform:translateY(-6px) rotate(-8deg); }
@@ -636,7 +642,7 @@ export default function World0Surface() {
             backgroundImage: 'radial-gradient(1px 1px at 30px 20px,rgba(255,255,255,.4),transparent),radial-gradient(1px 1px at 90px 40px,rgba(255,255,255,.3),transparent)',
           }}>
             <div className="w0-pixel" style={{ fontSize: 10, color: YELLOW, lineHeight: 1.6, textShadow: '1px 1px 0px #ff0000' }}>
-              <span className="w0-gif-star" style={{ fontSize: 12 }}>✦</span>{' '}TYLER&apos;S WEB ZONE{' '}<span className="w0-gif-star" style={{ fontSize: 12, animationDelay: '0.45s' }}>✦</span>
+              TYLER&apos;S WEB ZONE
             </div>
             <div style={{ fontSize: 10, color: '#00ccff', marginTop: 4, fontFamily: 'Comic Sans MS, cursive' }}>on the World Wide Web!!!</div>
           </div>
@@ -681,9 +687,20 @@ export default function World0Surface() {
               <span className="w0-mono" style={{ fontSize: 10, color: GREEN }}>Online</span>
             </div>
             <div className="w0-mono" style={{ fontSize: 9, color: '#00ff77' }}>
-              ● Creative Engine Running<br />
-              ● Building World 17...
+              Last updated: <b>{ghUpdate?.label ?? lastUpdatedLabel}</b>
+              {ghUpdate?.message && (
+                <><br />&quot;{ghUpdate.message}&quot;</>
+              )}
             </div>
+            <div style={{ fontSize: 9, marginTop: 4 }}>
+              <a href="https://github.com/tyler-emdur/website" target="_blank" rel="noopener noreferrer" style={{ color: LINK }}>
+                view on github &rarr;
+              </a>
+            </div>
+          </MiniPanel>
+
+          <MiniPanel label="> INCOMING CONNECTION" headerStyle={{ background: 'linear-gradient(90deg, #004400 0%, #002200 100%)', borderBottom: '1px solid #006600' }} noPad>
+            <div ref={ipRef} style={{ width: '100%', overflow: 'hidden' }} />
           </MiniPanel>
 
           {/* GeoCities decoration strip */}
@@ -809,19 +826,20 @@ export default function World0Surface() {
                 flex: 1, overflowY: 'auto', padding: '7px 8px',
                 fontSize: 10, lineHeight: 1.85, background: '#000022', color: '#9999cc',
               }}>
-                <div style={{ color: '#00ccff', fontWeight: 'bold', marginBottom: 6 }}>What is this place?</div>
+                <div style={{ color: '#00ccff', fontWeight: 'bold', marginBottom: 6 }}>Welcome to my digital multiverse.</div>
                 <div>
-                  This is a <span style={{ color: '#ffffff' }}>multiverse</span> —
-                  a collection of <span style={{ color: '#ffffff' }}>17 separate websites</span>,
-                  each one its own world with its own aesthetic, vibe, and content.<br /><br />
-                  Each world is a different corner of my work, interests, and creative output.
-                  Some are functional. Some are weird. All of them are real.<br /><br />
+                  This website is made up of <span style={{ color: '#ffffff' }}>17 different &quot;worlds&quot;</span>,
+                  each one being its own mini website with a unique design, purpose, and personality.
+                  Every world explores a different part of my work, interests, projects, and random ideas.<br /><br />
+                  Some worlds are serious and functional. Some are experimental. Some are just for fun.<br /><br />
+                  The multiverse is still a work in progress, and many of these worlds are actively being
+                  built and expanded. Think of it as a living project that grows over time as I create
+                  new things and explore new ideas.<br /><br />
                   <span style={{ color: '#00ff77' }}>Built by Tyler Emdur</span><br />
-                  Software engineer &amp; builder.<br />
                   Boulder, Colorado.<br /><br />
-                  Click a world below — or hit<br />
-                  <span style={{ color: '#ffff00' }}>CLICK TO ENTER</span> to start<br />
-                  at World 1.
+                  Click a world below, or press<br />
+                  <span style={{ color: '#ffff00' }}>CLICK TO ENTER</span> to begin your<br />
+                  journey at World 1.
                 </div>
               </div>
             </div>
@@ -873,10 +891,6 @@ export default function World0Surface() {
 
           <MiniPanel label="> WHO'S WATCHING" style={{ border: '2px dashed #006633' }} headerStyle={{ background: 'linear-gradient(90deg, #003322 0%, #001111 100%)', borderBottom: '1px solid #006633' }} noPad>
             <div ref={trafficRef} style={{ width: '100%', overflow: 'hidden' }} />
-          </MiniPanel>
-
-          <MiniPanel label="> INCOMING CONNECTION" headerStyle={{ background: 'linear-gradient(90deg, #004400 0%, #002200 100%)', borderBottom: '1px solid #006600' }} noPad>
-            <div ref={ipRef} style={{ width: '100%', overflow: 'hidden' }} />
           </MiniPanel>
 
         </div>
