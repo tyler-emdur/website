@@ -138,6 +138,7 @@ export default function World0Surface() {
   const { label: lastUpdatedLabel } = getLastUpdated()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
+  const trafficRef = useRef<HTMLDivElement>(null)
 
   const go = useCallback(() => navigateTo(1, { type: 'door' }), [navigateTo])
 
@@ -164,6 +165,17 @@ export default function World0Surface() {
         setWeather({ temp, label: WEATHER_LABELS[code] ?? 'unknown' })
       })
       .catch(() => setWeather({ temp: 0, label: 'offline' }))
+  }, [])
+
+  useEffect(() => {
+    const container = trafficRef.current
+    if (!container) return
+    const script = document.createElement('script')
+    script.type = 'text/javascript'
+    // colors: bc=bg, tc=text, brd1=border, lnk=link, hc=header bg, hfc=header text, nc=new visitor
+    script.src = '//cdn.livetrafficfeed.com/static/v6/live.js?bc=000033&tc=9999cc&brd1=3333aa&lnk=3366cc&hc=7700bb&hfc=ffff00&nc=00ff00&vv=255&tft=10&ro=0&res=0'
+    container.appendChild(script)
+    return () => { if (container.contains(script)) container.removeChild(script) }
   }, [])
 
   useEffect(() => {
@@ -716,6 +728,10 @@ export default function World0Surface() {
                 <span style={{ fontSize: 9, color: '#555568' }}>connecting...</span>
               )}
             </div>
+          </MiniPanel>
+
+          <MiniPanel label="> WHO'S WATCHING" style={{ border: '2px dashed #3333aa' }}>
+            <div ref={trafficRef} style={{ fontSize: 10 }} />
           </MiniPanel>
 
           <MiniPanel label="LINK LOG" headerStyle={{ background: 'linear-gradient(90deg, #993300 0%, #551100 100%)', borderBottom: '1px solid #b94411' }}>
