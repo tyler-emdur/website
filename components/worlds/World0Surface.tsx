@@ -716,18 +716,12 @@ export default function World0Surface() {
               <div style={{ fontSize: 11, color: '#aaaacc', marginBottom: 8 }}>
                 Choose your destination<span className="w0-cursor">_</span>
               </div>
-              <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center', gap: 10, alignItems: 'center' }}>
-                <span className="w0-twinkle" style={{ fontSize: 13 }}>✦</span>
-                <button className="w0-click-here" onClick={go}>CLICK HERE!!!</button>
-                <span className="w0-twinkle-b" style={{ fontSize: 13 }}>✦</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
-                <button className="w0-ebtn" onClick={go} style={{ background: 'linear-gradient(180deg,#00cc44,#006622)', color: '#fff', borderColor: '#00ff88' }}>
-                  ENTER
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 12, alignItems: 'center' }}>
+                <span className="w0-twinkle" style={{ fontSize: 18 }}>✦</span>
+                <button className="w0-click-here" onClick={go} style={{ fontSize: 14, padding: '14px 36px', letterSpacing: 2 }}>
+                  CLICK TO ENTER
                 </button>
-                <button className="w0-ebtn" onClick={go} style={{ background: 'linear-gradient(180deg,#6600cc,#330066)', color: '#fff', borderColor: '#aa55ff' }}>
-                  EXPLORE
-                </button>
+                <span className="w0-twinkle-b" style={{ fontSize: 18 }}>✦</span>
               </div>
             </div>
             <img className="w0-img w0-spin" src={img('globe')} alt="" style={{ position: 'absolute', bottom: 12, left: 20, width: 48, height: 48, zIndex: 4, opacity: 0.75, animationDuration: '14s' }} />
@@ -787,22 +781,24 @@ export default function World0Surface() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <PanelHeader label="LATEST LOG ENTRY" />
+              <PanelHeader label="ABOUT THIS SITE" />
               <div className="w0-scroll w0-mono" style={{
                 flex: 1, overflowY: 'auto', padding: '7px 8px',
                 fontSize: 10, lineHeight: 1.85, background: '#000022', color: '#9999cc',
               }}>
-                <div style={{ color: '#00ccff', fontWeight: 'bold', marginBottom: 4 }}>{lastUpdatedLabel}</div>
+                <div style={{ color: '#00ccff', fontWeight: 'bold', marginBottom: 6 }}>What is this place?</div>
                 <div>
-                  Production of the page commenced.<br />
-                  Building world 17. This is taking longer<br />
-                  than expected but I am not an expert<br />
-                  at multiverse architecture.<br /><br />
-                  <span style={{ color: '#00ff77' }}>Captain&apos;s log &mdash; 51589.7</span><br />
-                  We are approaching world base 16.<br />
-                  We will visit all sectors. Damage<br />
-                  caused by creative overreach.<br /><br />
-                  &mdash; T.E.
+                  This is a <span style={{ color: '#ffffff' }}>multiverse</span> —
+                  a collection of <span style={{ color: '#ffffff' }}>17 separate websites</span>,
+                  each one its own world with its own aesthetic, vibe, and content.<br /><br />
+                  Each world is a different corner of my work, interests, and creative output.
+                  Some are functional. Some are weird. All of them are real.<br /><br />
+                  <span style={{ color: '#00ff77' }}>Built by Tyler Emdur</span><br />
+                  Software engineer &amp; builder.<br />
+                  Boulder, Colorado.<br /><br />
+                  Click a world below — or hit<br />
+                  <span style={{ color: '#ffff00' }}>CLICK TO ENTER</span> to start<br />
+                  at World 1.
                 </div>
               </div>
             </div>
