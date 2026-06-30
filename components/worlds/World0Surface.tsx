@@ -182,7 +182,7 @@ export default function World0Surface() {
   const [playing, setPlaying] = useState(false)
   const [quoteIdx, setQuoteIdx] = useState(0)
   const [weather, setWeather] = useState<{ temp: number; label: string } | null>(null)
-  const [moon] = useState(getMoonPhase)
+  const [moon, setMoon] = useState(getMoonPhase)
   const [daysOld] = useState(daysSinceLaunch)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
@@ -192,6 +192,24 @@ export default function World0Surface() {
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
+
+  // Active Moon Phase Rotation
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setMoon(prev => {
+        const names = ['New Moon', 'Waxing Crescent', 'First Quarter', 'Waxing Gibbous', 'Full Moon', 'Waning Gibbous', 'Last Quarter', 'Waning Crescent']
+        const ascii = ['( )', '(,)', '(D)', '(G)', '(O)', '(G)', '(C)', '(,)']
+        const idx = names.indexOf(prev.name)
+        const nextIdx = (idx + 1) % 8
+        return {
+          name: names[nextIdx],
+          symbol: ascii[nextIdx],
+          pct: Math.round(((nextIdx + 1) / 8) * 100)
+        }
+      })
+    }, 4500)
+    return () => clearInterval(iv)
+  }, [])
 
   useEffect(() => {
     const tick = () => {
@@ -420,34 +438,53 @@ export default function World0Surface() {
         .w0-scroll::-webkit-scrollbar { width:10px; height:8px; background:#000033 }
         .w0-scroll::-webkit-scrollbar-thumb { background:#440088 }
         .w0-scroll::-webkit-scrollbar-button { background:#330066; height:12px }
+        
+        /* Windows 95 Outset Buttons */
         .w0-ibtn {
           display:block; background:linear-gradient(180deg,#ffff55,#cccc00);
           color:#000033; font-family:"Arial Black",Arial,sans-serif;
           font-size:11px; font-weight:900; text-align:center; text-decoration:none;
           padding:5px 8px; border:2px outset #ffff99; margin:3px; letter-spacing:1px; cursor:pointer;
+          box-shadow: 1px 1px 0px #000;
         }
         .w0-ibtn:hover { filter:brightness(1.12) }
-        .w0-ibtn:active { border-style:inset }
+        .w0-ibtn:active { border-style:inset; transform:translate(1px,1px); box-shadow:none; }
+
+        /* Enter Buttons - Retro Software Feel */
         .w0-ebtn {
           display:inline-block; padding:10px 24px;
           font-family:"Arial Black",Arial,sans-serif; font-size:15px; font-weight:900;
-          text-transform:uppercase; border:3px outset; cursor:pointer;
+          text-transform:uppercase; border:3px outset #ffffff; cursor:pointer;
           letter-spacing:1px; text-align:center; line-height:1.1;
+          box-shadow: 2px 2px 0px #000, inset 1px 1px 0px rgba(255,255,255,0.4);
+          text-shadow: 1px 1px 0px #000;
         }
-        .w0-ebtn:hover { filter:brightness(1.2) }
-        .w0-ebtn:active { border-style:inset }
+        .w0-ebtn:hover {
+          filter:brightness(1.18);
+          box-shadow: 0 0 6px rgba(0,255,0,0.6), inset 1px 1px 0px rgba(255,255,255,0.4);
+        }
+        .w0-ebtn:active {
+          border-style:inset;
+          transform:translate(1.5px, 1.5px);
+          box-shadow: none;
+        }
+
         .w0-npb {
           background:#111144; border:2px outset ${BORDER}; color:#fff;
           width:24px; height:19px; display:flex; align-items:center; justify-content:center;
           font-size:9px; cursor:pointer;
         }
         .w0-npb:active { border-style:inset }
+
         @keyframes w0-pulse { 0%,100%{opacity:1;box-shadow:0 0 6px #00ff00} 50%{opacity:.3;box-shadow:0 0 2px #00ff00} }
         .w0-led { animation:w0-pulse 2s ease-in-out infinite }
+        
         @keyframes w0-spin { to { transform:rotate(360deg) } }
         .w0-spin { animation:w0-spin 9s linear infinite }
+        
         @keyframes w0-blink { 50% { opacity:0 } }
         .w0-blink { animation:w0-blink 1.2s step-end infinite }
+        
         @keyframes w0-construct {
           0% { background-position:0 0 }
           100% { background-position:40px 0 }
@@ -459,23 +496,51 @@ export default function World0Surface() {
           animation:w0-construct 1s linear infinite;
           border-bottom:1px solid ${BORDER};
         }
+
         .w0-ticker-wrap { overflow:hidden; white-space:nowrap; }
         .w0-ticker { display:inline-block; animation:w0-scroll 32s linear infinite; color:#00ff00; font-family:"Courier New",monospace; font-size:11px; padding-left:100% }
         @keyframes w0-scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-100%)} }
+        
+        /* White Welcome card with subtle CRT scanlines overlay */
         .w0-welcome {
           background-color:${BEIGE};
           border-right:2px solid ${BORDER};
           font-family:Arial,Helvetica,sans-serif;
+          position:relative;
+          overflow:hidden;
         }
-        .w0-welcome hr { border:none; border-top:1px solid #aaaaaa; margin:6px 0 }
+        .w0-welcome::after {
+          content: " ";
+          display: block;
+          position: absolute;
+          top: 0; left: 0; bottom: 0; right: 0;
+          background: repeating-linear-gradient(
+            0deg,
+            rgba(0, 0, 0, 0.05),
+            rgba(0, 0, 0, 0.05) 1px,
+            transparent 1px,
+            transparent 2px
+          );
+          pointer-events: none;
+          z-index: 10;
+        }
+
+        .w0-welcome hr { border:none; border-top:1px solid #aaaaaa; margin:6px 0; position:relative; z-index:11; }
         .w0-wobble { display:inline-block; transform:rotate(-0.5deg) }
         
+        /* World cards pulse on hover */
         .wt {
           flex-shrink: 0; width: 84px; height: 64px; border: 2px groove ${BORDER_LIGHT};
           cursor: pointer; position: relative; overflow: hidden;
-          text-decoration: none; display: block; transition: border-color .15s;
+          text-decoration: none; display: block;
+          transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
-        .wt:hover { border-color: ${YELLOW} !important; }
+        .wt:hover {
+          transform: scale(1.06);
+          border-color: ${YELLOW} !important;
+          box-shadow: 0 0 8px ${YELLOW};
+          z-index: 20;
+        }
         .wlbl {
           position: absolute; bottom: 0; left: 0; right: 0;
           background: rgba(0,0,0,.85);
@@ -484,6 +549,7 @@ export default function World0Surface() {
           text-align: center; padding: 2px;
         }
 
+        /* Title pixel CRT glow & fringe */
         .w0-title-crt {
           font-family: "Press Start 2P", "Courier New", monospace;
           font-size: clamp(15px, 2.5vw, 26px);
@@ -498,6 +564,7 @@ export default function World0Surface() {
           filter: blur(0.3px);
         }
 
+        /* Flashing Red Retro Ad Badge */
         @keyframes w0-flash-ad {
           0%, 49% { background-color: #ff0000; color: #ffffff; border-color: #ffff00; }
           50%, 100% { background-color: #ffff00; color: #ff0000; border-color: #ff0000; }
@@ -511,6 +578,46 @@ export default function World0Surface() {
           font-weight: bold;
           display: inline-block;
           text-shadow: none;
+          position:relative; z-index:11;
+        }
+
+        /* Rocket Drift Animation */
+        @keyframes w0-rocket-drift {
+          0%, 100% { transform: translateY(0) rotate(-18deg); }
+          50% { transform: translateY(-7px) rotate(-16deg); }
+        }
+        .w0-rocket {
+          animation: w0-rocket-drift 5.5s ease-in-out infinite;
+        }
+
+        /* Odometer Flicker Animation */
+        @keyframes w0-flicker {
+          0%, 100% { opacity: 1; }
+          93% { opacity: 1; }
+          94% { opacity: 0.88; }
+          95% { opacity: 0.96; }
+          96% { opacity: 0.78; }
+          97% { opacity: 0.94; }
+        }
+        .w0-flicker {
+          animation: w0-flicker 5.5s infinite;
+        }
+
+        /* Mainframe Shake Animation */
+        @keyframes w0-shake {
+          0%, 100% { transform: translate(0, 0) rotate(0deg); }
+          10% { transform: translate(-2px, -2px) rotate(-0.4deg); }
+          20% { transform: translate(2px, -1px) rotate(0.4deg); }
+          30% { transform: translate(-1px, 2px) rotate(0deg); }
+          40% { transform: translate(1px, -2px) rotate(0.4deg); }
+          50% { transform: translate(-2px, 1px) rotate(-0.4deg); }
+          60% { transform: translate(2px, 2px) rotate(0deg); }
+          72% { transform: translate(-1px, -1px) rotate(0.4deg); }
+          80% { transform: translate(2px, -2px) rotate(-0.4deg); }
+          90% { transform: translate(-2px, 2px) rotate(0deg); }
+        }
+        .w0-shake {
+          animation: w0-shake 0.25s ease-in-out infinite;
         }
       `}</style>
 
@@ -594,7 +701,7 @@ export default function World0Surface() {
           <MiniPanel label="> VISITOR COUNTER" style={{ border: '2px dashed #33aa33' }}>
             <div style={{ textAlign: 'center' }}>
               <div id="globe" className="w0-spin" style={{ width: 52, height: 52, borderRadius: '50%', margin: '0 auto 7px' }}></div>
-              <div id="odo" className="w0-mono" style={{
+              <div id="odo" className="w0-mono w0-flicker" style={{
                 fontSize: 22, fontWeight: 'bold', color: GREEN, letterSpacing: 3,
                 background: '#000', border: '2px inset #333', padding: '3px 8px', display: 'inline-block',
                 textShadow: '0 0 9px #00FF00'
@@ -624,9 +731,13 @@ export default function World0Surface() {
           </MiniPanel>
 
           <MiniPanel label="> SYSTEM STATUS">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
               <span className="w0-led" style={{ width: 11, height: 11, borderRadius: '50%', background: GREEN, display: 'inline-block', flexShrink: 0, boxShadow: '0 0 6px #00ff00' }} />
               <span className="w0-mono" style={{ fontSize: 10, color: GREEN }}>STATUS: Online</span>
+            </div>
+            <div className="w0-mono" style={{ fontSize: 9, color: '#00ff77', borderTop: '1px solid #111155', paddingTop: 4, marginTop: 4 }}>
+              ● Creative Engine Running<br />
+              ● Building World 17...
             </div>
             <div style={{ fontSize: 9, color: '#777799', marginTop: 5, lineHeight: 1.6 }}>
               LAST UPDATED:<br />{daysOld} days ago<br />
@@ -691,14 +802,14 @@ export default function World0Surface() {
               </div>
             </div>
             <img className="w0-img w0-spin" src={img('globe')} alt="" style={{ position: 'absolute', bottom: 12, left: 20, width: 48, height: 48, zIndex: 4, opacity: 0.75, animationDuration: '14s' }} />
-            <img className="w0-img" src={img('rocket')} alt="" style={{ position: 'absolute', top: '36%', right: '5%', width: 68, height: 42, transform: 'rotate(-18deg)', zIndex: 4, opacity: 0.85 }} />
+            <img className="w0-img w0-rocket" src={img('rocket')} alt="" style={{ position: 'absolute', top: '36%', right: '5%', width: 68, height: 42, transform: 'rotate(-18deg)', zIndex: 4, opacity: 0.85 }} />
           </div>
 
           {/* Welcome + Log — vintage welcome card */}
           <div id="cbot" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px', background: '#000033', flex: '0 0 auto' }}>
             <div className="w0-welcome" style={{ padding: 0 }}>
               <div className="w0-construct" title="under construction" />
-              <div style={{ padding: '8px 10px 10px' }}>
+              <div style={{ padding: '8px 10px 10px', position: 'relative', zIndex: 12 }}>
                 <div style={{ textAlign: 'center', marginBottom: 8 }}>
                   <span className="w0-flash-ad">NEW!</span>
                   {' '}
@@ -707,28 +818,28 @@ export default function World0Surface() {
                   </span>
                 </div>
                 <hr />
-                <p style={{ fontSize: 11, lineHeight: 1.7, color: '#222', marginBottom: 7, textAlign: 'center' }}>
+                <p style={{ fontSize: 11, lineHeight: 1.7, color: '#222', marginBottom: 7, textAlign: 'center', position: 'relative', zIndex: 12 }}>
                   <b>Hello and welcome!</b> I&apos;m a software engineer and everything I build is cool.
                 </p>
-                <p style={{ fontSize: 11, lineHeight: 1.7, color: '#222', marginBottom: 7 }}>
+                <p style={{ fontSize: 11, lineHeight: 1.7, color: '#222', marginBottom: 7, position: 'relative', zIndex: 12 }}>
                   So the following multiverse of <b>17 websites</b> represents my work and interests.
                   Please sign my guestbook. Tell your friends. Add me to your webring.
                 </p>
                 <hr />
-                <div style={{ fontSize: 10, color: '#444', marginBottom: 5, textAlign: 'center' }}>
+                <div style={{ fontSize: 10, color: '#444', marginBottom: 5, textAlign: 'center', position: 'relative', zIndex: 12 }}>
                   <i>{QUOTES[quoteIdx]}</i>
                 </div>
                 <hr />
-                <p style={{ fontSize: 11, lineHeight: 1.6, color: '#222', marginBottom: 5 }}>
+                <p style={{ fontSize: 11, lineHeight: 1.6, color: '#222', marginBottom: 5, position: 'relative', zIndex: 12 }}>
                   Boulder, CO &bull; <a href="mailto:tyler@tyleremdur.com" style={{ color: '#0000cc' }}>tyler@tyleremdur.com</a><br />
                   github: <a href="https://github.com/tyler-emdur" target="_blank" rel="noopener noreferrer" style={{ color: '#0000cc' }}>tyler-emdur</a>
                 </p>
-                <div className="retnav" style={{ fontSize: 11, marginBottom: 5 }}>
+                <div className="retnav" style={{ fontSize: 11, marginBottom: 5, position: 'relative', zIndex: 12 }}>
                   <span style={{ color: '#0000cc', textDecoration: 'underline', cursor: 'pointer' }} onClick={go}>[ Enter the Multiverse &rarr; ]</span>{' '}
                   <span style={{ color: '#0000cc', textDecoration: 'underline', cursor: 'pointer' }} onClick={go}>[ About Me ]</span>{' '}
                   <a href="/build" style={{ color: '#0000cc' }}>[ Projects ]</a>
                 </div>
-                <div style={{ fontSize: 9, color: '#666', borderTop: `1px dotted ${BORDER}`, paddingTop: 5, textAlign: 'center' }}>
+                <div style={{ fontSize: 9, color: '#666', borderTop: `1px dotted ${BORDER}`, paddingTop: 5, textAlign: 'center', position: 'relative', zIndex: 12 }}>
                   Site updated <b>{daysOld}</b> day{daysOld !== 1 ? 's' : ''} ago &bull;
                   Best viewed at 800&times;600 &bull;
                   You are visitor <b>#{String(count).padStart(6, '0')}</b>
@@ -798,16 +909,17 @@ export default function World0Surface() {
             </div>
           </MiniPanel>
 
-          <MiniPanel label="BOULDER WEATHER">
-            <div className="w0-mono" style={{ fontSize: 11, color: '#888899', lineHeight: 1.7 }}>
+          {/* Asymmetry: Weather panel is made significantly shorter */}
+          <MiniPanel label="BOULDER WEATHER" style={{ padding: 2, margin: '2px 4px 4px' }}>
+            <div className="w0-mono" style={{ fontSize: 10, color: '#888899', lineHeight: 1.45, padding: '2px 4px' }}>
               {weather ? (
                 <>
-                  <span style={{ fontSize: 18, color: YELLOW }}>{weather.temp}&deg;F</span><br />
-                  {weather.label}<br />
-                  <span style={{ fontSize: 9, color: '#555568' }}>40.0150&deg;N 105.2705&deg;W<br />elevation 5,430 ft</span>
+                  <span style={{ fontSize: 14, color: YELLOW }}>{weather.temp}&deg;F</span>{' '}
+                  <span style={{ fontSize: 9 }}>({weather.label})</span><br />
+                  <span style={{ fontSize: 8, color: '#555568' }}>40.01&deg;N 105.27&deg;W | 5,430 ft</span>
                 </>
               ) : (
-                <span style={{ fontSize: 10, color: '#555568' }}>connecting to NOAA...</span>
+                <span style={{ fontSize: 9, color: '#555568' }}>connecting...</span>
               )}
             </div>
           </MiniPanel>
@@ -828,27 +940,44 @@ export default function World0Surface() {
             </div>
           </MiniPanel>
 
-          <MiniPanel label="NEW MEDIA / NEW ART">
-            <div className="w0-mono" style={{ fontSize: 10, lineHeight: 1.75, color: '#888899' }}>
-              <span style={{ color: '#00ccff', fontWeight: 'bold' }}>tyler emdur</span> &bull; 2026<br />
-              boulder colorado<br />
-              software &bull; running<br />
-              17 worlds inside<br />
-              <span style={{ fontSize: 9, color: '#555568' }}>updated {daysOld}d ago</span>
+          {/* One Weird Thing: Danger zone shake button */}
+          <MiniPanel label="⚠️ DANGER ZONE" headerStyle={{ background: 'linear-gradient(90deg, #ee0000 0%, #990000 100%)', borderBottom: '1px solid #ff3333' }}>
+            <div style={{ textAlign: 'center', padding: '2px 0' }}>
+              <div style={{ fontSize: 8, color: '#ffaaaa', marginBottom: 5, fontFamily: '"Press Start 2P", monospace' }}>DO NOT PRESS</div>
+              <button className="w0-ibtn" style={{
+                background: 'linear-gradient(180deg, #ff3333, #880000)',
+                color: '#fff', borderColor: '#ff9999', margin: '0 auto', fontSize: 10, width: '90%'
+              }} onClick={() => {
+                alert("WARNING: Mainframe connection destabilized! Restructuring space-time anomaly...")
+                document.body.classList.add('w0-shake')
+                setTimeout(() => document.body.classList.remove('w0-shake'), 1200)
+              }}>
+                [ ACTIVATE ]
+              </button>
             </div>
-            <button className="w0-link" onClick={go} style={{ color: '#00ff77', display: 'block', marginTop: 5, fontSize: 10 }}>&rarr; enter.now</button>
           </MiniPanel>
 
-          {/* Symmetrical imperfection: Brick red gradient header */}
-          <MiniPanel label="LINK LOG" headerStyle={{ background: 'linear-gradient(90deg, #993300 0%, #551100 100%)', borderBottom: '1px solid #b94411' }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <div style={{ fontSize: 10, lineHeight: 1.65, color: '#888899', flex: 1 }}>
-                This is an <button className="w0-link" style={{ color: '#00ccff' }}>IN SYNC WITH &apos;N SYNC</button> site.<br /><br />
-                Want to join <button className="w0-link" style={{ color: '#00ccff' }}>&quot;IN SYNC WITH &apos;N SYNC&quot;</button>
-                the official fan club?<br /><br />
-                <button className="w0-link" onClick={go} style={{ color: '#00ccff' }}>Click here to join now!</button>
+          {/* Asymmetry: New Media panel is made taller with extra padding and indicators */}
+          <MiniPanel label="NEW MEDIA / NEW ART" style={{ margin: '4px' }}>
+            <div className="w0-mono" style={{ fontSize: 10, lineHeight: 1.8, color: '#888899', padding: '8px 4px' }}>
+              <span style={{ color: '#00ccff', fontWeight: 'bold' }}>tyler emdur</span> &bull; 2026<br />
+              boulder colorado<br />
+              software &bull; running &bull; art<br />
+              17 worlds inside<br />
+              <span style={{ color: GREEN_DIM }}>creative engine active</span><br />
+              <span style={{ fontSize: 9, color: '#555568' }}>updated {daysOld}d ago</span>
+            </div>
+            <button className="w0-link" onClick={go} style={{ color: '#00ff77', display: 'block', marginTop: 5, fontSize: 10, paddingLeft: 4 }}>&rarr; enter.now</button>
+          </MiniPanel>
+
+          {/* Asymmetry: Link Log panel is made shorter */}
+          <MiniPanel label="LINK LOG" style={{ margin: '2px 4px 4px' }} headerStyle={{ background: 'linear-gradient(90deg, #993300 0%, #551100 100%)', borderBottom: '1px solid #b94411' }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+              <div style={{ fontSize: 9.5, lineHeight: 1.5, color: '#888899', flex: 1 }}>
+                An <button className="w0-link" style={{ color: '#00ccff' }}>IN SYNC WITH &apos;N SYNC</button> fan site.<br />
+                <button className="w0-link" onClick={go} style={{ color: '#00ccff' }}>Join the club now &rarr;</button>
               </div>
-              <img className="w0-img" src={img('group')} alt="" style={{ width: 68, height: 68, flexShrink: 0, border: `2px inset ${BORDER}` }} />
+              <img className="w0-img" src={img('group')} alt="" style={{ width: 44, height: 44, flexShrink: 0, border: `1px inset ${BORDER}` }} />
             </div>
           </MiniPanel>
 
