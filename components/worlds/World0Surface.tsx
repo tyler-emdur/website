@@ -39,16 +39,12 @@ const ALL_WORLDS: WorldItem[] = [
   { id: 2, name: 'Depth', bg: '#000033', ac: '#00ffff' },
   { id: 3, name: 'Broadcast', bg: '#220022', ac: '#ff55ff' },
   { id: 4, name: 'Blackbird', bg: '#040603', ac: '#33ff66' },
-  { id: 5, name: 'Field Station', bg: '#002200', ac: '#55ff55' },
-  { id: 6, name: 'Document', bg: '#332211', ac: '#ffaa00' },
   { id: 7, name: 'Mall', bg: '#440044', ac: '#ff0055' },
   { id: 8, name: 'Signal', bg: '#000044', ac: '#00ccff' },
   { id: 9, name: 'Contact', bg: '#220044', ac: '#aa55ff' },
   { id: 10, name: 'Darkroom', bg: '#110000', ac: '#ff2222' },
-  { id: 11, name: 'Flicker', bg: '#222200', ac: '#ffff33' },
   { id: 12, name: 'Moth', bg: '#1a1a00', ac: '#cccc00' },
   { id: 13, name: 'Night Sky', bg: '#000022', ac: '#44bbff' },
-  { id: 14, name: 'Pixel', bg: '#110022', ac: '#ff00bb' },
   { id: 15, name: 'Kitchen', bg: '#221100', ac: '#ff7700' },
   { id: 16, name: 'Attic', bg: '#111122', ac: '#9999ff' },
   { id: 17, name: 'BuildLog', bg: '#008080', ac: '#ffff00' },
@@ -817,10 +813,12 @@ export default function World0Surface() {
                     <span className="w0-led" style={{ width: 7, height: 7, borderRadius: '50%', background: '#33ff66', display: 'inline-block', marginRight: 5, boxShadow: '0 0 4px #33ff66' }} />
                     STATUS: <b style={{ color: '#fff' }}>Building World 17</b>
                   </div>
-                  <div>LATEST ADDITION: <b style={{ color: '#fff' }}>{ghCommits?.[0]?.message ?? 'Weather System'}</b></div>
+                  <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    LATEST ADDITION: <b style={{ color: '#fff' }}>{ghCommits?.[0]?.message ?? 'Weather System'}</b>
+                  </div>
                   <div style={{ marginBottom: 6 }}>NEXT PLANNED WORLD: <b style={{ color: '#fff' }}>????</b></div>
                   <div style={{ color: '#88ffaa', borderTop: '1px dotted #115522', paddingTop: 5, marginBottom: 3 }}>RECENT TRANSMISSIONS:</div>
-                  {ghCommits ? ghCommits.slice(0, 4).map((c, i) => (
+                  {ghCommits ? ghCommits.slice(0, 3).map((c, i) => (
                     <div key={i} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span style={{ color: '#117733' }}>{c.shortDate}</span> &mdash; {c.message}
                     </div>
@@ -834,10 +832,6 @@ export default function World0Surface() {
                   <a href="mailto:tyler@tyleremdur.com" style={{ color: '#0000cc' }}>tyler@tyleremdur.com</a><br />
                   github: <a href="https://github.com/tyler-emdur/website" target="_blank" rel="noopener noreferrer" style={{ color: '#0000cc' }}>tyler-emdur/website</a>
                 </p>
-                <div className="retnav" style={{ fontSize: 11, marginBottom: 5, position: 'relative', zIndex: 12 }}>
-                  <span style={{ color: '#0000cc', textDecoration: 'underline', cursor: 'pointer' }} onClick={go}>[ Enter the Multiverse &rarr; ]</span>{' '}
-                  <span style={{ color: '#0000cc', textDecoration: 'underline', cursor: 'pointer' }} onClick={goProjects}>[ Projects ]</span>
-                </div>
                 <div style={{ fontSize: 9, color: '#666', borderTop: `1px dotted ${BORDER}`, paddingTop: 5, textAlign: 'center', position: 'relative', zIndex: 12 }}>
                   Site updated <b>{lastUpdatedLabel}</b> &bull; Best viewed at 800&times;600
                 </div>

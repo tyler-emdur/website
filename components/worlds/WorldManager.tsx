@@ -7,16 +7,12 @@ import World1Apartment from './World1Apartment'
 import World2Depth from './World2Depth'
 import World3Broadcast from './World3Broadcast'
 import World4Corridor from './World4Corridor'
-import World5FieldStation from './World5FieldStation'
-import World6Document from './World6Document'
 import World7Mall from './World7Mall'
 import World8Signal from './World8Signal'
 import World9Contact from './World9Contact'
 import World10Darkroom from './World10Darkroom'
-import World11Flicker from './World11Flicker'
 import World12Moth from './World12Moth'
 import World13NightSky from './World13NightSky'
-import World14Pixel from './World14Pixel'
 import World15Kitchen from './World15Kitchen'
 import World16Attic from './World16Attic'
 import World17BuildLog from './World17BuildLog'
@@ -30,16 +26,12 @@ const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
   2: World2Depth,
   3: World3Broadcast,
   4: World4Corridor,
-  5: World5FieldStation,
-  6: World6Document,
   7: World7Mall,
   8: World8Signal,
   9: World9Contact,
   10: World10Darkroom,
-  11: World11Flicker,
   12: World12Moth,
   13: World13NightSky,
-  14: World14Pixel,
   15: World15Kitchen,
   16: World16Attic,
   17: World17BuildLog,
@@ -78,7 +70,7 @@ export default function WorldManager() {
   const portalActive = useWorldStore(s => s.portalActive)
   const portalConfig = useWorldStore(s => s.portalConfig)
 
-  const WorldComponent = WORLD_COMPONENTS[current]
+  const WorldComponent = WORLD_COMPONENTS[current] ?? World0Surface
 
   // Update data-world on html element for CSS scoping
   useEffect(() => {
