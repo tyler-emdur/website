@@ -703,22 +703,22 @@ export default function World0Surface() {
             border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px',
           }}>
             <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
-            <div style={{ position: 'relative', zIndex: 5, padding: '22px 20px' }}>
-              <div style={{ fontSize: 18, letterSpacing: 4, color: '#00ff00', textShadow: '0 0 10px #00ff00', fontFamily: 'VT323, monospace', marginBottom: 4 }}>
+            <div style={{ position: 'relative', zIndex: 5, padding: '14px 20px' }}>
+              <div style={{ fontSize: 16, letterSpacing: 4, color: '#00ff00', textShadow: '0 0 10px #00ff00', fontFamily: 'VT323, monospace', marginBottom: 2 }}>
                 WELCOME TO
               </div>
-              <div className="w0-title-crt" style={{ marginBottom: 12 }}>
+              <div className="w0-title-crt" style={{ marginBottom: 6 }}>
                 TYLER EMDUR&apos;S<br />MULTIVERSE
               </div>
-              <div style={{ fontFamily: 'VT323, monospace', fontSize: 22, color: '#00ff00', textShadow: '0 0 8px #00ff00', marginBottom: 4 }}>
+              <div style={{ fontFamily: 'VT323, monospace', fontSize: 20, color: '#00ff00', textShadow: '0 0 8px #00ff00', marginBottom: 2 }}>
                 17 worlds. Infinite possibilities.
               </div>
-              <div style={{ fontSize: 11, color: '#aaaacc', marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: '#aaaacc', marginBottom: 10 }}>
                 Choose your destination<span className="w0-cursor">_</span>
               </div>
               <div>
                 <span className="w0-twinkle" style={{ fontSize: 18 }}>✦ </span>
-                <button className="w0-click-here" onClick={go} style={{ fontSize: 14, padding: '14px 36px', letterSpacing: 2 }}>
+                <button className="w0-click-here" onClick={go} style={{ fontSize: 14, padding: '10px 36px', letterSpacing: 2 }}>
                   CLICK TO ENTER
                 </button>
                 <span className="w0-twinkle-b" style={{ fontSize: 18 }}> ✦</span>
