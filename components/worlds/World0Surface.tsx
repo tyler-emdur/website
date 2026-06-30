@@ -741,20 +741,20 @@ export default function World0Surface() {
             border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px',
           }}>
             <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
-            <div style={{ position: 'relative', zIndex: 5, padding: '14px 20px' }}>
-              <div style={{ fontSize: 16, letterSpacing: 4, color: '#00ff00', textShadow: '0 0 10px #00ff00', fontFamily: 'VT323, monospace', marginBottom: 2 }}>
+            <div style={{ position: 'relative', zIndex: 5, padding: '10px 20px 6px' }}>
+              <div style={{ fontSize: 13, letterSpacing: 4, color: '#00ff00', textShadow: '0 0 10px #00ff00', fontFamily: 'VT323, monospace', marginBottom: 1 }}>
                 WELCOME TO
               </div>
-              <div className="w0-title-crt" style={{ marginBottom: 6 }}>
+              <div className="w0-title-crt" style={{ marginBottom: 4, fontSize: 'clamp(14px,2.2vw,23px)' }}>
                 TYLER EMDUR&apos;S<br />MULTIVERSE
               </div>
-              <div style={{ fontFamily: 'VT323, monospace', fontSize: 20, color: '#00ff00', textShadow: '0 0 8px #00ff00', marginBottom: 2 }}>
+              <div style={{ fontFamily: 'VT323, monospace', fontSize: 16, color: '#00ff00', textShadow: '0 0 8px #00ff00', marginBottom: 1 }}>
                 17 worlds. Infinite possibilities.
               </div>
-              <div style={{ fontSize: 11, color: '#aaaacc', marginBottom: 10 }}>
+              <div style={{ fontSize: 10, color: '#aaaacc', marginBottom: 6 }}>
                 Choose your destination<span className="w0-cursor">_</span>
               </div>
-              <div style={{ paddingBottom: 18 }}>
+              <div>
                 <span className="w0-twinkle" style={{ fontSize: 18 }}>✦ </span>
                 <button className="w0-click-here" onClick={go} style={{ fontSize: 14, padding: '10px 36px', letterSpacing: 2 }}>
                   CLICK TO ENTER
@@ -836,10 +836,7 @@ export default function World0Surface() {
                   built and expanded. Think of it as a living project that grows over time as I create
                   new things and explore new ideas.<br /><br />
                   <span style={{ color: '#00ff77' }}>Built by Tyler Emdur</span><br />
-                  Boulder, Colorado.<br /><br />
-                  Click a world below, or press<br />
-                  <span style={{ color: '#ffff00' }}>CLICK TO ENTER</span> to begin your<br />
-                  journey at World 1.
+                  Boulder, Colorado.
                 </div>
               </div>
             </div>
