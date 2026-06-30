@@ -619,6 +619,46 @@ export default function World0Surface() {
         .w0-shake {
           animation: w0-shake 0.25s ease-in-out infinite;
         }
+
+        /* === GIF-like Decorations === */
+        @keyframes w0-star-spin {
+          0%   { transform: rotate(0deg);   color: #ffff00; }
+          25%  { transform: rotate(90deg);  color: #ff00ff; }
+          50%  { transform: rotate(180deg); color: #00ffff; }
+          75%  { transform: rotate(270deg); color: #ff8800; }
+          100% { transform: rotate(360deg); color: #ffff00; }
+        }
+        .w0-gif-star { animation: w0-star-spin 0.9s linear infinite; display: inline-block; line-height: 1; user-select:none; }
+
+        @keyframes w0-mail-bounce {
+          0%,100% { transform: translateY(0) rotate(0deg); }
+          30% { transform: translateY(-6px) rotate(-8deg); }
+          60% { transform: translateY(-2px) rotate(4deg); }
+        }
+        .w0-gif-mail { animation: w0-mail-bounce 1.2s ease-in-out infinite; display: inline-block; }
+
+        @keyframes w0-award-pulse {
+          0%,100% { box-shadow: 0 0 6px #ffd700, 0 0 12px #ff8800; border-color: #ffd700; }
+          50%      { box-shadow: 0 0 16px #fff, 0 0 28px #ffd700, 0 0 40px #ff8800; border-color: #fff; }
+        }
+        .w0-award { animation: w0-award-pulse 1.8s ease-in-out infinite; }
+
+        @keyframes w0-rainbow {
+          0%  { color: #ff0000; }
+          17% { color: #ff8800; }
+          33% { color: #ffff00; }
+          50% { color: #00ff00; }
+          67% { color: #0088ff; }
+          83% { color: #cc00ff; }
+          100%{ color: #ff0000; }
+        }
+        .w0-rainbow { animation: w0-rainbow 2.2s linear infinite; }
+
+        @keyframes w0-cursor-blink {
+          0%,49% { opacity: 1; }
+          50%,100% { opacity: 0; }
+        }
+        .w0-cursor { animation: w0-cursor-blink 0.9s step-end infinite; font-weight:900; }
       `}</style>
 
       {/* Browser chrome */}
@@ -666,7 +706,7 @@ export default function World0Surface() {
             backgroundImage: 'radial-gradient(1px 1px at 30px 20px,rgba(255,255,255,.4),transparent),radial-gradient(1px 1px at 90px 40px,rgba(255,255,255,.3),transparent)',
           }}>
             <div className="w0-pixel" style={{ fontSize: 10, color: YELLOW, lineHeight: 1.6, textShadow: '1px 1px 0px #ff0000' }}>
-              TYLER&apos;S WEB ZONE
+              <span className="w0-gif-star" style={{ fontSize: 12 }}>✦</span>{' '}TYLER&apos;S WEB ZONE{' '}<span className="w0-gif-star" style={{ fontSize: 12, animationDelay: '0.45s' }}>✦</span>
             </div>
             <div style={{ fontSize: 10, color: '#00ccff', marginTop: 4, fontFamily: 'Comic Sans MS, cursive' }}>on the World Wide Web!!!</div>
           </div>
@@ -783,7 +823,14 @@ export default function World0Surface() {
               <div id="sf-tag" style={{ fontFamily: 'VT323, monospace', fontSize: 22, color: '#00ff00', textShadow: '0 0 8px #00ff00', marginBottom: 4 }}>
                 17 worlds. Infinite possibilities.
               </div>
-              <div style={{ fontSize: 11, color: '#aaaacc', marginBottom: 14 }}>Choose your destination...</div>
+              <div style={{ fontSize: 11, color: '#aaaacc', marginBottom: 6 }}>
+                Choose your destination<span className="w0-cursor">_</span>
+              </div>
+              <div style={{ fontSize: 10, color: '#00ff88', fontFamily: '"Press Start 2P", monospace', marginBottom: 10, letterSpacing: 1 }}>
+                <span className="w0-gif-star" style={{ fontSize: 10 }}>✦</span>
+                {' '}SIGN MY GUESTBOOK{' '}
+                <span className="w0-gif-star" style={{ fontSize: 10, animationDelay: '0.3s' }}>✦</span>
+              </div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
                 <div>
                   <button className="w0-ebtn ebtn-a" onClick={go}>
@@ -811,11 +858,14 @@ export default function World0Surface() {
               <div className="w0-construct" title="under construction" />
               <div style={{ padding: '8px 10px 10px', position: 'relative', zIndex: 12 }}>
                 <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                  <span className="w0-gif-star" style={{ fontSize: 16, marginRight: 4 }}>★</span>
                   <span className="w0-flash-ad">NEW!</span>
                   {' '}
-                  <span className="w0-wobble" style={{ fontSize: 12, fontWeight: 'bold', color: '#330066', fontFamily: 'Arial Black,Arial,sans-serif' }}>
+                  <span className="w0-rainbow w0-wobble" style={{ fontSize: 12, fontWeight: 'bold', fontFamily: '"Comic Sans MS",cursive' }}>
                     WELCOME TO MY HOMEPAGE!!!
                   </span>
+                  {' '}
+                  <span className="w0-gif-star" style={{ fontSize: 16, marginLeft: 4, animationDelay: '0.6s' }}>★</span>
                 </div>
                 <hr />
                 <p style={{ fontSize: 11, lineHeight: 1.7, color: '#222', marginBottom: 7, textAlign: 'center', position: 'relative', zIndex: 12 }}>
@@ -831,7 +881,8 @@ export default function World0Surface() {
                 </div>
                 <hr />
                 <p style={{ fontSize: 11, lineHeight: 1.6, color: '#222', marginBottom: 5, position: 'relative', zIndex: 12 }}>
-                  Boulder, CO &bull; <a href="mailto:tyler@tyleremdur.com" style={{ color: '#0000cc' }}>tyler@tyleremdur.com</a><br />
+                  Boulder, CO &bull; <span className="w0-gif-mail" style={{ fontSize: 13 }}>✉</span>{' '}
+                  <a href="mailto:tyler@tyleremdur.com" style={{ color: '#0000cc' }}>tyler@tyleremdur.com</a><br />
                   github: <a href="https://github.com/tyler-emdur" target="_blank" rel="noopener noreferrer" style={{ color: '#0000cc' }}>tyler-emdur</a>
                 </p>
                 <div className="retnav" style={{ fontSize: 11, marginBottom: 5, position: 'relative', zIndex: 12 }}>
@@ -981,6 +1032,24 @@ export default function World0Surface() {
             </div>
           </MiniPanel>
 
+          <MiniPanel label="SITE AWARD" headerStyle={{ background: 'linear-gradient(90deg, #bb7700 0%, #774400 100%)', borderBottom: '1px solid #ddaa00' }}>
+            <div style={{ textAlign: 'center', padding: '4px 2px' }}>
+              <div className="w0-award" style={{
+                display: 'inline-block', border: '3px solid #ffd700',
+                borderRadius: 3, padding: '6px 12px', background: 'linear-gradient(135deg, #1a0800, #2a1200)',
+                marginBottom: 5,
+              }}>
+                <div className="w0-gif-star" style={{ fontSize: 26, display: 'block', marginBottom: 2 }}>★</div>
+                <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 6, color: '#ffd700', lineHeight: 1.7 }}>
+                  GEOCITIES<br />HOT SITE<br />AWARD &lsquo;99
+                </div>
+              </div>
+              <div style={{ fontSize: 8, color: '#886600', lineHeight: 1.5, fontFamily: '"Comic Sans MS",cursive' }}>
+                Cool Site of<br />the Millennium!!
+              </div>
+            </div>
+          </MiniPanel>
+
           <MiniPanel label="WEB RING">
             <div style={{ fontSize: 9, color: '#666680', lineHeight: 1.7, textAlign: 'center' }}>
               <span style={{ color: '#66aaff', cursor: 'pointer' }}>[ &lt;&lt; Prev ]</span>
@@ -1010,6 +1079,23 @@ export default function World0Surface() {
           &nbsp;[ <button className="w0-link" onClick={go} style={{ color: '#66aaff' }}>Enter</button> ]
           &nbsp;[ <button className="w0-link" style={{ color: '#66aaff' }}>Random</button> ]
           &nbsp;[ <button className="w0-link" style={{ color: '#66aaff' }}>List Sites</button> ]
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            border: '2px outset #cccccc', background: 'linear-gradient(90deg,#003399,#000066)',
+            color: '#ffffff', fontSize: 7, fontFamily: '"Press Start 2P",monospace',
+            padding: '2px 5px', letterSpacing: 1, lineHeight: 1.5,
+            display: 'inline-block',
+          }}>
+            NETSCAPE<br />NOW!
+          </span>
+          <span style={{
+            border: '2px outset #999966', background: 'linear-gradient(90deg,#333300,#111100)',
+            color: '#ffff00', fontSize: 7, fontFamily: '"Press Start 2P",monospace',
+            padding: '2px 5px', letterSpacing: 1, lineHeight: 1.5, display: 'inline-block',
+          }}>
+            BEST AT<br />800x600
+          </span>
         </span>
         <span className="w0-mono" style={{ color: '#00ff00' }}>
           {time}
