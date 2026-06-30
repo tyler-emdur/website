@@ -16,21 +16,15 @@ const LINK = '#3366cc'
 const GREEN = '#00ff00'
 const GREEN_DIM = '#00aa00'
 
-const SITE_LAUNCH = new Date('2026-06-01T00:00:00')
 const img = (name: string) => `/retro/${name}.svg`
 
-const QUOTES = [
-  '"The web is more a social creation than a technical one." — Tim Berners-Lee',
-  '"Best viewed in Netscape Navigator 4.0 at 800×600." — every site, 1998',
-  '"This page is permanently under construction." — also every site, 1998',
-  '"There are 17 worlds inside. Please do not feed them after midnight." — T.E.',
-  '"Damage caused by creative overreach is not covered by warranty." — Captain\'s Log',
-  '"If you can read this, your browser supports text. Congratulations." — Webmaster',
-  '"The multiverse was not built in a day. Or was it? Time is weird here." — T.E.',
-  '"Sign my guestbook. I will sign yours back. This is the social contract." — GeoCities, 1999',
-  '"Running code is just writing that forgot it was supposed to be temporary." — T.E.',
-  '"Boulder elevation: 5,430 ft. Attitude: higher." — local knowledge',
-]
+function getLastUpdated() {
+  const raw = process.env.NEXT_PUBLIC_LAST_COMMIT_DATE
+  const d = raw ? new Date(raw) : new Date()
+  const label = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const daysAgo = Math.floor((Date.now() - d.getTime()) / 86400000)
+  return { label, daysAgo }
+}
 
 const WEATHER_LABELS: Record<number, string> = {
   0: 'clear', 1: 'mainly clear', 2: 'partly cloudy', 3: 'overcast',
@@ -67,19 +61,6 @@ const ALL_WORLDS: WorldItem[] = [
   { id: 16, name: 'Attic', bg: '#111122', ac: '#9999ff' },
 ]
 
-function daysSinceLaunch() {
-  return Math.floor((Date.now() - SITE_LAUNCH.getTime()) / 86400000)
-}
-
-function getMoonPhase() {
-  const lp = 2551443
-  const ref = new Date('2024-01-11T11:57:00').getTime()
-  const phase = ((Date.now() - ref) / 1000 % lp) / lp
-  const names = ['New Moon', 'Waxing Crescent', 'First Quarter', 'Waxing Gibbous', 'Full Moon', 'Waning Gibbous', 'Last Quarter', 'Waning Crescent']
-  const ascii = ['( )', '(,)', '(D)', '(G)', '(O)', '(G)', '(C)', '(,)']
-  const idx = Math.floor(phase * 8) % 8
-  return { name: names[idx], symbol: ascii[idx], pct: Math.round(phase * 100) }
-}
 
 function PanelHeader({ label, style }: { label: string; style?: React.CSSProperties }) {
   return (
@@ -180,10 +161,8 @@ export default function World0Surface() {
   const [time, setTime] = useState('')
   const [count, setCount] = useState(10951)
   const [playing, setPlaying] = useState(false)
-  const [quoteIdx, setQuoteIdx] = useState(0)
   const [weather, setWeather] = useState<{ temp: number; label: string } | null>(null)
-  const [moon, setMoon] = useState(getMoonPhase)
-  const [daysOld] = useState(daysSinceLaunch)
+  const { label: lastUpdatedLabel, daysAgo } = getLastUpdated()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
 
@@ -192,24 +171,6 @@ export default function World0Surface() {
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
-
-  // Active Moon Phase Rotation
-  useEffect(() => {
-    const iv = setInterval(() => {
-      setMoon(prev => {
-        const names = ['New Moon', 'Waxing Crescent', 'First Quarter', 'Waxing Gibbous', 'Full Moon', 'Waning Gibbous', 'Last Quarter', 'Waning Crescent']
-        const ascii = ['( )', '(,)', '(D)', '(G)', '(O)', '(G)', '(C)', '(,)']
-        const idx = names.indexOf(prev.name)
-        const nextIdx = (idx + 1) % 8
-        return {
-          name: names[nextIdx],
-          symbol: ascii[nextIdx],
-          pct: Math.round(((nextIdx + 1) / 8) * 100)
-        }
-      })
-    }, 4500)
-    return () => clearInterval(iv)
-  }, [])
 
   useEffect(() => {
     const tick = () => {
@@ -229,11 +190,6 @@ export default function World0Surface() {
     const iv = setInterval(() => {
       if (Math.random() < 0.06) setCount(c => c + 1)
     }, 2500)
-    return () => clearInterval(iv)
-  }, [])
-
-  useEffect(() => {
-    const iv = setInterval(() => setQuoteIdx(i => (i + 1) % QUOTES.length), 12000)
     return () => clearInterval(iv)
   }, [])
 
@@ -688,8 +644,8 @@ export default function World0Surface() {
       <div style={{ background: '#000033', borderBottom: `1px solid ${BORDER}`, padding: '2px 0', flexShrink: 0 }} className="w0-ticker-wrap">
         <div className="w0-ticker">
           * WELCOME TO TYLER EMDUR&apos;S MULTIVERSE * 17 WORLDS INSIDE * BOULDER, COLORADO *
-          SITE UPDATED {daysOld} DAYS AGO * YOU ARE VISITOR #{String(count).padStart(6, '0')} *
-          MOON: {moon.name.toUpperCase()} * {weather ? `BOULDER: ${weather.temp}F ${weather.label.toUpperCase()}` : 'LOADING WEATHER...'} *
+          LAST UPDATED {lastUpdatedLabel.toUpperCase()} * YOU ARE VISITOR #{String(count).padStart(6, '0')} *
+          {weather ? `BOULDER: ${weather.temp}F ${weather.label.toUpperCase()}` : 'LOADING WEATHER...'} *
         </div>
       </div>
 
@@ -752,24 +708,6 @@ export default function World0Surface() {
             </div>
           </MiniPanel>
 
-          <MiniPanel label="> QUOTE OF THE VISIT">
-            <div style={{ fontSize: 10, lineHeight: 1.65, color: '#9999aa', fontStyle: 'italic', minHeight: 48 }}>
-              {QUOTES[quoteIdx]}
-            </div>
-            <button className="w0-link" style={{ fontSize: 8, color: '#666680', marginTop: 4 }}
-              onClick={() => setQuoteIdx(i => (i + 7) % QUOTES.length)}>
-              [ another quote ]
-            </button>
-          </MiniPanel>
-
-          <MiniPanel label="> MOON PHASE">
-            <div className="w0-mono" style={{ fontSize: 11, color: '#888899', lineHeight: 1.7 }}>
-              <span style={{ fontSize: 16, color: YELLOW, letterSpacing: 2 }}>{moon.symbol}</span><br />
-              {moon.name}<br />
-              <span style={{ fontSize: 9, color: '#555568' }}>illumination ~{moon.pct}%</span>
-            </div>
-          </MiniPanel>
-
           <MiniPanel label="> SYSTEM STATUS">
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
               <span className="w0-led" style={{ width: 11, height: 11, borderRadius: '50%', background: GREEN, display: 'inline-block', flexShrink: 0, boxShadow: '0 0 6px #00ff00' }} />
@@ -780,8 +718,7 @@ export default function World0Surface() {
               ● Building World 17...
             </div>
             <div style={{ fontSize: 9, color: '#777799', marginTop: 5, lineHeight: 1.6 }}>
-              LAST UPDATED:<br />{daysOld} days ago<br />
-              <span style={{ fontSize: 8 }}>(June 2026 launch)</span>
+              LAST UPDATED:<br />{lastUpdatedLabel}
             </div>
           </MiniPanel>
 
@@ -876,10 +813,6 @@ export default function World0Surface() {
                   Please sign my guestbook. Tell your friends. Add me to your webring.
                 </p>
                 <hr />
-                <div style={{ fontSize: 10, color: '#444', marginBottom: 5, textAlign: 'center', position: 'relative', zIndex: 12 }}>
-                  <i>{QUOTES[quoteIdx]}</i>
-                </div>
-                <hr />
                 <p style={{ fontSize: 11, lineHeight: 1.6, color: '#222', marginBottom: 5, position: 'relative', zIndex: 12 }}>
                   Boulder, CO &bull; <span className="w0-gif-mail" style={{ fontSize: 13 }}>✉</span>{' '}
                   <a href="mailto:tyler@tyleremdur.com" style={{ color: '#0000cc' }}>tyler@tyleremdur.com</a><br />
@@ -891,7 +824,7 @@ export default function World0Surface() {
                   <a href="/build" style={{ color: '#0000cc' }}>[ Projects ]</a>
                 </div>
                 <div style={{ fontSize: 9, color: '#666', borderTop: `1px dotted ${BORDER}`, paddingTop: 5, textAlign: 'center', position: 'relative', zIndex: 12 }}>
-                  Site updated <b>{daysOld}</b> day{daysOld !== 1 ? 's' : ''} ago &bull;
+                  Site updated <b>{lastUpdatedLabel}</b> &bull;
                   Best viewed at 800&times;600 &bull;
                   You are visitor <b>#{String(count).padStart(6, '0')}</b>
                 </div>
@@ -1016,7 +949,7 @@ export default function World0Surface() {
               software &bull; running &bull; art<br />
               17 worlds inside<br />
               <span style={{ color: GREEN_DIM }}>creative engine active</span><br />
-              <span style={{ fontSize: 9, color: '#555568' }}>updated {daysOld}d ago</span>
+              <span style={{ fontSize: 9, color: '#555568' }}>updated {daysAgo}d ago</span>
             </div>
             <button className="w0-link" onClick={go} style={{ color: '#00ff77', display: 'block', marginTop: 5, fontSize: 10, paddingLeft: 4 }}>&rarr; enter.now</button>
           </MiniPanel>
@@ -1032,35 +965,6 @@ export default function World0Surface() {
             </div>
           </MiniPanel>
 
-          <MiniPanel label="SITE AWARD" headerStyle={{ background: 'linear-gradient(90deg, #bb7700 0%, #774400 100%)', borderBottom: '1px solid #ddaa00' }}>
-            <div style={{ textAlign: 'center', padding: '4px 2px' }}>
-              <div className="w0-award" style={{
-                display: 'inline-block', border: '3px solid #ffd700',
-                borderRadius: 3, padding: '6px 12px', background: 'linear-gradient(135deg, #1a0800, #2a1200)',
-                marginBottom: 5,
-              }}>
-                <div className="w0-gif-star" style={{ fontSize: 26, display: 'block', marginBottom: 2 }}>★</div>
-                <div style={{ fontFamily: '"Press Start 2P", monospace', fontSize: 6, color: '#ffd700', lineHeight: 1.7 }}>
-                  GEOCITIES<br />HOT SITE<br />AWARD &lsquo;99
-                </div>
-              </div>
-              <div style={{ fontSize: 8, color: '#886600', lineHeight: 1.5, fontFamily: '"Comic Sans MS",cursive' }}>
-                Cool Site of<br />the Millennium!!
-              </div>
-            </div>
-          </MiniPanel>
-
-          <MiniPanel label="WEB RING">
-            <div style={{ fontSize: 9, color: '#666680', lineHeight: 1.7, textAlign: 'center' }}>
-              <span style={{ color: '#66aaff', cursor: 'pointer' }}>[ &lt;&lt; Prev ]</span>
-              {' '}
-              <img className="w0-img w0-spin" src={img('globe')} alt="" style={{ width: 20, height: 20, display: 'inline-block', verticalAlign: 'middle', animationDuration: '6s' }} />
-              {' '}
-              <span style={{ color: '#66aaff', cursor: 'pointer' }}>[ Next &gt;&gt; ]</span>
-              <br /><br />
-              <span style={{ fontSize: 8 }}>Member of the Multiverse Webring<br />since June 2026</span>
-            </div>
-          </MiniPanel>
         </div>
       </div>
 
@@ -1072,7 +976,7 @@ export default function World0Surface() {
       }}>
         <span>
           This is a <button className="w0-link" onClick={go} style={{ color: YELLOW_DIM, fontWeight: 'bold' }}>TYLER EMDUR MULTIVERSE</button> site.
-          {' '}| updated {daysOld}d ago | {moon.symbol} {moon.name}
+          {' '}| updated {lastUpdatedLabel}
         </span>
         <span>
           [ <button className="w0-link" style={{ color: '#66aaff' }}>Prev</button> ]
