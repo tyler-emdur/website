@@ -19,6 +19,10 @@ import World13NightSky from './World13NightSky'
 import World14Pixel from './World14Pixel'
 import World15Kitchen from './World15Kitchen'
 import World16Attic from './World16Attic'
+import World17BuildLog from './World17BuildLog'
+import World18Applets from './World18Applets'
+import World19TrainingLog from './World19TrainingLog'
+import World20TripReports from './World20TripReports'
 
 const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
   0: World0Surface,
@@ -38,6 +42,10 @@ const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
   14: World14Pixel,
   15: World15Kitchen,
   16: World16Attic,
+  17: World17BuildLog,
+  18: World18Applets,
+  19: World19TrainingLog,
+  20: World20TripReports,
 }
 
 function WorldConsoleSetup() {

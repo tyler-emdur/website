@@ -38,7 +38,7 @@ const ALL_WORLDS: WorldItem[] = [
   { id: 1, name: 'Apartment', bg: '#0d001a', ac: '#ff00aa' },
   { id: 2, name: 'Depth', bg: '#000033', ac: '#00ffff' },
   { id: 3, name: 'Broadcast', bg: '#220022', ac: '#ff55ff' },
-  { id: 4, name: 'Corridor', bg: '#111111', ac: '#aaaaaa' },
+  { id: 4, name: 'Blackbird', bg: '#040603', ac: '#33ff66' },
   { id: 5, name: 'Field Station', bg: '#002200', ac: '#55ff55' },
   { id: 6, name: 'Document', bg: '#332211', ac: '#ffaa00' },
   { id: 7, name: 'Mall', bg: '#440044', ac: '#ff0055' },
@@ -51,6 +51,10 @@ const ALL_WORLDS: WorldItem[] = [
   { id: 14, name: 'Pixel', bg: '#110022', ac: '#ff00bb' },
   { id: 15, name: 'Kitchen', bg: '#221100', ac: '#ff7700' },
   { id: 16, name: 'Attic', bg: '#111122', ac: '#9999ff' },
+  { id: 17, name: 'BuildLog', bg: '#008080', ac: '#ffff00' },
+  { id: 18, name: 'Applets', bg: '#008080', ac: '#a855f7' },
+  { id: 19, name: 'Training', bg: '#f3ecd9', ac: '#cc6622' },
+  { id: 20, name: 'Trip Report', bg: '#dff0fa', ac: '#22c55e' },
 ]
 
 function PanelHeader({ label, style }: { label: string; style?: React.CSSProperties }) {
@@ -144,6 +148,7 @@ export default function World0Surface() {
   const lastSparkleRef = useRef<number>(0)
 
   const go = useCallback(() => navigateTo(1, { type: 'door' }), [navigateTo])
+  const goProjects = useCallback(() => navigateTo(17, { type: 'door' }), [navigateTo])
 
   useEffect(() => {
     const tick = () => {
@@ -629,7 +634,7 @@ export default function World0Surface() {
       {/* Ticker */}
       <div style={{ background: '#000033', borderBottom: `1px solid ${BORDER}`, padding: '2px 0', flexShrink: 0 }} className="w0-ticker-wrap">
         <div className="w0-ticker">
-          * WELCOME TO TYLER EMDUR&apos;S MULTIVERSE * 17 WORLDS INSIDE * BOULDER, COLORADO *
+          * WELCOME TO TYLER EMDUR&apos;S MULTIVERSE * {ALL_WORLDS.length} WORLDS INSIDE * BOULDER, COLORADO *
           LAST UPDATED {lastUpdatedLabel.toUpperCase()} *
           {weather ? ` BOULDER: ${weather.temp}F ${weather.label.toUpperCase()} *` : ' LOADING WEATHER... *'}
         </div>
@@ -754,7 +759,7 @@ export default function World0Surface() {
                 TYLER EMDUR&apos;S<br />MULTIVERSE
               </div>
               <div style={{ fontFamily: 'VT323, monospace', fontSize: 16, color: '#00ff00', textShadow: '0 0 8px #00ff00', marginBottom: 1 }}>
-                17 worlds. Infinite possibilities.
+                {ALL_WORLDS.length} worlds. Infinite possibilities.
               </div>
               <div style={{ fontSize: 10, color: '#aaaacc', marginBottom: 6 }}>
                 Choose your destination<span className="w0-cursor">_</span>
@@ -788,8 +793,8 @@ export default function World0Surface() {
           <div style={{ height: 10, background: 'linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)', flexShrink: 0 }} />
 
           {/* Welcome + Log */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px', background: '#000033', flex: '0 0 auto' }}>
-            <div className="w0-welcome" style={{ padding: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px', background: '#000033', flex: '1 1 50%', minHeight: 0 }}>
+            <div className="w0-welcome w0-scroll" style={{ padding: 0, minHeight: 0, overflowY: 'auto' }}>
               <div className="w0-construct" title="under construction" />
               <div style={{ padding: '8px 10px 10px', position: 'relative', zIndex: 12 }}>
                 <div style={{ textAlign: 'center', marginBottom: 6 }}>
@@ -831,7 +836,7 @@ export default function World0Surface() {
                 </p>
                 <div className="retnav" style={{ fontSize: 11, marginBottom: 5, position: 'relative', zIndex: 12 }}>
                   <span style={{ color: '#0000cc', textDecoration: 'underline', cursor: 'pointer' }} onClick={go}>[ Enter the Multiverse &rarr; ]</span>{' '}
-                  <a href="/build" style={{ color: '#0000cc' }}>[ Projects ]</a>
+                  <span style={{ color: '#0000cc', textDecoration: 'underline', cursor: 'pointer' }} onClick={goProjects}>[ Projects ]</span>
                 </div>
                 <div style={{ fontSize: 9, color: '#666', borderTop: `1px dotted ${BORDER}`, paddingTop: 5, textAlign: 'center', position: 'relative', zIndex: 12 }}>
                   Site updated <b>{lastUpdatedLabel}</b> &bull; Best viewed at 800&times;600
@@ -839,7 +844,7 @@ export default function World0Surface() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <PanelHeader label="ABOUT THIS SITE" />
               <div className="w0-scroll w0-mono" style={{
                 flex: 1, overflowY: 'auto', padding: '7px 8px',
@@ -847,7 +852,7 @@ export default function World0Surface() {
               }}>
                 <div style={{ color: '#00ccff', fontWeight: 'bold', marginBottom: 6 }}>Welcome to my digital multiverse.</div>
                 <div>
-                  This website is made up of <span style={{ color: '#ffffff' }}>17 different &quot;worlds&quot;</span>,
+                  This website is made up of <span style={{ color: '#ffffff' }}>{ALL_WORLDS.length} different &quot;worlds&quot;</span>,
                   each one being its own mini website with a unique design, purpose, and personality.
                   Every world explores a different part of my work, interests, projects, and random ideas.<br /><br />
                   Some worlds are serious and functional. Some are experimental. Some are just for fun.<br /><br />
@@ -863,7 +868,7 @@ export default function World0Surface() {
 
           {/* Worlds strip */}
           <div style={{ border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px 4px', background: '#000022', flex: '0 0 auto' }}>
-            <PanelHeader label="17 WORLDS INSIDE" />
+            <PanelHeader label={`${ALL_WORLDS.length} WORLDS INSIDE`} />
             <div className="w0-scroll" style={{ display: 'flex', alignItems: 'center', overflowX: 'auto', gap: 3, padding: 4, background: '#000' }}>
               {ALL_WORLDS.map((w) => (
                 <WorldThumbnail key={w.id} world={w} onClick={() => navigateTo(w.id as WorldId, { type: 'door' })} />
@@ -885,7 +890,7 @@ export default function World0Surface() {
           <MiniPanel label="INDEX" headerStyle={{ background: 'linear-gradient(90deg, #aa0088 0%, #770055 100%)', borderBottom: '1px solid #c900aa' }}>
             <div style={{ margin: '-6px -8px', padding: 4 }}>
               <button className="w0-ibtn" onClick={go} style={{ width: '100%' }}>WORLDS</button>
-              <a href="/build" className="w0-ibtn">PROJECTS</a>
+              <button className="w0-ibtn" onClick={goProjects} style={{ width: '100%' }}>PROJECTS</button>
               <a href="mailto:tyler@tyleremdur.com" className="w0-ibtn">CONTACT</a>
               <a href="https://github.com/tyler-emdur/website" target="_blank" rel="noopener noreferrer" className="w0-ibtn">SOURCE CODE</a>
             </div>

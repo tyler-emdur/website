@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import BackToUniverse from '@/components/shared/BackToUniverse'
+import HomeButton from './HomeButton'
 
 /* ─── Particle Flow ─── */
 function ParticleFlow({ active }: { active: boolean }) {
@@ -94,7 +94,7 @@ function VoidPainter({ active }: { active: boolean }) {
       <canvas ref={ref} className="w-full h-full" />
       <div style={{position:'absolute',bottom:10,left:'50%',transform:'translateX(-50%)',display:'flex',gap:5}}>
         {BRUSH_LABELS.map((l,i)=>(
-          <button key={l} onClick={()=>setMode(i)} style={{fontFamily:'var(--font-mono)',fontSize:7,letterSpacing:'0.1em',padding:'3px 7px',cursor:'none',border:`1px solid ${mode===i?'rgba(168,85,247,0.8)':'rgba(255,255,255,0.1)'}`,color:mode===i?'rgba(168,85,247,1)':'rgba(255,255,255,0.25)',background:mode===i?'rgba(168,85,247,0.07)':'transparent',transition:'all 0.2s'}}>{l}</button>
+          <button key={l} onClick={()=>setMode(i)} style={{fontFamily:'monospace',fontSize:7,letterSpacing:'0.1em',padding:'3px 7px',cursor:'pointer',border:`1px solid ${mode===i?'rgba(168,85,247,0.8)':'rgba(255,255,255,0.1)'}`,color:mode===i?'rgba(168,85,247,1)':'rgba(255,255,255,0.25)',background:mode===i?'rgba(168,85,247,0.07)':'transparent',transition:'all 0.2s'}}>{l}</button>
         ))}
       </div>
     </div>
@@ -113,22 +113,17 @@ function TypeCollider({ active }: { active: boolean }) {
   useEffect(() => {
     const c = ref.current; if (!c || !active) return
     const ctx = c.getContext('2d')!
-    ctx.font='bold 13px "JetBrains Mono"'
+    ctx.font='bold 13px monospace'
     const resize=()=>{c.width=c.offsetWidth;c.height=c.offsetHeight;words.current=WORDS.map(text=>{const w=ctx.measureText(text).width+20;return{x:Math.random()*(c.width-w)+w/2,y:Math.random()*(c.height-30)+15,vx:(Math.random()-.5)*2.2,vy:(Math.random()-.5)*2.2,w,text,col:COLS[Math.floor(Math.random()*COLS.length)],angle:0,av:(Math.random()-.5)*0.02}})};resize()
     const onMove=(e:MouseEvent)=>{const r=c.getBoundingClientRect();mouse.current={x:e.clientX-r.left,y:e.clientY-r.top}}
     const onClick2=()=>{words.current.forEach(w=>{const dx=w.x-mouse.current.x,dy=w.y-mouse.current.y,d=Math.hypot(dx,dy)+1;if(d<120){w.vx+=dx/d*5;w.vy+=dy/d*5}})}
     c.addEventListener('mousemove',onMove);c.addEventListener('click',onClick2)
     const H=14
-    const draw=()=>{ctx.fillStyle='rgba(5,3,12,0.28)';ctx.fillRect(0,0,c.width,c.height);words.current.forEach((w,i)=>{const dx=w.x-mouse.current.x,dy=w.y-mouse.current.y,d=Math.hypot(dx,dy);if(d<90&&d>0){w.vx+=dx/d*0.35;w.vy+=dy/d*0.35};for(let j=i+1;j<words.current.length;j++){const b=words.current[j];const cdx=w.x-b.x,cdy=w.y-b.y,cd=Math.hypot(cdx,cdy);if(cd<(w.w+b.w)/2+H&&cd>0){const f=0.15;w.vx+=cdx/cd*f;w.vy+=cdy/cd*f;b.vx-=cdx/cd*f;b.vy-=cdy/cd*f}};w.vx*=0.985;w.vy*=0.985;w.av*=0.99;w.x+=w.vx;w.y+=w.vy;w.angle+=w.av;if(w.x<w.w/2){w.x=w.w/2;w.vx=Math.abs(w.vx)};if(w.x>c.width-w.w/2){w.x=c.width-w.w/2;w.vx=-Math.abs(w.vx)};if(w.y<H){w.y=H;w.vy=Math.abs(w.vy)};if(w.y>c.height-H){w.y=c.height-H;w.vy=-Math.abs(w.vy)};ctx.save();ctx.translate(w.x,w.y);ctx.rotate(w.angle);ctx.font='bold 13px "JetBrains Mono"';ctx.fillStyle=w.col;ctx.shadowBlur=8;ctx.shadowColor=w.col;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(w.text,0,0);ctx.shadowBlur=0;ctx.restore()});raf.current=requestAnimationFrame(draw)}
+    const draw=()=>{ctx.fillStyle='rgba(5,3,12,0.28)';ctx.fillRect(0,0,c.width,c.height);words.current.forEach((w,i)=>{const dx=w.x-mouse.current.x,dy=w.y-mouse.current.y,d=Math.hypot(dx,dy);if(d<90&&d>0){w.vx+=dx/d*0.35;w.vy+=dy/d*0.35};for(let j=i+1;j<words.current.length;j++){const b=words.current[j];const cdx=w.x-b.x,cdy=w.y-b.y,cd=Math.hypot(cdx,cdy);if(cd<(w.w+b.w)/2+H&&cd>0){const f=0.15;w.vx+=cdx/cd*f;w.vy+=cdy/cd*f;b.vx-=cdx/cd*f;b.vy-=cdy/cd*f}};w.vx*=0.985;w.vy*=0.985;w.av*=0.99;w.x+=w.vx;w.y+=w.vy;w.angle+=w.av;if(w.x<w.w/2){w.x=w.w/2;w.vx=Math.abs(w.vx)};if(w.x>c.width-w.w/2){w.x=c.width-w.w/2;w.vx=-Math.abs(w.vx)};if(w.y<H){w.y=H;w.vy=Math.abs(w.vy)};if(w.y>c.height-H){w.y=c.height-H;w.vy=-Math.abs(w.vy)};ctx.save();ctx.translate(w.x,w.y);ctx.rotate(w.angle);ctx.font='bold 13px monospace';ctx.fillStyle=w.col;ctx.shadowBlur=8;ctx.shadowColor=w.col;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(w.text,0,0);ctx.shadowBlur=0;ctx.restore()});raf.current=requestAnimationFrame(draw)}
     raf.current=requestAnimationFrame(draw)
     return ()=>{cancelAnimationFrame(raf.current);c.removeEventListener('mousemove',onMove);c.removeEventListener('click',onClick2)}
   },[active])
-  return (
-    <div className="w-full h-full relative">
-      <canvas ref={ref} className="w-full h-full" style={{background:'#05030c'}} />
-      <div style={{position:'absolute',top:10,right:10,fontFamily:'var(--font-mono)',fontSize:7,color:'rgba(255,255,255,0.12)',letterSpacing:'0.15em'}}>CLICK TO EXPLODE</div>
-    </div>
-  )
+  return <canvas ref={ref} className="w-full h-full" style={{background:'#05030c'}} />
 }
 
 /* ─── Lissajous ─── */
@@ -146,12 +141,7 @@ function Lissajous({ active }: { active: boolean }) {
     raf.current=requestAnimationFrame(draw)
     return ()=>{cancelAnimationFrame(raf.current);c.removeEventListener('mousemove',onMove)}
   },[active])
-  return (
-    <div className="w-full h-full relative">
-      <canvas ref={ref} className="w-full h-full" style={{background:'#05030c'}} />
-      <div style={{position:'absolute',bottom:10,left:10,fontFamily:'var(--font-mono)',fontSize:7,color:'rgba(255,255,255,0.12)',letterSpacing:'0.12em'}}>MOVE MOUSE → CHANGE RATIO</div>
-    </div>
-  )
+  return <canvas ref={ref} className="w-full h-full" style={{background:'#05030c'}} />
 }
 
 /* ─── Flow Field ─── */
@@ -191,12 +181,7 @@ function CrystalGrow({ active }: { active: boolean }) {
     raf.current=requestAnimationFrame(step)
     return ()=>{cancelAnimationFrame(raf.current);c.removeEventListener('click',onClick2)}
   },[active])
-  return (
-    <div className="w-full h-full relative">
-      <canvas ref={ref} className="w-full h-full" style={{background:'#05030c'}} />
-      <div style={{position:'absolute',top:10,right:10,fontFamily:'var(--font-mono)',fontSize:7,color:'rgba(255,255,255,0.12)',letterSpacing:'0.15em'}}>CLICK TO GROW</div>
-    </div>
-  )
+  return <canvas ref={ref} className="w-full h-full" style={{background:'#05030c'}} />
 }
 
 /* ─── Wave Builder ─── */
@@ -215,15 +200,7 @@ function WaveBuilder({ active }: { active: boolean }) {
     raf.current=requestAnimationFrame(draw)
     return ()=>{cancelAnimationFrame(raf.current);c.removeEventListener('click',onClick2)}
   },[active])
-  return (
-    <div className="w-full h-full relative">
-      <canvas ref={ref} className="w-full h-full" style={{background:'#05030c'}} />
-      <div style={{position:'absolute',top:10,right:10,fontFamily:'var(--font-mono)',fontSize:7,color:'rgba(255,255,255,0.12)',letterSpacing:'0.12em',textAlign:'right',lineHeight:1.8}}>
-        <div>CLICK TO ADD WAVE</div>
-        <div>WHITE = COMPOSITE</div>
-      </div>
-    </div>
-  )
+  return <canvas ref={ref} className="w-full h-full" style={{background:'#05030c'}} />
 }
 
 /* ─── Reaction Diffusion ─── */
@@ -242,19 +219,13 @@ function ReactionDiffusion({ active }: { active: boolean }) {
     const dA=1.0,dB=0.5,feed=0.055,kill=0.062
     const onClick2=(e:MouseEvent)=>{const r=c.getBoundingClientRect();const cx=Math.floor((e.clientX-r.left)/c.width*W),cy=Math.floor((e.clientY-r.top)/c.height*H);const s=stateRef.current;if(!s) return;for(let dy=-5;dy<=5;dy++) for(let dx=-5;dx<=5;dx++){const x=cx+dx,y=cy+dy;if(x>=0&&x<W&&y>=0&&y<H){s.A[y*W+x]=0.5;s.B[y*W+x]=0.25}}}
     c.addEventListener('click',onClick2)
-    const img=ctx.createImageData(c.width,c.height)
     const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H
     const tc=tmp.getContext('2d')!
     const step=()=>{const s=stateRef.current;if(!s) return;for(let iter=0;iter<8;iter++){for(let y=0;y<H;y++) for(let x=0;x<W;x++){const i=y*W+x,t=(y>0?s.A[(y-1)*W+x]:s.A[i]),b=(y<H-1?s.A[(y+1)*W+x]:s.A[i]),l=(x>0?s.A[y*W+x-1]:s.A[i]),r=(x<W-1?s.A[y*W+x+1]:s.A[i]),lapA=t+b+l+r-4*s.A[i],t2=(y>0?s.B[(y-1)*W+x]:s.B[i]),b2=(y<H-1?s.B[(y+1)*W+x]:s.B[i]),l2=(x>0?s.B[y*W+x-1]:s.B[i]),r2=(x<W-1?s.B[y*W+x+1]:s.B[i]),lapB=t2+b2+l2+r2-4*s.B[i],a=s.A[i],bv=s.B[i],abb=a*bv*bv;s.nA[i]=Math.max(0,Math.min(1,a+dA*lapA-abb+feed*(1-a)));s.nB[i]=Math.max(0,Math.min(1,bv+dB*lapB+abb-(kill+feed)*bv))};s.A.set(s.nA);s.B.set(s.nB)};const imgD=tc.createImageData(W,H);for(let y=0;y<H;y++) for(let x=0;x<W;x++){const v=Math.max(0,Math.min(255,(s.A[y*W+x]-s.B[y*W+x])*255));const px=(y*W+x)*4;imgD.data[px]=v*0.3|0;imgD.data[px+1]=v*0.12|0;imgD.data[px+2]=v;imgD.data[px+3]=255};tc.putImageData(imgD,0,0);ctx.imageSmoothingEnabled=false;ctx.drawImage(tmp,0,0,c.width,c.height);raf.current=requestAnimationFrame(step)}
     raf.current=requestAnimationFrame(step)
     return ()=>{cancelAnimationFrame(raf.current);c.removeEventListener('click',onClick2)}
   },[active])
-  return (
-    <div className="w-full h-full relative">
-      <canvas ref={ref} className="w-full h-full" />
-      <div style={{position:'absolute',top:10,right:10,fontFamily:'var(--font-mono)',fontSize:7,color:'rgba(255,255,255,0.12)',letterSpacing:'0.12em'}}>CLICK TO DISTURB</div>
-    </div>
-  )
+  return <canvas ref={ref} className="w-full h-full" />
 }
 
 /* ─── Orbits ─── */
@@ -280,85 +251,118 @@ function Orbits({ active }: { active: boolean }) {
     raf.current=requestAnimationFrame(draw)
     return ()=>{cancelAnimationFrame(raf.current);c.removeEventListener('mousemove',onMove)}
   },[active])
-  return (
-    <div className="w-full h-full relative">
-      <canvas ref={ref} className="w-full h-full" style={{background:'#05030c'}} />
-      <div style={{position:'absolute',top:10,right:10,fontFamily:'var(--font-mono)',fontSize:7,color:'rgba(255,255,255,0.12)',letterSpacing:'0.12em'}}>MOVE TO SHIFT CENTER</div>
-    </div>
-  )
+  return <canvas ref={ref} className="w-full h-full" style={{background:'#05030c'}} />
 }
 
 /* ─── Registry ─── */
 const EXPS = [
-  {id:'pf',  title:'Particle Flow',       sub:'click + drag',      tag:'fluid',      Comp:ParticleFlow},
-  {id:'cs',  title:'Color Synth',          sub:'move mouse',        tag:'color',      Comp:ColorSynth},
-  {id:'gd',  title:'Grid Distort',         sub:'move mouse',        tag:'field',      Comp:GridDistort},
-  {id:'vp',  title:'Void Painter',         sub:'click + drag',      tag:'paint',      Comp:VoidPainter},
-  {id:'tc',  title:'Type Collider',        sub:'click to explode',  tag:'physics',    Comp:TypeCollider},
-  {id:'lj',  title:'Lissajous',            sub:'move mouse',        tag:'parametric', Comp:Lissajous},
-  {id:'ff',  title:'Flow Field',           sub:'watch',             tag:'flow',       Comp:FlowField},
-  {id:'cg',  title:'Crystal Growth',       sub:'click to grow',     tag:'l-system',   Comp:CrystalGrow},
-  {id:'wb',  title:'Wave Builder',         sub:'click to add wave', tag:'synthesis',  Comp:WaveBuilder},
-  {id:'rd',  title:'Reaction Diffusion',   sub:'click to seed',     tag:'emergent',   Comp:ReactionDiffusion},
-  {id:'ob',  title:'Orbits',              sub:'move to shift',     tag:'gravity',    Comp:Orbits},
+  {id:'pf',  title:'ParticleFlow.class',     sub:'click + drag',      Comp:ParticleFlow},
+  {id:'cs',  title:'ColorSynth.class',       sub:'move mouse',        Comp:ColorSynth},
+  {id:'gd',  title:'GridDistort.class',      sub:'move mouse',        Comp:GridDistort},
+  {id:'vp',  title:'VoidPainter.class',      sub:'click + drag',      Comp:VoidPainter},
+  {id:'tc',  title:'TypeCollider.class',     sub:'click to explode',  Comp:TypeCollider},
+  {id:'lj',  title:'Lissajous.class',        sub:'move mouse',        Comp:Lissajous},
+  {id:'ff',  title:'FlowField.class',        sub:'watch',             Comp:FlowField},
+  {id:'cg',  title:'CrystalGrow.class',      sub:'click to grow',     Comp:CrystalGrow},
+  {id:'wb',  title:'WaveBuilder.class',      sub:'click to add wave', Comp:WaveBuilder},
+  {id:'rd',  title:'ReactionDiffusion.class',sub:'click to seed',     Comp:ReactionDiffusion},
+  {id:'ob',  title:'Orbits.class',           sub:'move to shift',     Comp:Orbits},
 ]
 
-function ExperimentCard({exp}:{exp:typeof EXPS[0]}) {
-  const [hovered,setHovered]=useState(false)
-  const [open,setOpen]=useState(false)
-  const {Comp}=exp
+function AppletTile({ exp }: { exp: typeof EXPS[0] }) {
+  const [open, setOpen] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const { Comp } = exp
   return (
     <>
-      <button
-        className="relative text-left w-full overflow-hidden"
-        style={{aspectRatio:'16/9',border:'1px solid rgba(168,85,247,0.1)',cursor:'none',transition:'border-color 0.3s',background:'#05030c'}}
-        onMouseEnter={()=>setHovered(true)}
-        onMouseLeave={()=>setHovered(false)}
-        onClick={()=>setOpen(true)}
-      >
-        <div className="absolute inset-0 pointer-events-none"><Comp active={hovered} /></div>
-        <div className="absolute inset-0 flex flex-col justify-end p-3" style={{background:'linear-gradient(to top,rgba(5,3,12,0.92) 0%,transparent 55%)',opacity:hovered?1:0.35,transition:'opacity 0.3s'}}>
-          <div style={{fontFamily:'var(--font-mono)',fontSize:7,letterSpacing:'0.2em',color:'rgba(168,85,247,0.7)',marginBottom:2,textTransform:'uppercase'}}>{exp.tag}</div>
-          <div style={{fontFamily:'var(--font-sans)',fontSize:13,color:'#fff',fontWeight:300}}>{exp.title}</div>
-          <div style={{fontFamily:'var(--font-mono)',fontSize:8,color:'rgba(255,255,255,0.28)',marginTop:2,letterSpacing:'0.08em'}}>{exp.sub}</div>
+      <div style={{ border: '2px outset #ccc', background: '#000', position: 'relative' }}>
+        <div style={{
+          background: 'linear-gradient(90deg,#666,#444)', color: '#fff', fontSize: 9,
+          padding: '2px 6px', display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace',
+        }}>
+          <span>{exp.title}</span>
+          <span style={{ opacity: 0.6 }}>applet</span>
         </div>
-        <div style={{position:'absolute',top:10,right:10,width:6,height:6,borderRadius:'50%',background:hovered?'rgba(168,85,247,0.9)':'rgba(168,85,247,0.25)',transition:'all 0.3s',boxShadow:hovered?'0 0 8px rgba(168,85,247,0.8)':'none'}} />
-      </button>
-      {open&&(
-        <div className="fixed inset-0 z-50 flex flex-col" style={{background:'#05030c'}} onClick={()=>setOpen(false)}>
-          <div className="flex items-center justify-between p-5" style={{borderBottom:'1px solid rgba(168,85,247,0.12)',background:'rgba(168,85,247,0.03)'}}>
-            <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:7,letterSpacing:'0.22em',color:'rgba(168,85,247,0.5)',textTransform:'uppercase'}}>{exp.tag}</div>
-              <div style={{fontFamily:'var(--font-sans)',fontSize:20,fontWeight:300,color:'#fff'}}>{exp.title}</div>
+        <div
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{ aspectRatio: '4/3', position: 'relative', cursor: 'pointer' }}
+          onClick={() => setOpen(true)}
+        >
+          <Comp active={hovered} />
+          {!hovered && (
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(5,3,12,0.55)', fontFamily: 'monospace', fontSize: 9, color: '#888',
+            }}>hover to start applet</div>
+          )}
+        </div>
+        <div style={{ background: '#222', color: '#7c7', fontSize: 8, padding: '2px 6px', fontFamily: 'monospace' }}>
+          Applet started. &middot; {exp.sub}
+        </div>
+      </div>
+      {open && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setOpen(false)}>
+          <div style={{ width: 'min(900px,92vw)', height: 'min(620px,80vh)', border: '3px outset #ccc', background: '#000', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              background: 'linear-gradient(90deg,#000080,#1144aa)', color: '#fff', fontSize: 11, fontWeight: 700,
+              padding: '4px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <span>{exp.title} &mdash; Applet Viewer</span>
+              <button onClick={() => setOpen(false)} style={{ background: '#c0c0c0', color: '#000', border: '2px outset #fff', width: 18, height: 16, fontSize: 9, cursor: 'pointer', lineHeight: 1 }}>✕</button>
             </div>
-            <div style={{display:'flex',alignItems:'center',gap:16}}>
-              <div style={{fontFamily:'var(--font-mono)',fontSize:8,letterSpacing:'0.12em',color:'rgba(255,255,255,0.18)'}}>{exp.sub}</div>
-              <button style={{fontFamily:'var(--font-mono)',fontSize:9,letterSpacing:'0.15em',color:'rgba(255,255,255,0.3)',cursor:'none',background:'none',border:'none'}} onClick={()=>setOpen(false)}>CLOSE ×</button>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <Comp active={true} />
+              <div style={{ position: 'absolute', bottom: 6, right: 10, fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,255,255,0.3)' }}>{exp.sub}</div>
             </div>
           </div>
-          <div className="flex-1" onClick={e=>e.stopPropagation()}><Comp active={true} /></div>
         </div>
       )}
     </>
   )
 }
 
-export default function LabPage() {
+export default function World18Applets() {
   return (
-    <div className="area-page area-scanlines" style={{background:'#05030c'}}>
-      <BackToUniverse />
-      <div style={{padding:'88px 32px 24px',borderBottom:'1px solid rgba(168,85,247,0.08)',backgroundImage:'linear-gradient(rgba(168,85,247,0.016) 1px,transparent 1px),linear-gradient(90deg,rgba(168,85,247,0.016) 1px,transparent 1px)',backgroundSize:'52px 52px'}}>
-        <div style={{fontFamily:'var(--font-mono)',fontSize:9,letterSpacing:'0.25em',color:'rgba(168,85,247,0.6)',marginBottom:8}}>SECTOR 05-Ψ · LAB</div>
-        <h1 style={{fontFamily:'var(--font-sans)',fontSize:'clamp(3rem,10vw,7rem)',fontWeight:300,lineHeight:0.9,color:'#fff'}}>LAB</h1>
-        <div style={{fontFamily:'var(--font-mono)',fontSize:10,color:'rgba(255,255,255,0.14)',marginTop:16,letterSpacing:'0.12em'}}>
-          {EXPS.length} EXPERIMENTS · HOVER TO PREVIEW · CLICK TO EXPAND
+    <div data-world="18" style={{
+      position: 'fixed', inset: 0, overflow: 'auto', background: '#008080',
+      fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif', fontSize: 12,
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        @keyframes w18-blink { 50% { opacity: 0 } }
+        .w18-blink { animation: w18-blink 1s step-end infinite; }
+      `}</style>
+      <HomeButton />
+
+      <div style={{ maxWidth: 920, margin: '24px auto 80px', border: '3px outset #fff', background: '#c0c0c0' }}>
+        <div style={{
+          background: 'linear-gradient(90deg,#000080,#1144aa)', color: '#fff', padding: '4px 8px',
+          fontSize: 11, fontWeight: 700,
+        }}>
+          🖥 C:\TYLER\EXPERIMENTS\INDEX.HTML &mdash; Netscape Navigator
         </div>
-      </div>
-      <div style={{padding:'32px',display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:10}}>
-        {EXPS.map(exp=><ExperimentCard key={exp.id} exp={exp} />)}
-      </div>
-      <div style={{padding:'20px 32px',borderTop:'1px solid rgba(168,85,247,0.05)',fontFamily:'var(--font-mono)',fontSize:7,letterSpacing:'0.15em',color:'rgba(255,255,255,0.07)'}}>
-        SECTOR 05-Ψ · UNSTABLE · MORE EXPERIMENTS INCOMING
+
+        <div style={{ padding: 16 }}>
+          <div style={{ textAlign: 'center', marginBottom: 12 }}>
+            <div style={{ fontFamily: 'VT323, monospace', fontSize: 28, color: '#000080' }}>WEB EXPERIMENTS</div>
+            <div style={{ fontSize: 10, color: '#333' }}>{EXPS.length} java applets &middot; built between 2024&ndash;2026</div>
+            <div className="w18-blink" style={{
+              display: 'inline-block', marginTop: 6, background: '#ffffcc', border: '2px inset #999',
+              padding: '3px 10px', fontSize: 9, color: '#660000', fontWeight: 700,
+            }}>
+              ⚠ requires Java to be enabled &middot; best viewed in Netscape Navigator 4.0
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
+            {EXPS.map(exp => <AppletTile key={exp.id} exp={exp} />)}
+          </div>
+
+          <div style={{ marginTop: 14, fontSize: 9, color: '#333', textAlign: 'center' }}>
+            hover an applet to start it &middot; click to view full-size &middot; nothing here is saved anywhere
+          </div>
+        </div>
       </div>
     </div>
   )
