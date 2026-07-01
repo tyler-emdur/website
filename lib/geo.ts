@@ -1,13 +1,16 @@
 // Shared Boulder-centered projection used by both the Strava route trace and the terrain mesh,
 // so points and ground line up in the same coordinate space.
 
-export const BOULDER_LAT = 40.0150
-export const BOULDER_LNG = -105.2705
+// Centered between downtown Boulder and the Wonderland Lake / "Tom Watson" loop north of it
+// (found from Tyler's actual activity start points, not downtown alone), so both frequently-run
+// areas sit comfortably inside the crop radius instead of downtown being dead center.
+export const BOULDER_LAT = 40.024
+export const BOULDER_LNG = -105.280
 export const METERS_PER_LAT_DEG = 110574
 export const METERS_PER_LNG_DEG = 111320 * Math.cos(BOULDER_LAT * Math.PI / 180)
 
 export const SCALE = 1 / 80       // meters -> three.js world units
-export const GEO_RADIUS_MI = 8    // "just Boulder" — how far from center we render at all
+export const GEO_RADIUS_MI = 5.5  // tight enough to drop isolated one-off runs far from the core area
 export const GEO_RADIUS_WORLD = (GEO_RADIUS_MI * 1609.34) * SCALE
 
 // lat/lng -> Boulder-centered planar meters -> scaled world units (x, z)

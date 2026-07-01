@@ -25,7 +25,7 @@ const COLORS: Record<RouteActivity['type'], string> = {
 }
 
 const FOV = 50
-const EXAGGERATION = 6  // vertical relief is subtle at true scale — punch it up so hills read as hills
+const EXAGGERATION = 3.5  // vertical relief is subtle at true scale — punch it up, but the western foothills shouldn't dominate the view
 
 // Bilinear-sample the elevation grid at an arbitrary world (x, z), returning a world-unit height.
 // Row/col mapping must match how `/api/terrain` built the grid and how TerrainMesh rotates it.
