@@ -35,22 +35,19 @@ interface WorldItem { id: number; name: string; bg: string; ac: string }
 
 const ALL_WORLDS: WorldItem[] = [
   { id: 0, name: 'Surface', bg: '#000022', ac: '#00ff88' },
-  { id: 1, name: 'Apartment', bg: '#0d001a', ac: '#ff00aa' },
-  { id: 2, name: 'Depth', bg: '#000033', ac: '#00ffff' },
+  { id: 1, name: 'Universe', bg: '#0d001a', ac: '#ff00aa' },
+  { id: 2, name: 'Boulder Explorer', bg: '#03040d', ac: '#5ecbe0' },
   { id: 3, name: 'Broadcast', bg: '#220022', ac: '#ff55ff' },
   { id: 4, name: 'Blackbird', bg: '#040603', ac: '#33ff66' },
-  { id: 7, name: 'Mall', bg: '#440044', ac: '#ff0055' },
-  { id: 8, name: 'Signal', bg: '#000044', ac: '#00ccff' },
-  { id: 9, name: 'Contact', bg: '#220044', ac: '#aa55ff' },
-  { id: 10, name: 'Darkroom', bg: '#110000', ac: '#ff2222' },
-  { id: 12, name: 'Moth', bg: '#1a1a00', ac: '#cccc00' },
-  { id: 13, name: 'Night Sky', bg: '#000022', ac: '#44bbff' },
-  { id: 15, name: 'Kitchen', bg: '#221100', ac: '#ff7700' },
-  { id: 16, name: 'Attic', bg: '#111122', ac: '#9999ff' },
-  { id: 17, name: 'BuildLog', bg: '#008080', ac: '#ffff00' },
-  { id: 18, name: 'Applets', bg: '#008080', ac: '#a855f7' },
-  { id: 19, name: 'Training', bg: '#f3ecd9', ac: '#cc6622' },
-  { id: 20, name: 'Trip Report', bg: '#dff0fa', ac: '#22c55e' },
+  { id: 5, name: 'Mall', bg: '#440044', ac: '#ff0055' },
+  { id: 6, name: 'Garage', bg: '#0a0e14', ac: '#ffb347' },
+  { id: 7, name: 'Contact', bg: '#220044', ac: '#aa55ff' },
+  { id: 8, name: 'Darkroom', bg: '#110000', ac: '#ff2222' },
+  { id: 9, name: 'Moth', bg: '#1a1a00', ac: '#cccc00' },
+  { id: 10, name: 'Night Sky', bg: '#000022', ac: '#44bbff' },
+  { id: 11, name: 'Attic', bg: '#111122', ac: '#9999ff' },
+  { id: 12, name: 'Dev OS', bg: '#0a0e14', ac: '#5ecbe0' },
+  { id: 13, name: 'Applets', bg: '#008080', ac: '#a855f7' },
 ]
 
 function PanelHeader({ label, style }: { label: string; style?: React.CSSProperties }) {
@@ -144,7 +141,7 @@ export default function World0Surface() {
   const lastSparkleRef = useRef<number>(0)
 
   const go = useCallback(() => navigateTo(1, { type: 'door' }), [navigateTo])
-  const goProjects = useCallback(() => navigateTo(17, { type: 'door' }), [navigateTo])
+  const goProjects = useCallback(() => navigateTo(12, { type: 'door' }), [navigateTo])
 
   useEffect(() => {
     const tick = () => {
@@ -811,7 +808,7 @@ export default function World0Surface() {
                 }}>
                   <div style={{ marginBottom: 1 }}>
                     <span className="w0-led" style={{ width: 7, height: 7, borderRadius: '50%', background: '#33ff66', display: 'inline-block', marginRight: 5, boxShadow: '0 0 4px #33ff66' }} />
-                    STATUS: <b style={{ color: '#fff' }}>Building World 17</b>
+                    STATUS: <b style={{ color: '#fff' }}>Building World 14</b>
                   </div>
                   <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     LATEST ADDITION: <b style={{ color: '#fff' }}>{ghCommits?.[0]?.message ?? 'Weather System'}</b>
