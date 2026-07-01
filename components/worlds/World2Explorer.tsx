@@ -64,15 +64,6 @@ export default function World2Explorer() {
     <div data-world="2" style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#050506' }}>
       <HomeButton />
 
-      <div style={{
-        position: 'fixed', top: 20, left: 24, zIndex: 20, fontFamily: '"Space Mono", monospace', color: '#FC4C02',
-      }}>
-        <div style={{ fontSize: 13, letterSpacing: '0.25em', textTransform: 'uppercase' }}>Boulder Explorer</div>
-        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
-          {state.loading ? 'syncing strava & terrain…' : 'gps trace · every run around boulder'}
-        </div>
-      </div>
-
       {!state.loading && state.configured && state.stats && (
         <div style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 20,

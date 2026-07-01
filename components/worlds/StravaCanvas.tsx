@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useRef, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { OrbitControls, Text } from '@react-three/drei'
 import { BufferGeometry, Float32BufferAttribute, PlaneGeometry, Points, ShaderMaterial, AdditiveBlending, Color, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { SCALE, GEO_RADIUS_WORLD } from '@/lib/geo'
@@ -155,6 +155,53 @@ function RouteCloud({ activities, terrain, minElev, lift, maxHeight }: { activit
   )
 }
 
+// Fakes an extruded 3D block out of flat SDF text (cheap, GPU-safe) by stacking many copies
+// a hair's-width apart in Z with a front-to-back color gradient — a solid-looking block from any
+// angle without the heavy CPU-side geometry a true extruded font (Text3D) generates per glyph.
+function ExtrudedTextLine({ text, y, size }: { text: string; y: number; size: number }) {
+  const LAYERS = 10
+  const stepDepth = size * 0.05
+  const front = new Color('#f5f8fc')
+  const back = new Color('#7a3312')
+
+  return (
+    <group position={[0, y, 0]}>
+      {Array.from({ length: LAYERS }).map((_, i) => {
+        const t = i / (LAYERS - 1)
+        const col = front.clone().lerp(back, t)
+        return (
+          <Text
+            key={i}
+            position={[0, 0, -i * stepDepth]}
+            fontSize={size}
+            color={col}
+            anchorX="center"
+            anchorY="middle"
+            letterSpacing={0.02}
+            outlineWidth={i === 0 ? size * 0.02 : 0}
+            outlineColor="#FC4C02"
+          >
+            {text}
+          </Text>
+        )
+      })}
+    </group>
+  )
+}
+
+function SkyText({ radius }: { radius: number }) {
+  const size = radius * 0.1
+  const y = radius * 1.15
+  const z = -radius * 0.55
+
+  return (
+    <group position={[0, y, z]}>
+      <ExtrudedTextLine text="TYLER STRAVA" y={size * 0.65} size={size} />
+      <ExtrudedTextLine text="RUN MAP" y={-size * 0.65} size={size} />
+    </group>
+  )
+}
+
 function Scene({ activities, terrain }: { activities: RouteActivity[]; terrain: TerrainData }) {
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const minElev = useMemo(() => Math.min(...terrain.elevations), [terrain])
@@ -171,6 +218,7 @@ function Scene({ activities, terrain }: { activities: RouteActivity[]; terrain: 
       <fog attach="fog" args={['#050506', GEO_RADIUS_WORLD * 2.2, GEO_RADIUS_WORLD * 5]} />
       <TerrainMesh terrain={terrain} minElev={minElev} />
       <RouteCloud activities={activities} terrain={terrain} minElev={minElev} lift={routeLift} maxHeight={routeMaxHeight} />
+      <SkyText radius={GEO_RADIUS_WORLD} />
       <OrbitControls
         ref={controlsRef}
         target={[0, 0, 0]}
