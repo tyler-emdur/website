@@ -27,7 +27,7 @@ export interface PortalConfig {
 const WORLD_TITLES: Record<WorldId, string> = {
   0: 'Tyler Emdur',
   1: 'Tyler Emdur',
-  2: 'boulder explorer · click a pin',
+  2: 'boulder explorer · gps trace',
   3: '(1) New Message — Mail',
   4: '█████ ████ ████',
   5: 'this tab has been open too long',
@@ -169,7 +169,7 @@ export function getWorldLog(): string {
   const names: Record<WorldId, string> = {
     0: 'THE SURFACE',
     1: 'THE UNIVERSE',
-    2: 'THE BOULDER EXPLORER',
+    2: 'THE GPS TRACE',
     3: 'THE BROADCAST',
     4: 'THE BLACKBIRD FILE',
     5: 'THE MALL',

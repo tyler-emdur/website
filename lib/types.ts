@@ -1,17 +1,3 @@
-export interface Run {
-  id: string
-  name: string
-  date: string
-  distance_mi: number
-  time_s: number
-  elevation_ft: number
-  pace_min_mi: number
-  location: string
-  notes: string
-  route_points: Array<[number, number]>
-  splits: number[]
-}
-
 export interface Project {
   id: string
   title: string
@@ -35,18 +21,6 @@ export interface Memory {
   y: number
   rotation: number
   width: number
-}
-
-export interface Adventure {
-  id: string
-  location: string
-  state: string
-  elevation_ft: number
-  date: string
-  lat: number
-  lng: number
-  description: string
-  color: string
 }
 
 export interface Experiment {
