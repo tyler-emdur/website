@@ -1,7 +1,7 @@
 'use client'
 import { create } from 'zustand'
 
-export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14
+export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 9 | 10 | 11 | 12 | 13 | 14
 
 export type PortalType =
   | 'door'
@@ -33,7 +33,6 @@ const WORLD_TITLES: Record<WorldId, string> = {
   5: 'this tab has been open too long',
   6: '12:47 AM · engine off',
   7: 'Tyler Emdur — tyleremdur.com',
-  8: 'developer · stop · fixer',
   9: 'something follows the light',
   10: 'drag to explore · look up',
   11: 'the attic · everything ends up here',
@@ -176,7 +175,6 @@ export function getWorldLog(): string {
     5: 'THE MALL',
     6: 'THE GARAGE',
     7: 'THE CONTACT PAGE',
-    8: 'THE DARKROOM',
     9: 'THE MOTH',
     10: 'THE NIGHT SKY',
     11: 'THE ATTIC',

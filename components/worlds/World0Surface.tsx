@@ -42,12 +42,12 @@ const ALL_WORLDS: WorldItem[] = [
   { id: 5, name: 'Mall', bg: '#440044', ac: '#ff0055' },
   { id: 6, name: 'Garage', bg: '#0a0e14', ac: '#ffb347' },
   { id: 7, name: 'Contact', bg: '#220044', ac: '#aa55ff' },
-  { id: 8, name: 'Darkroom', bg: '#110000', ac: '#ff2222' },
   { id: 9, name: 'Moth', bg: '#1a1a00', ac: '#cccc00' },
   { id: 10, name: 'Night Sky', bg: '#000022', ac: '#44bbff' },
   { id: 11, name: 'Attic', bg: '#111122', ac: '#9999ff' },
   { id: 12, name: 'Dev OS', bg: '#0a0e14', ac: '#5ecbe0' },
   { id: 13, name: 'Applets', bg: '#008080', ac: '#a855f7' },
+  { id: 14, name: 'The Endless Aisle', bg: '#0b0b10', ac: '#F472B6' },
 ]
 
 function PanelHeader({ label, style }: { label: string; style?: React.CSSProperties }) {

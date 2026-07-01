@@ -18,7 +18,7 @@ const CATALOG = [
   {
     lot: 'LOT 002',
     title: 'Form B-7 (Revised)',
-    provenance: 'World 4 — Corridor',
+    provenance: 'World 4 — Blackbird',
     condition: 'Department of Unresolved Matters. Void after 30 days.',
     description: 'A bureaucratic document recovered from the Department of Unresolved Matters. This form must be completed in order to obtain Form A-3. Form A-3 requires Form B-7. Issued: [unknown]. Void after 30 days from an unknown start date.',
     estimate: 'NOT FOR SALE',
@@ -27,7 +27,7 @@ const CATALOG = [
   {
     lot: 'LOT 003',
     title: 'Film Negatives (Strip of 5)',
-    provenance: 'World 10 — Darkroom',
+    provenance: 'World 8 — Darkroom',
     condition: 'Partially developed. One frame appears corrupted.',
     description: 'A strip of 35mm film negatives developed in the darkroom. Held to light: a mountain at 4am; a finish line; a desk; a city looking east; something corrupted. The fifth frame does not resolve.',
     estimate: 'PRICELESS / WORTHLESS',
@@ -36,16 +36,16 @@ const CATALOG = [
   {
     lot: 'LOT 004',
     title: 'A Coin',
-    provenance: 'World 14 — Pixel',
+    provenance: 'UNKNOWN — record purged',
     condition: 'Both sides identical. Does not add up.',
-    description: 'A single coin recovered from the pixel world. One side: the number 1. Other side: also the number 1. Currency status unknown. Not legal tender in any documented jurisdiction.',
+    description: 'A single coin of unconfirmed origin. One side: the number 1. Other side: also the number 1. Source sector could not be located in the index. Not legal tender in any documented jurisdiction.',
     estimate: '$0.00 / $∞',
     dims: '0.75 in diameter',
   },
   {
     lot: 'LOT 005',
     title: 'Field Notebook (2021–2024)',
-    provenance: 'World 5 — Field Station',
+    provenance: 'UNKNOWN — record purged',
     condition: 'Pages torn from Day 113 onward.',
     description: 'Personal field notes spanning 2021–2024. Coordinates: 40.0150°N 105.2705°W. Day 1: arrived. Equipment functioning. Day 47: signal at 88.7 again. Day 112: still no source found. Day ...: [pages torn out].',
     estimate: 'NOT VERIFIED',
@@ -56,17 +56,15 @@ const CATALOG = [
 // ── Simple world map as small index card ──────────────────────────────────────
 const MAP_WORLDS = [
   { id: 0, label: 'SURFACE' },    { id: 1, label: 'UNIVERSE' },
-  { id: 2, label: 'DEPTH' },      { id: 3, label: 'BROADCAST' },
-  { id: 4, label: 'CORRIDOR' },   { id: 5, label: 'FIELD STN' },
-  { id: 6, label: 'DOCUMENT' },   { id: 7, label: 'MALL' },
-  { id: 8, label: 'SIGNAL' },     { id: 9, label: 'CONTACT' },
-  { id: 10, label: 'DARKROOM' },  { id: 11, label: 'FLICKER' },
-  { id: 12, label: 'MOTH' },      { id: 13, label: 'NIGHT SKY' },
-  { id: 14, label: 'PIXEL' },     { id: 15, label: 'KITCHEN' },
-  { id: 16, label: 'ATTIC' },
+  { id: 2, label: 'EXPLORER' },   { id: 3, label: 'BROADCAST' },
+  { id: 4, label: 'BLACKBIRD' },  { id: 5, label: 'MALL' },
+  { id: 6, label: 'GARAGE' },     { id: 7, label: 'CONTACT' },
+  { id: 9, label: 'MOTH' },       { id: 10, label: 'NIGHT SKY' },
+  { id: 11, label: 'ATTIC' },     { id: 12, label: 'DEV OS' },
+  { id: 13, label: 'APPLETS' },   { id: 14, label: 'AISLE' },
 ]
 
-export default function World16Attic() {
+export default function World11Attic() {
   const navigateTo = useWorldStore(s => s.navigateTo)
   const [open, setOpen] = useState<number | null>(null)
   const [chestCode, setChestCode] = useState('')
