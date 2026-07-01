@@ -191,8 +191,8 @@ function ExtrudedTextLine({ text, y, size }: { text: string; y: number; size: nu
 
 function SkyText({ radius }: { radius: number }) {
   const size = radius * 0.1
-  const y = radius * 1.15
-  const z = -radius * 0.55
+  const y = radius * 0.9
+  const z = -radius * 0.2
 
   return (
     <group position={[0, y, z]}>
