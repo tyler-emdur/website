@@ -154,11 +154,11 @@ export async function GET() {
 
     for (const a of raw) {
       if (a.manual) continue
+      if (a.type !== 'Run') continue
       const encoded = a.map?.summary_polyline
       if (!encoded) continue
 
-      const type: RouteActivity['type'] =
-        a.type === 'Run' ? 'Run' : a.type === 'Ride' ? 'Ride' : 'Other'
+      const type: RouteActivity['type'] = 'Run'
 
       const decoded = decodePolyline(encoded)
       if (decoded.length < 2) continue

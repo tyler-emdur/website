@@ -71,7 +71,7 @@ void main() {
   if (edge <= 0.001) discard;
   vec3 n = normalize(vNormal);
   float diffuse = max(dot(n, normalize(uLightDir)), 0.0);
-  vec3 col = uColor * (0.35 + diffuse * 1.1);
+  vec3 col = uColor * (0.5 + diffuse * 1.0);
   gl_FragColor = vec4(col, edge);
 }
 `
@@ -94,7 +94,7 @@ function TerrainMesh({ terrain, minElev }: { terrain: TerrainData; minElev: numb
     vertexShader: TERRAIN_VERT,
     fragmentShader: TERRAIN_FRAG,
     uniforms: {
-      uColor: { value: new Color('#2b3a52') },
+      uColor: { value: new Color('#5b7aa8') },
       uRadius: { value: radius },
       uLightDir: { value: new Vector3(0.5, 1, 0.35) },
     },

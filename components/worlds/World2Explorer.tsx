@@ -69,7 +69,7 @@ export default function World2Explorer() {
       }}>
         <div style={{ fontSize: 13, letterSpacing: '0.25em', textTransform: 'uppercase' }}>Boulder Explorer</div>
         <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
-          {state.loading ? 'syncing strava & terrain…' : 'gps trace · every run & ride around boulder'}
+          {state.loading ? 'syncing strava & terrain…' : 'gps trace · every run around boulder'}
         </div>
       </div>
 
