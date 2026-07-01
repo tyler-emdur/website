@@ -3,41 +3,37 @@ import React, { useEffect } from 'react'
 import { useWorldStore, getWorldLog } from '@/lib/world-store'
 import PortalTransition from './PortalTransition'
 import World0Surface from './World0Surface'
-import World1Apartment from './World1Apartment'
-import World2Depth from './World2Depth'
+import World1Universe from './World1Universe'
+import World2Explorer from './World2Explorer'
 import World3Broadcast from './World3Broadcast'
-import World4Corridor from './World4Corridor'
-import World7Mall from './World7Mall'
-import World8Signal from './World8Signal'
-import World9Contact from './World9Contact'
-import World10Darkroom from './World10Darkroom'
-import World12Moth from './World12Moth'
-import World13NightSky from './World13NightSky'
-import World15Kitchen from './World15Kitchen'
-import World16Attic from './World16Attic'
-import World17BuildLog from './World17BuildLog'
-import World18Applets from './World18Applets'
-import World19TrainingLog from './World19TrainingLog'
-import World20TripReports from './World20TripReports'
+import World4Blackbird from './World4Blackbird'
+import World5Mall from './World5Mall'
+import World6Garage from './World6Garage'
+import World7Contact from './World7Contact'
+import World8Darkroom from './World8Darkroom'
+import World9Moth from './World9Moth'
+import World10NightSky from './World10NightSky'
+import World11Attic from './World11Attic'
+import World12DevOS from './World12DevOS'
+import World13Applets from './World13Applets'
+import World14Aisle from './World14Aisle'
 
 const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
   0: World0Surface,
-  1: World1Apartment,
-  2: World2Depth,
+  1: World1Universe,
+  2: World2Explorer,
   3: World3Broadcast,
-  4: World4Corridor,
-  7: World7Mall,
-  8: World8Signal,
-  9: World9Contact,
-  10: World10Darkroom,
-  12: World12Moth,
-  13: World13NightSky,
-  15: World15Kitchen,
-  16: World16Attic,
-  17: World17BuildLog,
-  18: World18Applets,
-  19: World19TrainingLog,
-  20: World20TripReports,
+  4: World4Blackbird,
+  5: World5Mall,
+  6: World6Garage,
+  7: World7Contact,
+  8: World8Darkroom,
+  9: World9Moth,
+  10: World10NightSky,
+  11: World11Attic,
+  12: World12DevOS,
+  13: World13Applets,
+  14: World14Aisle,
 }
 
 function WorldConsoleSetup() {

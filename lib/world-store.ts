@@ -1,7 +1,7 @@
 'use client'
 import { create } from 'zustand'
 
-export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20
+export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14
 
 export type PortalType =
   | 'door'
@@ -27,25 +27,19 @@ export interface PortalConfig {
 const WORLD_TITLES: Record<WorldId, string> = {
   0: 'Tyler Emdur',
   1: 'Tyler Emdur',
-  2: 'please hold',
+  2: 'boulder explorer · click a pin',
   3: '(1) New Message — Mail',
   4: '█████ ████ ████',
-  5: 'the same as last time',
-  6: 'good evening',
-  7: 'this tab has been open too long',
-  8: 'good evening',
-  9: 'Tyler Emdur — tyleremdur.com',
-  10: 'developer · stop · fixer',
-  11: 'match the pairs · or dont',
-  12: 'something follows the light',
-  13: 'drag to explore · look up',
-  14: '★ PIXEL QUEST ★ press start',
-  15: "3:17 · it's always been 3:17",
-  16: 'the attic · everything ends up here',
-  17: 'BuildLog v1.4 — shareware',
-  18: 'experiments.applet — requires Java',
-  19: "training log — don't skip leg day",
-  20: 'trip report — Colorado & Utah',
+  5: 'this tab has been open too long',
+  6: '12:47 AM · engine off',
+  7: 'Tyler Emdur — tyleremdur.com',
+  8: 'developer · stop · fixer',
+  9: 'something follows the light',
+  10: 'drag to explore · look up',
+  11: 'the attic · everything ends up here',
+  12: 'DEVOS v0.9 — C:\\TYLER\\',
+  13: 'experiments.applet — requires Java',
+  14: "the aisle · it doesn't end",
 }
 
 interface WorldState {
@@ -74,7 +68,7 @@ function loadReturnWorld(): WorldId {
     if (raw === null) return 0
     localStorage.removeItem('te-return-world')
     const id = parseInt(raw)
-    if (isNaN(id) || id < 0 || id > 20) return 0
+    if (isNaN(id) || id < 0 || id > 14) return 0
     return id as WorldId
   } catch { return 0 }
 }
@@ -176,25 +170,19 @@ export function getWorldLog(): string {
   const names: Record<WorldId, string> = {
     0: 'THE SURFACE',
     1: 'THE UNIVERSE',
-    2: 'THE DEPTH',
+    2: 'THE BOULDER EXPLORER',
     3: 'THE BROADCAST',
     4: 'THE BLACKBIRD FILE',
-    5: 'THE FIELD STATION',
-    6: 'THE DOCUMENT',
-    7: 'THE MALL',
-    8: 'THE SIGNAL',
-    9: 'THE CONTACT PAGE',
-    10: 'THE DARKROOM',
-    11: 'THE FLICKER',
-    12: 'THE MOTH',
-    13: 'THE NIGHT SKY',
-    14: 'THE PIXEL',
-    15: 'THE KITCHEN',
-    16: 'THE ATTIC',
-    17: 'THE BUILD LOG',
-    18: 'THE APPLETS',
-    19: 'THE TRAINING LOG',
-    20: 'THE TRIP REPORT',
+    5: 'THE MALL',
+    6: 'THE GARAGE',
+    7: 'THE CONTACT PAGE',
+    8: 'THE DARKROOM',
+    9: 'THE MOTH',
+    10: 'THE NIGHT SKY',
+    11: 'THE ATTIC',
+    12: 'THE DEV OS',
+    13: 'THE APPLETS',
+    14: 'THE ENDLESS AISLE',
   }
   const secrets = loadSecrets()
   const lines = [
