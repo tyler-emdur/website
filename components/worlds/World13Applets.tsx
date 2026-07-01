@@ -322,9 +322,9 @@ function AppletTile({ exp }: { exp: typeof EXPS[0] }) {
   )
 }
 
-export default function World18Applets() {
+export default function World13Applets() {
   return (
-    <div data-world="18" style={{
+    <div data-world="13" style={{
       position: 'fixed', inset: 0, overflow: 'auto', background: '#008080',
       fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif', fontSize: 12,
     }}>

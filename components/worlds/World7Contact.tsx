@@ -180,7 +180,7 @@ const ATTRIBUTES = [
 
 const SEEDS = [17, 42, 8, 61, 33, 79, 25, 54, 11]
 
-export default function World9Contact() {
+export default function World7Contact() {
   const navigateTo = useWorldStore(s => s.navigateTo)
   const [phase,      setPhase]      = useState<Phase>('intro')
   const [sel,        setSel]        = useState<Set<number>>(new Set())

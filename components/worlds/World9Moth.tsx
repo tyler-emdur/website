@@ -158,7 +158,7 @@ function Moth({ x, y, angle }: { x: number; y: number; angle: number }) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function World12Moth() {
+export default function World9Moth() {
   const navigateTo = useWorldStore(s => s.navigateTo)
   const containerRef = useRef<HTMLDivElement>(null)
   const [lightPos, setLightPos] = useState({ x: 50, y: 50 }) // % of container

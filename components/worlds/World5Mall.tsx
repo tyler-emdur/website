@@ -320,7 +320,7 @@ function BrowserWindow({
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-export default function World7Mall() {
+export default function World5Mall() {
   const navigateTo = useWorldStore(s => s.navigateTo)
 
   const INITIAL_WINDOWS: Win[] = [
@@ -378,7 +378,7 @@ export default function World7Mall() {
 
   return (
     <div
-      data-world="7"
+      data-world="5"
       style={{
         position: 'fixed', inset: 0,
         background: '#008080',

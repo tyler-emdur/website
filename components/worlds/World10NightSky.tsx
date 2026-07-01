@@ -154,7 +154,7 @@ const BG_STARS = Array.from({ length: 600 }, (_, i) => ({
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function World13NightSky() {
+export default function World10NightSky() {
   const navigateTo = useWorldStore(s => s.navigateTo)
   const [offset, setOffset] = useState({ x: -600, y: -400 })
   const [hover, setHover] = useState<string | null>(null)
