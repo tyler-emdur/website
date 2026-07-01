@@ -103,6 +103,24 @@ function resample(points: [number, number][], spacing: number): [number, number]
   return out
 }
 
+// The single longest run of consecutive points within `radius` of the origin — picking one
+// contiguous stretch instead of filtering every in-bounds point avoids leaving short orphaned
+// fragments stranded once whatever connected them to the main trail gets cut.
+function longestInBoundsRun(points: [number, number][], radius: number): [number, number][] {
+  let best: [number, number][] = []
+  let current: [number, number][] = []
+  for (const p of points) {
+    if (Math.hypot(p[0], p[1]) <= radius) {
+      current.push(p)
+    } else {
+      if (current.length > best.length) best = current
+      current = []
+    }
+  }
+  if (current.length > best.length) best = current
+  return best
+}
+
 async function fetchAllActivities(token: string): Promise<RawActivity[]> {
   const all: RawActivity[] = []
   for (let page = 1; page <= MAX_PAGES; page++) {
@@ -150,12 +168,12 @@ export async function GET() {
 
       const projected = decoded.map(([lat, lng]) => project(lat, lng))
       const resampled = resample(projected, RESAMPLE_SPACING)
-      // Trim the tail of any route that wanders past the crop radius — an included activity's
-      // start point can be in-bounds while the rest of its path drifts off the visible map.
-      // Use 0.9x the radius, not the full radius: the terrain mesh fades to fully transparent
-      // between 0.94x and 1x radius (see the shader's `edge` falloff), so anything kept past
-      // that point would render above already-invisible ground and look like it's floating.
-      const points = resampled.filter(([x, z]) => Math.hypot(x, z) <= GEO_RADIUS_WORLD * 0.9)
+      // Keep only the longest contiguous in-bounds stretch of the route — an included activity's
+      // start point can be in-bounds while the rest of its path drifts off the visible map, and
+      // simply filtering every in-bounds point (regardless of position in the sequence) can leave
+      // a short orphaned tail stranded on its own once the connecting middle section is cut,
+      // rendering as a disconnected floating fragment with nothing tying it to the main trail.
+      const points = longestInBoundsRun(resampled, GEO_RADIUS_WORLD * 0.9)
       if (points.length === 0) continue
 
       activities.push({

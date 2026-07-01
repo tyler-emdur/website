@@ -2,12 +2,9 @@
 import { useMemo, useRef, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { BufferGeometry, Float32BufferAttribute, PlaneGeometry, Points, ShaderMaterial, AdditiveBlending, Color, Vector3, Line, LineBasicMaterial } from 'three'
+import { BufferGeometry, Float32BufferAttribute, PlaneGeometry, Points, ShaderMaterial, AdditiveBlending, Color, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { SCALE, GEO_RADIUS_WORLD } from '@/lib/geo'
-import boundaryRingsRaw from '@/lib/data/boulder-boundary.json'
-
-const boundaryRings = boundaryRingsRaw as [number, number][][]
 
 export interface RouteActivity {
   id: string
@@ -110,7 +107,7 @@ function TerrainMesh({ terrain, minElev }: { terrain: TerrainData; minElev: numb
   return <mesh geometry={geometry} material={material} rotation={[-Math.PI / 2, 0, 0]} renderOrder={0} />
 }
 
-function RouteCloud({ activities, terrain, minElev, lift }: { activities: RouteActivity[]; terrain: TerrainData; minElev: number; lift: number }) {
+function RouteCloud({ activities, terrain, minElev, lift, maxHeight }: { activities: RouteActivity[]; terrain: TerrainData; minElev: number; lift: number; maxHeight: number }) {
   const ref = useRef<Points>(null)
 
   const geometry = useMemo(() => {
@@ -122,8 +119,12 @@ function RouteCloud({ activities, terrain, minElev, lift }: { activities: RouteA
     for (const a of activities) {
       const c = new Color(COLORS[a.type])
       for (const [x, z] of a.points) {
+        // Cap how high real elevation can loft a dot — a point near a sharp local peak (common
+        // near the crop edge, where foothill terrain rises fast) would otherwise sit high enough
+        // above the surrounding map that it visually reads as a disconnected floating fragment.
+        const h = Math.min(sampleTerrainHeight(terrain, minElev, x, z), maxHeight)
         positions[i * 3] = x
-        positions[i * 3 + 1] = sampleTerrainHeight(terrain, minElev, x, z) + lift
+        positions[i * 3 + 1] = h + lift
         positions[i * 3 + 2] = z
         colors[i * 3] = c.r
         colors[i * 3 + 1] = c.g
@@ -135,7 +136,7 @@ function RouteCloud({ activities, terrain, minElev, lift }: { activities: RouteA
     geo.setAttribute('position', new Float32BufferAttribute(positions, 3))
     geo.setAttribute('color', new Float32BufferAttribute(colors, 3))
     return geo
-  }, [activities, terrain, minElev, lift])
+  }, [activities, terrain, minElev, lift, maxHeight])
 
   useEffect(() => () => geometry.dispose(), [geometry])
 
@@ -154,37 +155,6 @@ function RouteCloud({ activities, terrain, minElev, lift }: { activities: RouteA
   )
 }
 
-function BoundaryRing({ ring, terrain, minElev, lift }: { ring: [number, number][]; terrain: TerrainData; minElev: number; lift: number }) {
-  const lineObject = useMemo(() => {
-    const positions = new Float32Array(ring.length * 3)
-    ring.forEach(([x, z], j) => {
-      positions[j * 3] = x
-      positions[j * 3 + 1] = sampleTerrainHeight(terrain, minElev, x, z) + lift
-      positions[j * 3 + 2] = z
-    })
-    const geo = new BufferGeometry()
-    geo.setAttribute('position', new Float32BufferAttribute(positions, 3))
-    const mat = new LineBasicMaterial({ color: '#e8eef5', transparent: true, opacity: 0.9, depthWrite: false })
-    const line = new Line(geo, mat)
-    line.renderOrder = 2
-    return line
-  }, [ring, terrain, minElev, lift])
-
-  useEffect(() => () => { lineObject.geometry.dispose(); (lineObject.material as LineBasicMaterial).dispose() }, [lineObject])
-
-  return <primitive object={lineObject} />
-}
-
-function CityBoundary({ terrain, minElev, lift }: { terrain: TerrainData; minElev: number; lift: number }) {
-  return (
-    <>
-      {boundaryRings.map((ring, i) => (
-        <BoundaryRing key={i} ring={ring} terrain={terrain} minElev={minElev} lift={lift} />
-      ))}
-    </>
-  )
-}
-
 function Scene({ activities, terrain }: { activities: RouteActivity[]; terrain: TerrainData }) {
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const minElev = useMemo(() => Math.min(...terrain.elevations), [terrain])
@@ -193,15 +163,14 @@ function Scene({ activities, terrain }: { activities: RouteActivity[]; terrain: 
   // exaggeration — a fixed number silently breaks any time those change.
   const reliefRange = useMemo(() => (Math.max(...terrain.elevations) - minElev) * SCALE * EXAGGERATION, [terrain, minElev])
   const routeLift = Math.max(4, reliefRange * 0.12)
-  const boundaryLift = routeLift + Math.max(3, reliefRange * 0.05)
+  const routeMaxHeight = reliefRange * 0.5 // dots never loft past mid-height, even on a sharp local peak
 
   return (
     <>
       <color attach="background" args={['#050506']} />
       <fog attach="fog" args={['#050506', GEO_RADIUS_WORLD * 2.2, GEO_RADIUS_WORLD * 5]} />
       <TerrainMesh terrain={terrain} minElev={minElev} />
-      <CityBoundary terrain={terrain} minElev={minElev} lift={boundaryLift} />
-      <RouteCloud activities={activities} terrain={terrain} minElev={minElev} lift={routeLift} />
+      <RouteCloud activities={activities} terrain={terrain} minElev={minElev} lift={routeLift} maxHeight={routeMaxHeight} />
       <OrbitControls
         ref={controlsRef}
         target={[0, 0, 0]}
