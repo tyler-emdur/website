@@ -6,7 +6,7 @@
 // regularly covers ground well east of downtown toward Louisville. Downtown, the Wonderland Lake
 // loop, Gunbarrel, and Niwot all land comfortably inside; Lafayette/Superior sit right at the edge.
 export const BOULDER_LAT = 40.046
-export const BOULDER_LNG = -105.195
+export const BOULDER_LNG = -105.233 // nudged ~2mi west — the prior center left the east side mostly empty
 export const METERS_PER_LAT_DEG = 110574
 export const METERS_PER_LNG_DEG = 111320 * Math.cos(BOULDER_LAT * Math.PI / 180)
 
