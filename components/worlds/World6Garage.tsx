@@ -197,6 +197,19 @@ export default function World6Garage() {
     findSecret('garage-tuned-the-world')
   }, [stations, freq, ensureRadio, findSecret])
 
+  // keyboard: seek with ← →, volume with ↑ ↓ (parked only)
+  useEffect(() => {
+    if (driving) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); seekStation(-1) }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); seekStation(1) }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); ensureRadio(); setVolume(v => Math.min(1, v + 0.08)) }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); ensureRadio(); setVolume(v => Math.max(0, v - 0.08)) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [driving, seekStation, ensureRadio])
+
   const turnKey = useCallback(() => {
     if (driving || igniting) return
     const radio = ensureRadio()
@@ -216,9 +229,10 @@ export default function World6Garage() {
     setToast(label)
   }
 
-  const dashText = 'rgba(255,236,205,0.85)'
-  const stationName = liveStation?.name ?? (near.station && near.strength > 0.2 ? near.station.name : null)
-  const stationCountry = liveStation?.country ?? near.station?.country
+  const stationObj = liveStation ?? (near.station && near.strength > 0.2 ? near.station : null)
+  const stationName = stationObj?.name ?? null
+  const stationCountry = stationObj?.country
+  const stationGenre = stationObj?.tags?.split(',').map(s => s.trim()).filter(Boolean)[0]?.toUpperCase() ?? null
 
   return (
     <div style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', background: '#050608', overflow: 'hidden' }}>
@@ -341,7 +355,7 @@ export default function World6Garage() {
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>
                   {loadingStations ? 'acquiring stations…'
                     : stationName
-                      ? `${countryFlag(stationCountry ?? '')} ${stationName} · ${regionName(stationCountry ?? '')}`
+                      ? `${countryFlag(stationCountry ?? '')} ${stationName} · ${regionName(stationCountry ?? '')}${stationGenre ? ` · ${stationGenre}` : ''}`
                       : '— between stations —'}
                 </div>
               </div>

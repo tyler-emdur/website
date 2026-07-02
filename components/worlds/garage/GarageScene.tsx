@@ -183,13 +183,14 @@ export default function GarageScene({ headlightsOn }: GarageSceneProps) {
       gl={{ antialias: true, alpha: false }}
       shadows={false}
     >
-      <fog attach="fog" args={['#070809', 6, 18]} />
-      <ambientLight intensity={0.72} color="#48546e" />
-      <hemisphereLight args={['#52627e', '#101012', 0.7]} />
+      <fog attach="fog" args={['#080a0c', 7, 20]} />
+      <ambientLight intensity={0.92} color="#4c5a76" />
+      <hemisphereLight args={['#5a6c8c', '#141416', 0.85]} />
       {/* faint warm dashboard glow from below */}
-      <pointLight position={[0, 0.8, 1.2]} intensity={2.6} distance={3.5} color="#ffb060" />
-      {/* soft cool fill on the door so it reads even with headlights off */}
-      <pointLight position={[0, 2.6, -2.0]} intensity={5} distance={9} color="#2c3a56" />
+      <pointLight position={[0, 0.8, 1.2]} intensity={3} distance={3.8} color="#ffb060" />
+      {/* cool moonlight fill on the door so it clearly reads as a garage door ahead */}
+      <pointLight position={[0, 2.8, -2.2]} intensity={9} distance={11} color="#31415f" />
+      <pointLight position={[0, 1.6, -3.6]} intensity={5} distance={7} color="#26344c" />
 
       <Garage headlightsOn={headlightsOn} />
 
