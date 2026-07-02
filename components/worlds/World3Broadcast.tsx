@@ -1,9 +1,21 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
 const CHANNELS = [2, 4, 7, 9, 13, 22, 44, 66, 88]
+
+// A distinct ambient glow per channel slot — purely cosmetic, gives each number its own identity.
+const SLOT_GLOW = [
+  'rgba(180,80,40,0.10)',
+  'rgba(60,100,180,0.09)',
+  'rgba(60,140,60,0.09)',
+  'rgba(150,60,200,0.09)',
+  'rgba(40,60,200,0.10)',
+  'rgba(60,120,200,0.10)',
+  'rgba(100,100,160,0.08)',
+  'rgba(0,160,80,0.08)',
+  'rgba(160,120,60,0.10)',
+]
 
 // ── CRT animation keyframes ──────────────────────────────────────────────────
 const CRT_STYLES = `
@@ -148,458 +160,134 @@ function StaticScreen() {
   return <canvas ref={ref} style={{ width:'100%', height:'100%', display:'block' }} />
 }
 
-// ── News ─────────────────────────────────────────────────────────────────────
-const TICKER_ITEMS = [
-  'DOOR DISCOVERED ON SUB-LEVEL · CLASSIFICATION PENDING',
-  'WEATHER: WEATHER EXPECTED TO CONTINUE · DETAILS AT 11',
-  'FREQUENCY 88.7 REPORTS UNUSUAL ACTIVITY · INVESTIGATION PENDING',
-  'BOULDER ELEVATION REMAINS 5,430 FT · NO PLANS TO CHANGE',
-  'SURVEY TE-∅ OBJECTS INDEXED: 47 · VERIFICATION INCOMPLETE',
-  'REPORT: MOST OBJECTS MOVING TOWARD SOMETHING · SIGNIFICANCE DISPUTED',
-  'COORDINATES 40.0150°N 105.2705°W — CLASSIFIED',
-  'ARCHIVES PARTIALLY RECOVERED · CONTEXT STILL MISSING',
-  'ANOMALY DETECTED IN SECTOR 03-Ω · DO NOT APPROACH',
-  'THIS HAS BEEN A BROADCAST',
-]
+// ── World Feed — every channel is a live broadcast from somewhere on Earth ───
+interface LiveChannelInfo { id: string; name: string; country: string; language: string | null; url: string }
 
-function NewsChannel() {
-  const [story, setStory] = useState(0)
-  const [tickerX, setTickerX] = useState(0)
-  const tickerText = TICKER_ITEMS.join(' · · · ')
-  const STORIES = [
-    { headline: 'REPORTS: FAMILIAR PLACE BECOMES UNRECOGNIZABLE AFTER PROLONGED OBSERVATION', sub: 'Phenomenon recurs without explanation. Frequency: weekly.', anchor: 'K. MARSH', time: '11:03 PM' },
-    { headline: 'OBJECT CATALOGUED AS SIGNIFICANT — SIGNIFICANCE STILL UNSPECIFIED', sub: 'Database entry pending review for third consecutive quarter.', anchor: 'K. MARSH', time: '11:06 PM' },
-    { headline: 'DOOR REQUIRING FORM FOUND TO CONTAIN ANOTHER FORM', sub: 'Citizens describe situation as "expected, somehow."', anchor: 'K. MARSH', time: '11:09 PM' },
-    { headline: 'LOCAL FREQUENCY CONTINUES BROADCASTING TO NO ACKNOWLEDGED RECEIVER', sub: 'Signal strength: elevated. Content: unclassified.', anchor: 'K. MARSH', time: '11:12 PM' },
-  ]
-  useEffect(() => {
-    const iv = setInterval(() => setStory(s => (s + 1) % STORIES.length), 8000)
-    return () => clearInterval(iv)
-  }, [])
-  useEffect(() => {
-    let x = 0
-    const iv = setInterval(() => {
-      x = (x - 1.5) % (tickerText.length * 8)
-      setTickerX(x)
-    }, 30)
-    return () => clearInterval(iv)
-  }, [tickerText])
-  const s = STORIES[story]
-  return (
-    <div style={{ width:'100%', height:'100%', background:'#0a1628', color:'#e8e8e8', display:'flex', flexDirection:'column', fontFamily:'Arial, sans-serif', fontSize:'clamp(8px,1.2vw,13px)', overflow:'hidden' }}>
-      <div style={{ background:'#cc0000', padding:'3px 10px', display:'flex', justifyContent:'space-between', fontSize:'0.85em', fontWeight:700, letterSpacing:'0.08em' }}>
-        <span>KWND NEWS 4</span><span>{s.time}</span>
-      </div>
-      <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', padding:'8px 10px 4px' }}>
-        <div style={{ background:'rgba(0,0,0,0.5)', padding:'4px 8px', marginBottom:4 }}>
-          <div style={{ fontWeight:700, lineHeight:1.3, color:'#fff', fontSize:'1em' }}>{s.headline}</div>
-          <div style={{ color:'#aaa', fontSize:'0.78em', marginTop:2 }}>{s.sub}</div>
-        </div>
-        <div style={{ display:'flex', gap:8, fontSize:'0.75em' }}>
-          <div style={{ background:'#cc0000', padding:'1px 6px', fontWeight:700 }}>LIVE</div>
-          <div style={{ color:'#aaa' }}>{s.anchor} REPORTING</div>
-        </div>
-      </div>
-      <div style={{ background:'#cc0000', padding:'3px 0', overflow:'hidden', whiteSpace:'nowrap' }}>
-        <span style={{ display:'inline-block', transform:`translateX(${tickerX}px)`, fontSize:'0.78em', fontWeight:600, letterSpacing:'0.05em' }}>
-          {tickerText} · {tickerText}
-        </span>
-      </div>
-    </div>
-  )
+function regionName(code: string) {
+  try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code } catch { return code }
+}
+function languageName(code: string) {
+  try { return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code } catch { return code }
+}
+function countryFlag(code: string) {
+  if (!/^[A-Za-z]{2}$/.test(code)) return ''
+  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 127397 + c.charCodeAt(0)))
 }
 
-// ── Infomercial ──────────────────────────────────────────────────────────────
-function InfomercialChannel() {
-  const [page, setPage] = useState(0)
-  const PAGES = [
-    { title: 'TOO MANY DOORS?', body: 'DOOR-LESS removes the door and keeps the memory of the door. Installation included.', cta: 'INQUIRE WITHIN' },
-    { title: 'TESTIMONIAL', body: '"I used DOOR-LESS. I can\'t find the room anymore. I remember it perfectly." — K., installed 2019.', cta: 'RESULTS NOT TYPICAL' },
-    { title: 'WHAT\'S INCLUDED', body: 'One (1) absence. Certainty not included. Returns are not accepted.', cta: 'PRICE ON REQUEST' },
-    { title: 'THE DOOR-LESS SYSTEM', body: 'Step 1: Identify the door. Step 2: Remember it. Step 3: Proceed.', cta: 'AVAILABLE NOW' },
-  ]
+// The server pre-verifies streams actually load before handing them to us, so a channel
+// usually connects on the first try — this only covers the rare case one goes dead between
+// verification and viewing.
+function WorldFeedChannel({ info, onDead, soundOn, onRequestSound }: { info: LiveChannelInfo | null | undefined; onDead: () => void; soundOn: boolean; onRequestSound: () => void }) {
+  const [live, setLive] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const onDeadRef = useRef(onDead)
+  useEffect(() => { onDeadRef.current = onDead }, [onDead])
+
+  // Sound has to start muted (autoplay policy) — once the user has unmuted once, keep new
+  // channels unmuted too, since browsers treat that as an established preference for the tab.
   useEffect(() => {
-    const iv = setInterval(() => setPage(p => (p + 1) % PAGES.length), 6000)
-    return () => clearInterval(iv)
-  }, [])
-  const p = PAGES[page]
-  return (
-    <div style={{ width:'100%', height:'100%', background:'#1a0040', display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:16, textAlign:'center', fontFamily:'Arial, sans-serif' }}>
-      <div style={{ color:'#ffcc00', fontSize:'clamp(9px,1.5vw,16px)', fontWeight:900, marginBottom:8, lineHeight:1.2, letterSpacing:'0.04em' }}>{p.title}</div>
-      <div style={{ color:'#e0e0e0', fontSize:'clamp(7px,1.1vw,12px)', marginBottom:12, lineHeight:1.5, maxWidth:260 }}>{p.body}</div>
-      <div style={{ background:'#cc0000', color:'#fff', padding:'4px 12px', fontWeight:700, fontSize:'clamp(7px,1.1vw,11px)', letterSpacing:'0.06em' }}>{p.cta}</div>
-    </div>
-  )
-}
-
-// ── Nature ───────────────────────────────────────────────────────────────────
-function NatureChannel() {
-  const [line, setLine] = useState(0)
-  const NARRATION = [
-    'Here, in the deepest part of the index, the unclassified object waits.',
-    'It has no natural predators. Largely because no one has confirmed it exists.',
-    'The survey team observed it for eleven minutes before their instruments disagreed.',
-    'When approached, it becomes the same size as the distance between two thoughts.',
-    'Remarkably, it appears to be transmitting on frequency 88.7.',
-    'We do not know if it is aware of the camera.',
-    '...It may be aware of the camera.',
-  ]
-  useEffect(() => {
-    const iv = setInterval(() => setLine(l => (l + 1) % NARRATION.length), 5500)
-    return () => clearInterval(iv)
-  }, [])
-  return (
-    <div style={{ width:'100%', height:'100%', background:'#0d1a0a', display:'flex', flexDirection:'column', justifyContent:'flex-end', padding:12, fontFamily:'Georgia, serif' }}>
-      <div style={{ background:'rgba(0,0,0,0.7)', padding:'6px 10px', borderLeft:'3px solid #4a8' }}>
-        <div style={{ color:'#d4e8c4', fontSize:'clamp(8px,1.2vw,13px)', lineHeight:1.6, fontStyle:'italic' }}>
-          {NARRATION[line]}
-        </div>
-      </div>
-      <div style={{ fontSize:'clamp(6px,0.9vw,9px)', color:'rgba(150,200,130,0.4)', marginTop:4, letterSpacing:'0.1em' }}>
-        NATURE HOUR · SECTOR 04-Δ
-      </div>
-    </div>
-  )
-}
-
-// ── Emergency ────────────────────────────────────────────────────────────────
-function EmergencyChannel() {
-  const [blink, setBlink] = useState(true)
-  useEffect(() => {
-    const iv = setInterval(() => setBlink(b => !b), 900)
-    return () => clearInterval(iv)
-  }, [])
-  return (
-    <div style={{ width:'100%', height:'100%', background:'#000', display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:16, fontFamily:'monospace' }}>
-      <div style={{ display:'flex', gap:3, marginBottom:12 }}>
-        {['#f00','#fa0','#ff0','#0f0','#0af','#00f','#a0f'].map((c,i) => (
-          <div key={i} style={{ width:'clamp(12px,3vw,24px)', height:'clamp(20px,5vw,40px)', background:c }} />
-        ))}
-      </div>
-      <div style={{ color:blink ? '#ff4400' : '#aa2200', fontSize:'clamp(9px,1.6vw,16px)', fontWeight:700, letterSpacing:'0.12em', marginBottom:8, textAlign:'center' }}>
-        ⚠ EMERGENCY ALERT SYSTEM ⚠
-      </div>
-      <div style={{ color:'#e0e0e0', fontSize:'clamp(7px,1.1vw,11px)', textAlign:'center', lineHeight:1.7, maxWidth:260 }}>
-        THIS IS NOT A TEST.<br />
-        AN UNMAPPED OBJECT HAS BEEN DETECTED<br />
-        IN YOUR IMMEDIATE VICINITY.<br />
-        <span style={{ color:'#aaa' }}>PROCEED NORMALLY. DO NOT ACKNOWLEDGE IT.</span><br />
-        THIS MESSAGE WILL NOT REPEAT.
-      </div>
-      <div style={{ marginTop:10, fontSize:'clamp(6px,0.9vw,9px)', color:'rgba(255,100,50,0.4)', letterSpacing:'0.15em' }}>
-        BROADCAST AUTHORITY · CHANNEL 13
-      </div>
-    </div>
-  )
-}
-
-// ── Kids show ────────────────────────────────────────────────────────────────
-function KidsChannel() {
-  const [t, setT] = useState(0)
-  const SEGMENTS = [
-    { bg:'#ff6eb4', text:"Hello. Today's lesson is about doors.", color:'#fff' },
-    { bg:'#ffd700', text:"We are going to count the objects in the survey. 47. 46. 44. The count does not always agree with itself.", color:'#333' },
-    { bg:'#98fb98', text:"Mr. Static's favorite color is the color of an empty room in the afternoon.", color:'#333' },
-    { bg:'#9370db', text:"Find the door. It has not moved. It was never going to move.", color:'#fff' },
-    { bg:'#1a1a2e', text:"Mr. Static will return.", color:'rgba(255,255,255,0.3)' },
-  ]
-  useEffect(() => {
-    const iv = setInterval(() => setT(v => (v + 1) % SEGMENTS.length), 5000)
-    return () => clearInterval(iv)
-  }, [])
-  const s = SEGMENTS[t]
-  return (
-    <div style={{ width:'100%', height:'100%', background:s.bg, display:'flex', alignItems:'center', justifyContent:'center', padding:16, transition:'background 0.5s', textAlign:'center', fontFamily:'"Comic Sans MS", cursive, Arial' }}>
-      <div style={{ color:s.color, fontSize:'clamp(9px,1.4vw,14px)', lineHeight:1.7, transition:'color 0.5s', maxWidth:260 }}>{s.text}</div>
-    </div>
-  )
-}
-
-// ── Test pattern ─────────────────────────────────────────────────────────────
-function TestPattern() {
-  return (
-    <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column' }}>
-      <div style={{ flex:3, display:'flex' }}>
-        {['#fff','#ff0','#0ff','#0f0','#f0f','#f00','#00f'].map((c,i) => (
-          <div key={i} style={{ flex:1, background:c }} />
-        ))}
-      </div>
-      <div style={{ flex:1, display:'flex' }}>
-        {['#00f','#000','#f0f','#000','#0ff','#000','#fff'].map((c,i) => (
-          <div key={i} style={{ flex:1, background:c }} />
-        ))}
-      </div>
-      <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
-        <div style={{ background:'rgba(0,0,0,0.7)', color:'#fff', padding:'4px 12px', fontFamily:'monospace', fontSize:'clamp(7px,1vw,10px)', letterSpacing:'0.2em' }}>
-          TECHNICAL DIFFICULTIES · PLEASE STAND BY
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Security cams — each feed has its own hardware identity ──────────────────
-function SecurityChannel() {
-  const [t, setT] = useState(0)
-  // Uneasy state — independent per-camera events
-  const [cam01drift, setCam01drift] = useState(false)
-  const [cam03bar, setCam03bar] = useState(-1) // y% of interference bar, -1 = none
-  const [cam04frozen, setCam04frozen] = useState(false)
-  const [frozenSec, setFrozenSec] = useState(0)
-  const [anomalyLabel, setAnomalyLabel] = useState<number | null>(null) // which cam shows wrong label
+    if (videoRef.current) videoRef.current.muted = !soundOn
+  }, [soundOn, live])
 
   useEffect(() => {
-    const iv = setInterval(() => setT(v => v + 1), 1000)
-    return () => clearInterval(iv)
-  }, [])
+    setLive(false)
+    if (!info) return
+    const video = videoRef.current
+    if (!video) return
+    video.muted = !soundOn
+    let cancelled = false
+    let resolved = false
+    let hls: import('hls.js').default | null = null
 
-  // CAM 01: occasional frame roll / horizontal drift
-  useEffect(() => {
-    const sched = () => {
-      const d = 14000 + Math.random() * 22000
-      setTimeout(() => {
-        setCam01drift(true)
-        setTimeout(() => { setCam01drift(false); sched() }, 220 + Math.random() * 180)
-      }, d)
+    const fail = () => {
+      if (cancelled || resolved) return
+      resolved = true
+      onDeadRef.current()
     }
-    sched()
-  }, [])
-
-  // CAM 03: dirty lens — interference bar appears and disappears
-  useEffect(() => {
-    const sched = () => {
-      const d = 4000 + Math.random() * 9000
-      setTimeout(() => {
-        setCam03bar(15 + Math.floor(Math.random() * 60))
-        setTimeout(() => { setCam03bar(-1); sched() }, 180 + Math.random() * 340)
-      }, d)
+    const succeed = () => {
+      if (cancelled || resolved) return
+      resolved = true
+      setLive(true)
     }
-    sched()
-  }, [])
 
-  // CAM 04: feed freezes for a few seconds
-  useEffect(() => {
-    const sched = () => {
-      const d = 18000 + Math.random() * 35000
-      setTimeout(() => {
-        setFrozenSec(t)
-        setCam04frozen(true)
-        setTimeout(() => { setCam04frozen(false); sched() }, 2800 + Math.random() * 3500)
-      }, d)
-    }
-    sched()
-  }, [])
-
-  // Anomalous label change — one camera shows a different label for ~80ms
-  useEffect(() => {
-    const sched = () => {
-      const d = 25000 + Math.random() * 45000
-      setTimeout(() => {
-        setAnomalyLabel(Math.floor(Math.random() * 4))
-        setTimeout(() => { setAnomalyLabel(null); sched() }, 80)
-      }, d)
-    }
-    sched()
-  }, [])
-
-  const fmt = (s: number) => `${String(Math.floor(s / 60) % 60).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`
-
-  const cam04time = cam04frozen ? frozenSec : t
-  // CAM 01: occasionally shows negative timestamp for one second
-  const cam01TimeStr = (anomalyLabel === 0) ? `-00:${String(t % 60).padStart(2,'0')}` : fmt(t)
-
-  return (
-    <div style={{ width:'100%', height:'100%', background:'#060606', display:'grid', gridTemplateColumns:'1fr 1fr', gridTemplateRows:'1fr 1fr', gap:2, padding:2 }}>
-
-      {/* CAM 01 — archive feed, cool/blue, low contrast */}
-      <div style={{ background:'#0b111e', position:'relative', overflow:'hidden', transform: cam01drift ? 'translateY(2px)' : 'none', transition: cam01drift ? 'none' : 'transform 0.1s' }}>
-        {/* Subtle blue tint overlay */}
-        <div style={{ position:'absolute', inset:0, background:'rgba(20,40,80,0.18)' }} />
-        {/* Horizontal drift bars */}
-        <div style={{ position:'absolute', inset:0, background:'repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(100,140,200,0.025) 14px, rgba(100,140,200,0.025) 15px)' }} />
-        {/* Low-contrast scanlines */}
-        <div style={{ position:'absolute', inset:0, background:'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 4px)' }} />
-        <div style={{ position:'absolute', top:3, left:4, fontFamily:'monospace', fontSize:'clamp(5px,0.8vw,8px)', color:'rgba(140,170,220,0.55)', letterSpacing:'0.06em' }}>
-          {anomalyLabel === 0 ? 'NULL FEED / UNASSIGNED' : 'ARCHIVE FEED A-1 / SEC A-07'}
-        </div>
-        <div style={{ position:'absolute', top:3, right:4, fontFamily:'monospace', fontSize:'clamp(5px,0.7vw,7px)', color:'rgba(120,150,200,0.4)' }}>
-          REC ● {cam01TimeStr}
-        </div>
-        {/* Faded scene — just darkness with a very faint horizon line */}
-        <div style={{ position:'absolute', bottom:'38%', left:0, right:0, height:1, background:'rgba(80,100,140,0.12)' }} />
-        <div style={{ position:'absolute', bottom:3, left:4, fontFamily:'monospace', fontSize:'clamp(4px,0.65vw,6px)', color:'rgba(100,130,180,0.3)', letterSpacing:'0.08em' }}>
-          SIGNAL DEGRADED
-        </div>
-      </div>
-
-      {/* CAM 02 — green phosphor monochrome, surveillance */}
-      <div style={{ background:'#040a04', position:'relative', overflow:'hidden' }}>
-        <div style={{ position:'absolute', inset:0, background:'rgba(0,30,0,0.3)' }} />
-        {/* Tight green scanlines */}
-        <div style={{ position:'absolute', inset:0, background:'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,20,0,0.3) 2px, rgba(0,20,0,0.3) 3px)' }} />
-        {/* Surveillance crosshair */}
-        <div style={{ position:'absolute', top:'50%', left:0, right:0, height:1, background:'rgba(0,180,0,0.06)' }} />
-        <div style={{ position:'absolute', left:'50%', top:0, bottom:0, width:1, background:'rgba(0,180,0,0.06)' }} />
-        {/* Corner crosshair marks */}
-        {[[8,8],[8,'calc(100% - 8px)'],['calc(100% - 8px)',8],['calc(100% - 8px)','calc(100% - 8px)']].map(([x,y],i) => (
-          <div key={i} style={{
-            position:'absolute', left:x as string|number, top:y as string|number,
-            width:6, height:6,
-            borderTop: i < 2 ? '1px solid rgba(0,160,0,0.25)' : 'none',
-            borderBottom: i >= 2 ? '1px solid rgba(0,160,0,0.25)' : 'none',
-            borderLeft: [0,2].includes(i) ? '1px solid rgba(0,160,0,0.25)' : 'none',
-            borderRight: [1,3].includes(i) ? '1px solid rgba(0,160,0,0.25)' : 'none',
-            transform: i < 2 ? 'translateY(-50%)' : 'translateY(50%)',
-          }} />
-        ))}
-        <div style={{ position:'absolute', top:3, left:4, fontFamily:'monospace', fontSize:'clamp(5px,0.8vw,8px)', color:'rgba(0,180,0,0.55)', letterSpacing:'0.06em' }}>
-          {anomalyLabel === 1 ? '??? / UNRESOLVED' : 'SRV-02 / LEVEL -3'}
-        </div>
-        <div style={{ position:'absolute', top:3, right:4, fontFamily:'monospace', fontSize:'clamp(5px,0.7vw,7px)', color:'rgba(0,160,0,0.4)' }}>
-          {String(Math.floor(t / 3600)).padStart(2,'0')}:{fmt(t)}
-        </div>
-        <div style={{ position:'absolute', bottom:3, left:4, fontFamily:'monospace', fontSize:'clamp(4px,0.65vw,6px)', color:'rgba(0,150,0,0.35)', letterSpacing:'0.1em' }}>
-          MOTION: NONE
-        </div>
-      </div>
-
-      {/* CAM 03 — dirty lens, intermittent interference */}
-      <div style={{ background:'#100c0a', position:'relative', overflow:'hidden' }}>
-        {/* Dirty lens: darkened edges, brownish cast */}
-        <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse 70% 65% at center, transparent 40%, rgba(0,0,0,0.55) 100%)' }} />
-        {/* Warm tint suggesting old camera lens */}
-        <div style={{ position:'absolute', inset:0, background:'rgba(40,20,0,0.15)' }} />
-        {/* Scanlines */}
-        <div style={{ position:'absolute', inset:0, background:'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.14) 3px, rgba(0,0,0,0.14) 4px)' }} />
-        {/* Interference bar */}
-        {cam03bar >= 0 && (
-          <div style={{
-            position:'absolute', top:`${cam03bar}%`, left:0, right:0,
-            height:3,
-            background:'linear-gradient(90deg, transparent, rgba(255,220,150,0.4) 20%, rgba(255,240,200,0.5) 50%, rgba(255,220,150,0.4) 80%, transparent)',
-          }} />
-        )}
-        <div style={{ position:'absolute', top:3, left:4, fontFamily:'monospace', fontSize:'clamp(5px,0.8vw,8px)', color:'rgba(200,160,100,0.45)', letterSpacing:'0.06em' }}>
-          {anomalyLabel === 2 ? 'FEED ORIGIN / UNKNOWN' : 'CAM-03 / SECTOR B-07'}
-        </div>
-        <div style={{ position:'absolute', top:3, right:4, fontFamily:'monospace', fontSize:'clamp(5px,0.7vw,7px)', color:'rgba(180,140,80,0.35)' }}>
-          {fmt(t + 3)}
-        </div>
-        <div style={{ position:'absolute', bottom:3, left:4, fontFamily:'monospace', fontSize:'clamp(4px,0.65vw,6px)', color: cam03bar >= 0 ? 'rgba(255,160,60,0.6)' : 'rgba(160,120,60,0.25)', letterSpacing:'0.08em' }}>
-          {cam03bar >= 0 ? 'INTERFERENCE DETECTED' : 'ARCHIVE FEED'}
-        </div>
-      </div>
-
-      {/* CAM 04 — overexposed, signal instability, 88.7MHz origin */}
-      <div style={{ background:'#100a04', position:'relative', overflow:'hidden' }}>
-        {/* Overexposed center glow */}
-        <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse 55% 50% at center, rgba(255,220,160,0.08) 0%, transparent 70%)' }} />
-        {/* Signal instability — washed edges */}
-        <div style={{ position:'absolute', inset:0, background:'linear-gradient(180deg, rgba(200,160,80,0.06) 0%, transparent 30%, transparent 70%, rgba(200,160,80,0.04) 100%)' }} />
-        {/* Scanlines */}
-        <div style={{ position:'absolute', inset:0, background:'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 4px)' }} />
-        {/* The signal source — pulsing */}
-        <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div style={{
-            width:5, height:5, borderRadius:'50%',
-            background:`rgba(255,200,100,${cam04frozen ? 0.75 : (0.4 + Math.sin(t * 0.8) * 0.3)})`,
-            boxShadow:`0 0 ${cam04frozen ? 20 : 12}px rgba(255,180,80,0.5)`,
-            transition:'box-shadow 0.8s',
-          }} />
-        </div>
-        <div style={{ position:'absolute', top:3, left:4, fontFamily:'monospace', fontSize:'clamp(5px,0.8vw,8px)', color:'rgba(220,170,80,0.5)', letterSpacing:'0.06em' }}>
-          {anomalyLabel === 3 ? 'ORIGIN / ?' : 'FEED-04 / 88.7 MHz'}
-        </div>
-        <div style={{ position:'absolute', top:3, right:4, fontFamily:'monospace', fontSize:'clamp(5px,0.7vw,7px)', color:'rgba(200,150,60,0.4)' }}>
-          {fmt(cam04time)}
-        </div>
-        <div style={{ position:'absolute', bottom:3, left:4, fontFamily:'monospace', fontSize:'clamp(4px,0.65vw,6px)', color: cam04frozen ? 'rgba(255,140,50,0.6)' : 'rgba(180,130,50,0.28)', letterSpacing:'0.08em' }}>
-          {cam04frozen ? 'NO RECORD AVAILABLE' : 'SIGNAL SOURCE ACTIVE'}
-        </div>
-      </div>
-
-    </div>
-  )
-}
-
-// ── Portal (88) ───────────────────────────────────────────────────────────────
-const CH88_TRANSMISSION = [
-  'signal confirmed.',
-  'this is not a scheduled broadcast.',
-  '',
-  'origin: field station · boulder co',
-  'coordinates: 40.0150°N  105.2705°W',
-  'altitude: 5430 ft',
-  '',
-  'you are not supposed to be on this frequency.',
-  'neither are we.',
-  '',
-  'there is no portal.',
-  'there was never a portal.',
-  '',
-  'there is only the signal',
-  'and the decision to keep listening.',
-  '',
-  '— T.E.',
-]
-
-function PortalChannel() {
-  const [count, setCount] = useState(5)
-  const [lineIdx, setLineIdx] = useState(0)
-  const [charIdx, setCharIdx] = useState(0)
-  const [displayed, setDisplayed] = useState<string[]>([])
-  const [curLine, setCurLine] = useState('')
-
-  useEffect(() => {
-    const iv = setInterval(() => setCount(c => {
-      if (c <= 1) { clearInterval(iv); return 0 }
-      return c - 1
-    }), 1000)
-    return () => clearInterval(iv)
-  }, [])
-
-  // Start transmission after countdown
-  useEffect(() => {
-    if (count !== 0) return
-    let li = 0, ci = 0
-    const iv = setInterval(() => {
-      const line = CH88_TRANSMISSION[li]
-      if (line === undefined) { clearInterval(iv); return }
-      if (ci < line.length) {
-        setCurLine(line.slice(0, ci + 1))
-        ci++
+    import('hls.js').then(({ default: Hls }) => {
+      if (cancelled) return
+      if (Hls.isSupported()) {
+        hls = new Hls({ maxBufferLength: 15 })
+        hls.loadSource(info.url)
+        hls.attachMedia(video)
+        hls.on(Hls.Events.ERROR, (_evt, data) => { if (data.fatal) fail() })
+        video.addEventListener('playing', succeed, { once: true })
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = info.url
+        video.addEventListener('playing', succeed, { once: true })
+        video.addEventListener('error', fail, { once: true })
+        video.play().catch(() => {})
       } else {
-        setDisplayed(prev => [...prev, line])
-        setCurLine('')
-        setLineIdx(li + 1)
-        li++; ci = 0
+        fail()
       }
-    }, 40)
-    return () => clearInterval(iv)
-  }, [count])
+    }).catch(fail)
+
+    const timeout = setTimeout(fail, 5000)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+      video.removeEventListener('playing', succeed)
+      hls?.destroy()
+    }
+  }, [info])
+
+  const handleClick = () => {
+    if (!info) return
+    // First click just turns sound on (a real user gesture, so browsers allow it); once sound
+    // is already on, clicking spins the dial to a new channel instead.
+    if (!soundOn) { onRequestSound(); return }
+    onDeadRef.current()
+  }
 
   return (
-    <div style={{ width:'100%', height:'100%', background:'#000', display:'flex', flexDirection:'column', fontFamily:'monospace', padding:'8px 10px', overflow:'hidden' }}>
-      <div style={{ color:'rgba(34,197,94,0.7)', fontSize:'clamp(7px,1.1vw,11px)', letterSpacing:'0.25em', marginBottom:4 }}>FREQUENCY 88.7</div>
-      <div style={{ flex:1, borderTop:'1px solid rgba(34,197,94,0.15)', paddingTop:6, overflowY:'hidden' }}>
-        {count > 0 ? (
-          <div style={{ color:'rgba(255,255,255,0.4)', fontSize:'clamp(7px,1vw,10px)', letterSpacing:'0.1em', marginTop:4 }}>
-            ROUTING IN {count}...
+    <div onClick={handleClick} style={{ position:'relative', width:'100%', height:'100%', background:'#000', cursor: info ? 'pointer' : 'default' }}>
+      <video ref={videoRef} autoPlay muted={!soundOn} playsInline style={{
+        position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover',
+        opacity: live ? 1 : 0, transition:'opacity 0.3s ease',
+      }} />
+
+      {!live && <StaticScreen />}
+
+      {info === null && (
+        <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'monospace', color:'rgba(255,255,255,0.5)', fontSize:'clamp(7px,1vw,10px)', letterSpacing:'0.15em', textAlign:'center', padding:16 }}>
+          NO SIGNAL FROM ORBIT
+        </div>
+      )}
+
+      {!live && info && (
+        <div style={{ position:'absolute', bottom:8, left:8, right:8, fontFamily:'monospace', fontSize:'clamp(6px,0.9vw,9px)', color:'rgba(255,255,255,0.55)', letterSpacing:'0.1em' }}>
+          TUNING {countryFlag(info.country)} {regionName(info.country)}…
+        </div>
+      )}
+
+      {info === undefined && (
+        <div style={{ position:'absolute', bottom:8, left:8, right:8, fontFamily:'monospace', fontSize:'clamp(6px,0.9vw,9px)', color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em' }}>
+          LOCATING SATELLITE…
+        </div>
+      )}
+
+      {live && info && (
+        <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'14px 10px 8px', background:'linear-gradient(to top, rgba(0,0,0,0.75), transparent)', fontFamily:'monospace' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, color:'#fff', fontSize:'clamp(9px,1.3vw,13px)', fontWeight:700 }}>
+            <span>{countryFlag(info.country)}</span>
+            <span>{regionName(info.country)}</span>
+            <span style={{ background:'#cc0000', padding:'1px 5px', fontSize:'0.7em' }}>LIVE</span>
           </div>
-        ) : (
-          <div>
-            {displayed.map((l, i) => (
-              <div key={i} style={{ color: l.startsWith('—') ? 'rgba(34,197,94,0.5)' : l === '' ? undefined : 'rgba(200,240,200,0.7)', fontSize:'clamp(6px,0.9vw,9px)', lineHeight:1.9, minHeight:'1.2em', letterSpacing:'0.04em' }}>{l}</div>
-            ))}
-            {lineIdx < CH88_TRANSMISSION.length && (
-              <div style={{ color:'rgba(200,240,200,0.7)', fontSize:'clamp(6px,0.9vw,9px)', lineHeight:1.9 }}>
-                {curLine}<span style={{ opacity:0.5, animation:'txBlink 0.5s step-end infinite' }}>█</span>
-              </div>
-            )}
-            <style>{`@keyframes txBlink{0%,100%{opacity:0.5}50%{opacity:0}}`}</style>
+          <div style={{ color:'rgba(255,255,255,0.7)', fontSize:'clamp(7px,1vw,10px)', marginTop:2, letterSpacing:'0.06em' }}>
+            {info.name}{info.language ? ` · ${languageName(info.language)}` : ''}
           </div>
-        )}
-      </div>
+          <div style={{ color:'rgba(255,255,255,0.3)', fontSize:'clamp(6px,0.85vw,8px)', marginTop:3, letterSpacing:'0.1em' }}>
+            {soundOn ? 'CLICK SCREEN TO SPIN THE DIAL' : 'CLICK SCREEN FOR SOUND 🔇'}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -632,12 +320,56 @@ function DustParticles() {
   )
 }
 
+const MAX_ATTEMPTS_PER_SLOT = 6
+
 // ── Main world ───────────────────────────────────────────────────────────────
 export default function World3Broadcast() {
   const [chIdx, setChIdx] = useState(1)
   const [switching, setSwitching] = useState(false)
   const [glitch, setGlitch] = useState<GlitchType>('none')
   const [tearY, setTearY] = useState(40)
+  const [soundOn, setSoundOn] = useState(false)
+
+  // One pinned live channel per slot, assigned once the verified feed pool loads and kept
+  // stable across channel flips — undefined = still loading, null = exhausted/unavailable.
+  const [pins, setPins] = useState<(LiveChannelInfo | null | undefined)[]>(() => CHANNELS.map(() => undefined))
+  const feedPoolRef = useRef<LiveChannelInfo[]>([])
+  const usedIdsRef = useRef<Set<string>>(new Set())
+  const attemptsRef = useRef<number[]>(CHANNELS.map(() => 0))
+
+  useEffect(() => {
+    fetch('/api/livetv')
+      .then(r => r.json())
+      .then(d => {
+        const list: LiveChannelInfo[] = Array.isArray(d?.channels) ? d.channels : []
+        feedPoolRef.current = list
+        const shuffled = [...list]
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+        }
+        const initial = CHANNELS.map((_, i) => shuffled[i] ?? null)
+        initial.forEach(c => { if (c) usedIdsRef.current.add(c.id) })
+        setPins(initial)
+      })
+      .catch(() => setPins(CHANNELS.map(() => null)))
+  }, [])
+
+  const replaceChannel = useCallback((index: number) => {
+    attemptsRef.current[index] += 1
+    if (attemptsRef.current[index] > MAX_ATTEMPTS_PER_SLOT) {
+      setPins(prev => { const next = [...prev]; next[index] = null; return next })
+      return
+    }
+    const candidates = feedPoolRef.current.filter(c => !usedIdsRef.current.has(c.id))
+    if (candidates.length === 0) {
+      setPins(prev => { const next = [...prev]; next[index] = null; return next })
+      return
+    }
+    const pick = candidates[Math.floor(Math.random() * candidates.length)]
+    usedIdsRef.current.add(pick.id)
+    setPins(prev => { const next = [...prev]; next[index] = pick; return next })
+  }, [])
 
   const changeChannel = useCallback((dir: number) => {
     setSwitching(true)
@@ -675,36 +407,7 @@ export default function World3Broadcast() {
   }, [])
 
   const ch = CHANNELS[chIdx]
-
-  // Galekto-style: room glow reacts to channel
-  const CHANNEL_GLOW: Record<number, string> = {
-    2:  'rgba(40,40,40,0.08)',
-    4:  'rgba(60,100,180,0.09)',
-    7:  'rgba(60,140,60,0.09)',
-    9:  'rgba(200,150,40,0.09)',
-    13: 'rgba(200,40,40,0.10)',
-    22: 'rgba(200,160,30,0.10)',
-    44: 'rgba(100,100,160,0.08)',
-    66: 'rgba(0,160,80,0.08)',
-    88: 'rgba(0,180,140,0.10)',
-  }
-  const roomGlow = switching ? 'rgba(20,20,20,0.05)' : (CHANNEL_GLOW[ch] ?? 'rgba(160,120,60,0.10)')
-
-  const screenContent = () => {
-    if (switching) return <StaticScreen />
-    switch (ch) {
-      case 2:  return <StaticScreen />
-      case 4:  return <NewsChannel />
-      case 7:  return <NatureChannel />
-      case 9:  return <InfomercialChannel />
-      case 13: return <EmergencyChannel />
-      case 22: return <KidsChannel />
-      case 44: return <TestPattern />
-      case 66: return <SecurityChannel />
-      case 88: return <PortalChannel />
-      default: return <StaticScreen />
-    }
-  }
+  const roomGlow = switching ? 'rgba(20,20,20,0.05)' : SLOT_GLOW[chIdx]
 
   return (
     <>
@@ -806,7 +509,9 @@ export default function World3Broadcast() {
               boxShadow:'inset 0 0 30px rgba(0,0,0,0.5)',
             }}>
               {/* Channel content */}
-              {screenContent()}
+              {switching
+                ? <StaticScreen />
+                : <WorldFeedChannel key={chIdx} info={pins[chIdx]} onDead={() => replaceChannel(chIdx)} soundOn={soundOn} onRequestSound={() => setSoundOn(true)} />}
 
               {/* Phosphor noise */}
               <PhosphorOverlay />

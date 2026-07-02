@@ -38,15 +38,10 @@ const ALL_WORLDS: WorldItem[] = [
   { id: 1, name: 'Universe', bg: '#0d001a', ac: '#ff00aa' },
   { id: 2, name: 'Boulder Explorer', bg: '#03040d', ac: '#5ecbe0' },
   { id: 3, name: 'Broadcast', bg: '#220022', ac: '#ff55ff' },
-  { id: 4, name: 'Blackbird', bg: '#040603', ac: '#33ff66' },
-  { id: 5, name: 'Mall', bg: '#440044', ac: '#ff0055' },
+  { id: 5, name: 'The Machine', bg: '#0a0e14', ac: '#5ecbe0' },
   { id: 6, name: 'Garage', bg: '#0a0e14', ac: '#ffb347' },
   { id: 7, name: 'Contact', bg: '#220044', ac: '#aa55ff' },
-  { id: 9, name: 'Moth', bg: '#1a1a00', ac: '#cccc00' },
-  { id: 10, name: 'Night Sky', bg: '#000022', ac: '#44bbff' },
-  { id: 11, name: 'Attic', bg: '#111122', ac: '#9999ff' },
-  { id: 12, name: 'Dev OS', bg: '#0a0e14', ac: '#5ecbe0' },
-  { id: 13, name: 'Applets', bg: '#008080', ac: '#a855f7' },
+  { id: 9, name: 'Answering Machine', bg: '#0c0805', ac: '#ff4433' },
   { id: 14, name: 'The Endless Aisle', bg: '#0b0b10', ac: '#F472B6' },
 ]
 
@@ -141,7 +136,7 @@ export default function World0Surface() {
   const lastSparkleRef = useRef<number>(0)
 
   const go = useCallback(() => navigateTo(1, { type: 'door' }), [navigateTo])
-  const goProjects = useCallback(() => navigateTo(12, { type: 'door' }), [navigateTo])
+  const goProjects = useCallback(() => navigateTo(5, { type: 'door' }), [navigateTo])
 
   useEffect(() => {
     const tick = () => {

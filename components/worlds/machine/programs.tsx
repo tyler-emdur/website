@@ -1,6 +1,6 @@
 'use client'
+// Salvaged from the old Applets world — now installed programs on The Machine.
 import { useState, useRef, useEffect } from 'react'
-import HomeButton from './HomeButton'
 
 /* ─── Particle Flow ─── */
 function ParticleFlow({ active }: { active: boolean }) {
@@ -255,115 +255,16 @@ function Orbits({ active }: { active: boolean }) {
 }
 
 /* ─── Registry ─── */
-const EXPS = [
-  {id:'pf',  title:'ParticleFlow.class',     sub:'click + drag',      Comp:ParticleFlow},
-  {id:'cs',  title:'ColorSynth.class',       sub:'move mouse',        Comp:ColorSynth},
-  {id:'gd',  title:'GridDistort.class',      sub:'move mouse',        Comp:GridDistort},
-  {id:'vp',  title:'VoidPainter.class',      sub:'click + drag',      Comp:VoidPainter},
-  {id:'tc',  title:'TypeCollider.class',     sub:'click to explode',  Comp:TypeCollider},
-  {id:'lj',  title:'Lissajous.class',        sub:'move mouse',        Comp:Lissajous},
-  {id:'ff',  title:'FlowField.class',        sub:'watch',             Comp:FlowField},
-  {id:'cg',  title:'CrystalGrow.class',      sub:'click to grow',     Comp:CrystalGrow},
-  {id:'wb',  title:'WaveBuilder.class',      sub:'click to add wave', Comp:WaveBuilder},
-  {id:'rd',  title:'ReactionDiffusion.class',sub:'click to seed',     Comp:ReactionDiffusion},
-  {id:'ob',  title:'Orbits.class',           sub:'move to shift',     Comp:Orbits},
+export const PROGRAMS = [
+  {id:'pf',  title:'ParticleFlow.EXE',     sub:'click + drag',      Comp:ParticleFlow},
+  {id:'cs',  title:'ColorSynth.EXE',       sub:'move mouse',        Comp:ColorSynth},
+  {id:'gd',  title:'GridDistort.EXE',      sub:'move mouse',        Comp:GridDistort},
+  {id:'vp',  title:'VoidPainter.EXE',      sub:'click + drag',      Comp:VoidPainter},
+  {id:'tc',  title:'TypeCollider.EXE',     sub:'click to explode',  Comp:TypeCollider},
+  {id:'lj',  title:'Lissajous.EXE',        sub:'move mouse',        Comp:Lissajous},
+  {id:'ff',  title:'FlowField.EXE',        sub:'watch',             Comp:FlowField},
+  {id:'cg',  title:'CrystalGrow.EXE',      sub:'click to grow',     Comp:CrystalGrow},
+  {id:'wb',  title:'WaveBuilder.EXE',      sub:'click to add wave', Comp:WaveBuilder},
+  {id:'rd',  title:'ReactionDiffusion.EXE',sub:'click to seed',     Comp:ReactionDiffusion},
+  {id:'ob',  title:'Orbits.EXE',           sub:'move to shift',     Comp:Orbits},
 ]
-
-function AppletTile({ exp }: { exp: typeof EXPS[0] }) {
-  const [open, setOpen] = useState(false)
-  const [hovered, setHovered] = useState(false)
-  const { Comp } = exp
-  return (
-    <>
-      <div style={{ border: '2px outset #ccc', background: '#000', position: 'relative' }}>
-        <div style={{
-          background: 'linear-gradient(90deg,#666,#444)', color: '#fff', fontSize: 9,
-          padding: '2px 6px', display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace',
-        }}>
-          <span>{exp.title}</span>
-          <span style={{ opacity: 0.6 }}>applet</span>
-        </div>
-        <div
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          style={{ aspectRatio: '4/3', position: 'relative', cursor: 'pointer' }}
-          onClick={() => setOpen(true)}
-        >
-          <Comp active={hovered} />
-          {!hovered && (
-            <div style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(5,3,12,0.55)', fontFamily: 'monospace', fontSize: 9, color: '#888',
-            }}>hover to start applet</div>
-          )}
-        </div>
-        <div style={{ background: '#222', color: '#7c7', fontSize: 8, padding: '2px 6px', fontFamily: 'monospace' }}>
-          Applet started. &middot; {exp.sub}
-        </div>
-      </div>
-      {open && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setOpen(false)}>
-          <div style={{ width: 'min(900px,92vw)', height: 'min(620px,80vh)', border: '3px outset #ccc', background: '#000', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-            <div style={{
-              background: 'linear-gradient(90deg,#000080,#1144aa)', color: '#fff', fontSize: 11, fontWeight: 700,
-              padding: '4px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <span>{exp.title} &mdash; Applet Viewer</span>
-              <button onClick={() => setOpen(false)} style={{ background: '#c0c0c0', color: '#000', border: '2px outset #fff', width: 18, height: 16, fontSize: 9, cursor: 'pointer', lineHeight: 1 }}>✕</button>
-            </div>
-            <div style={{ flex: 1, position: 'relative' }}>
-              <Comp active={true} />
-              <div style={{ position: 'absolute', bottom: 6, right: 10, fontFamily: 'monospace', fontSize: 8, color: 'rgba(255,255,255,0.3)' }}>{exp.sub}</div>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  )
-}
-
-export default function World13Applets() {
-  return (
-    <div data-world="13" style={{
-      position: 'fixed', inset: 0, overflow: 'auto', background: '#008080',
-      fontFamily: '"MS Sans Serif", Tahoma, Arial, sans-serif', fontSize: 12,
-    }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-        @keyframes w18-blink { 50% { opacity: 0 } }
-        .w18-blink { animation: w18-blink 1s step-end infinite; }
-      `}</style>
-      <HomeButton />
-
-      <div style={{ maxWidth: 920, margin: '24px auto 80px', border: '3px outset #fff', background: '#c0c0c0' }}>
-        <div style={{
-          background: 'linear-gradient(90deg,#000080,#1144aa)', color: '#fff', padding: '4px 8px',
-          fontSize: 11, fontWeight: 700,
-        }}>
-          🖥 C:\TYLER\EXPERIMENTS\INDEX.HTML &mdash; Netscape Navigator
-        </div>
-
-        <div style={{ padding: 16 }}>
-          <div style={{ textAlign: 'center', marginBottom: 12 }}>
-            <div style={{ fontFamily: 'VT323, monospace', fontSize: 28, color: '#000080' }}>WEB EXPERIMENTS</div>
-            <div style={{ fontSize: 10, color: '#333' }}>{EXPS.length} java applets &middot; built between 2024&ndash;2026</div>
-            <div className="w18-blink" style={{
-              display: 'inline-block', marginTop: 6, background: '#ffffcc', border: '2px inset #999',
-              padding: '3px 10px', fontSize: 9, color: '#660000', fontWeight: 700,
-            }}>
-              ⚠ requires Java to be enabled &middot; best viewed in Netscape Navigator 4.0
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
-            {EXPS.map(exp => <AppletTile key={exp.id} exp={exp} />)}
-          </div>
-
-          <div style={{ marginTop: 14, fontSize: 9, color: '#333', textAlign: 'center' }}>
-            hover an applet to start it &middot; click to view full-size &middot; nothing here is saved anywhere
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}

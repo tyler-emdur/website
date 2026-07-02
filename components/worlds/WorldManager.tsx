@@ -1,20 +1,15 @@
 'use client'
 import React, { useEffect } from 'react'
-import { useWorldStore, getWorldLog } from '@/lib/world-store'
+import { useWorldStore, getWorldLog, applyReturnWorld } from '@/lib/world-store'
 import PortalTransition from './PortalTransition'
 import World0Surface from './World0Surface'
 import World1Universe from './World1Universe'
 import World2Explorer from './World2Explorer'
 import World3Broadcast from './World3Broadcast'
-import World4Blackbird from './World4Blackbird'
-import World5Mall from './World5Mall'
+import World5Machine from './machine/World5Machine'
 import World6Garage from './World6Garage'
 import World7Contact from './World7Contact'
-import World9Moth from './World9Moth'
-import World10NightSky from './World10NightSky'
-import World11Attic from './World11Attic'
-import World12DevOS from './World12DevOS'
-import World13Applets from './World13Applets'
+import World9Answering from './World9Answering'
 import World14Aisle from './World14Aisle'
 
 const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
@@ -22,15 +17,10 @@ const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
   1: World1Universe,
   2: World2Explorer,
   3: World3Broadcast,
-  4: World4Blackbird,
-  5: World5Mall,
+  5: World5Machine,
   6: World6Garage,
   7: World7Contact,
-  9: World9Moth,
-  10: World10NightSky,
-  11: World11Attic,
-  12: World12DevOS,
-  13: World13Applets,
+  9: World9Answering,
   14: World14Aisle,
 }
 
@@ -65,6 +55,8 @@ export default function WorldManager() {
   const portalConfig = useWorldStore(s => s.portalConfig)
 
   const WorldComponent = WORLD_COMPONENTS[current] ?? World0Surface
+
+  useEffect(() => { applyReturnWorld() }, [])
 
   // Update data-world on html element for CSS scoping
   useEffect(() => {

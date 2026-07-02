@@ -7,6 +7,9 @@ try {
 } catch {}
 
 const config: NextConfig = {
+  // StrictMode's dev-only double-mount kills the WebGL context in worlds that
+  // use drei <Text> (troika) — dev then loses the canvas while prod is fine.
+  reactStrictMode: false,
   env: {
     NEXT_PUBLIC_LAST_COMMIT_DATE: lastCommitDate,
   },

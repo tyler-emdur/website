@@ -1,11 +1,13 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { useWorldStore } from '@/lib/world-store'
 import { projects } from '@/lib/data/projects'
 import HomeButton from './HomeButton'
+import { RadioAudio } from './garage/radio-audio'
 
 const GarageScene = dynamic(() => import('./garage/GarageScene'), { ssr: false })
+const NightDrive = dynamic(() => import('./garage/NightDrive'), { ssr: false })
 
 const STATIONS = [
   { freq: 88.5, name: 'KGRG THE LATE SHIFT', playing: 'now playing: nothing you can name, but you know it' },
@@ -26,6 +28,19 @@ export default function World6Garage() {
   const [freq, setFreq] = useState(96.1)
   const [toast, setToast] = useState<string | null>(null)
   const [showIntro, setShowIntro] = useState(true)
+  const [driving, setDriving] = useState(false)
+  const [igniting, setIgniting] = useState(false)
+  const audioRef = useRef<RadioAudio | null>(null)
+
+  const ensureAudio = useCallback(() => {
+    if (!audioRef.current) {
+      audioRef.current = new RadioAudio()
+      audioRef.current.start()
+    }
+    return audioRef.current
+  }, [])
+
+  useEffect(() => () => { audioRef.current?.stop() }, [])
 
   useEffect(() => {
     const t = setTimeout(() => setShowIntro(false), 4200)
@@ -49,6 +64,35 @@ export default function World6Garage() {
   , STATIONS[0])
   const tuned = Math.abs(station.freq - freq) < 0.3
 
+  // radio audio follows the dial
+  useEffect(() => {
+    if (!audioRef.current) return
+    const closeness = Math.max(0, 1 - Math.abs(station.freq - freq) / 0.3)
+    audioRef.current.setTuning(station.freq === 101.7 ? 0 : closeness, station.freq)
+  }, [freq, station.freq])
+
+  const seekStation = useCallback((dir: number) => {
+    ensureAudio()
+    setFreq(f => {
+      const sorted = STATIONS.map(s => s.freq).sort((a, b) => a - b)
+      if (dir > 0) return sorted.find(s => s > f + 0.05) ?? sorted[0]
+      return [...sorted].reverse().find(s => s < f - 0.05) ?? sorted[sorted.length - 1]
+    })
+  }, [ensureAudio])
+
+  const turnKey = useCallback(() => {
+    if (driving || igniting) return
+    const audio = ensureAudio()
+    setIgniting(true)
+    audio.engineStart()
+    setHeadlightsOn(true)
+    setTimeout(() => {
+      setIgniting(false)
+      setDriving(true)
+      findSecret('garage-took-the-drive')
+    }, 1500)
+  }, [driving, igniting, ensureAudio, findSecret])
+
   return (
     <div style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', background: '#05070a', overflow: 'hidden' }}>
       <style>{`
@@ -61,7 +105,7 @@ export default function World6Garage() {
         onToggleHeadlights={() => setHeadlightsOn(v => !v)}
         trunkOpen={trunkOpen}
         onToggleTrunk={() => setTrunkOpen(v => !v)}
-        onRadioClick={() => setRadioOpen(v => !v)}
+        onRadioClick={() => { ensureAudio(); setRadioOpen(v => !v) }}
         foundCassettes={secretsFound}
         onFindCassette={handleFindCassette}
       />
@@ -75,10 +119,32 @@ export default function World6Garage() {
         <div style={{ fontSize: 13, letterSpacing: '0.25em', textTransform: 'uppercase' }}>Midnight Garage</div>
         {showIntro && (
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 6, maxWidth: 260, lineHeight: 1.6 }}>
-            drag to look around · click the headlights, the trunk, the radio · some things are hidden
+            drag to look around · click the headlights, the trunk, the radio · some things are hidden · or just drive
           </div>
         )}
       </div>
+
+      {/* ignition */}
+      {!driving && (
+        <div
+          onClick={turnKey}
+          style={{
+            position: 'fixed', bottom: 24, right: 24, zIndex: 50,
+            fontFamily: '"Space Mono", monospace', cursor: igniting ? 'wait' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: 'rgba(10,12,16,0.85)', border: '1px solid rgba(255,223,140,0.3)',
+            padding: '12px 16px', backdropFilter: 'blur(8px)',
+          }}
+        >
+          <span style={{
+            display: 'inline-block', fontSize: 15, color: '#ffdf8c',
+            transform: igniting ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.5s ease',
+          }}>⚿</span>
+          <span style={{ fontSize: 10, letterSpacing: '0.18em', color: 'rgba(255,223,140,0.85)' }}>
+            {igniting ? 'ENGINE TURNING OVER…' : 'TURN THE KEY — DRIVE'}
+          </span>
+        </div>
+      )}
 
       {/* secret-found toast */}
       {toast && (
@@ -167,6 +233,19 @@ export default function World6Garage() {
             <span>108.0</span>
           </div>
         </div>
+      )}
+
+      {/* the drive */}
+      {driving && (
+        <NightDrive
+          freq={freq}
+          stationName={station.name}
+          stationPlaying={station.playing}
+          tuned={tuned}
+          onSeek={seekStation}
+          onExit={() => setDriving(false)}
+          onLongDrive={() => findSecret('garage-every-mile-marker')}
+        />
       )}
 
       <HomeButton />

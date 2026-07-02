@@ -1,7 +1,9 @@
 'use client'
 import { create } from 'zustand'
 
-export type WorldId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 9 | 10 | 11 | 12 | 13 | 14
+export type WorldId = 0 | 1 | 2 | 3 | 5 | 6 | 7 | 9 | 14
+
+export const WORLD_IDS: WorldId[] = [0, 1, 2, 3, 5, 6, 7, 9, 14]
 
 export type PortalType =
   | 'door'
@@ -28,16 +30,11 @@ const WORLD_TITLES: Record<WorldId, string> = {
   0: 'Tyler Emdur',
   1: 'Tyler Emdur',
   2: 'boulder explorer · gps trace',
-  3: '(1) New Message — Mail',
-  4: '█████ ████ ████',
-  5: 'this tab has been open too long',
+  3: 'KWND — broadcasting',
+  5: 'EMDUR-486 — press any key',
   6: '12:47 AM · engine off',
   7: 'Tyler Emdur — tyleremdur.com',
-  9: 'something follows the light',
-  10: 'drag to explore · look up',
-  11: 'the attic · everything ends up here',
-  12: 'DEVOS v0.9 — C:\\TYLER\\',
-  13: 'experiments.applet — requires Java',
+  9: 'one new message',
   14: "the aisle · it doesn't end",
 }
 
@@ -67,7 +64,7 @@ function loadReturnWorld(): WorldId {
     if (raw === null) return 0
     localStorage.removeItem('te-return-world')
     const id = parseInt(raw)
-    if (isNaN(id) || id < 0 || id > 14) return 0
+    if (isNaN(id) || !WORLD_IDS.includes(id as WorldId)) return 0
     return id as WorldId
   } catch { return 0 }
 }
@@ -99,7 +96,9 @@ function saveSecrets(secrets: string[]) {
 }
 
 export const useWorldStore = create<WorldState>((set, get) => ({
-  current: typeof window !== 'undefined' ? loadReturnWorld() : 0,
+  // Always start at 0 so server and client render the same tree; the return
+  // world (if any) is applied after mount — see applyReturnWorld().
+  current: 0,
   previous: null,
   visited: typeof window !== 'undefined' ? loadVisited() : [],
   portalActive: false,
@@ -164,6 +163,16 @@ export const useWorldStore = create<WorldState>((set, get) => ({
   },
 }))
 
+// Called once on mount (client only) to restore the world saved before a
+// full-page reload. Doing this post-hydration avoids a server/client mismatch.
+export function applyReturnWorld() {
+  const world = loadReturnWorld()
+  if (world !== 0) {
+    if (typeof document !== 'undefined') document.title = WORLD_TITLES[world]
+    useWorldStore.setState({ current: world })
+  }
+}
+
 export function getWorldLog(): string {
   const visited = loadVisited()
   const names: Record<WorldId, string> = {
@@ -171,15 +180,10 @@ export function getWorldLog(): string {
     1: 'THE UNIVERSE',
     2: 'THE GPS TRACE',
     3: 'THE BROADCAST',
-    4: 'THE BLACKBIRD FILE',
-    5: 'THE MALL',
+    5: 'THE MACHINE',
     6: 'THE GARAGE',
     7: 'THE CONTACT PAGE',
-    9: 'THE MOTH',
-    10: 'THE NIGHT SKY',
-    11: 'THE ATTIC',
-    12: 'THE DEV OS',
-    13: 'THE APPLETS',
+    9: 'THE ANSWERING MACHINE',
     14: 'THE ENDLESS AISLE',
   }
   const secrets = loadSecrets()
