@@ -1,281 +1,207 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import type { Group, Mesh } from 'three'
+import type { Mesh, MeshStandardMaterial, SpotLight } from 'three'
+
+// The Garage, seen from the driver's seat. You are nosed in to a closed
+// corrugated door at 12:47 AM, engine off. The windshield frames the door; the
+// dashboard (radio, gauges, ignition) is drawn over this in the DOM. Flip the
+// headlights and two pools bloom on the door ahead of you.
 
 interface GarageSceneProps {
   headlightsOn: boolean
-  onToggleHeadlights: () => void
-  trunkOpen: boolean
-  onToggleTrunk: () => void
-  onRadioClick: () => void
-  foundCassettes: string[]
-  onFindCassette: (id: string, label: string) => void
+  engineOn: boolean
 }
 
-const CASSETTES: Array<{ id: string; label: string; position: [number, number, number] }> = [
-  { id: 'garage-cassette-shelf',    label: 'MIX — SENIOR YEAR, I-70 WEST',   position: [5.15, 1.22, -3.35] },
-  { id: 'garage-cassette-undercar', label: "SIDE B — DIDN'T FINISH RECORDING", position: [0, 0.16, 0.6] },
-  { id: 'garage-cassette-toolbox',  label: 'PRACTICE TAPE — FIRST DEMO, 2016', position: [-4.35, 0.32, 2.75] },
-]
-
-function Wheel({ position }: { position: [number, number, number] }) {
+// ── the closed garage door filling the view ahead ────────────────────────────
+function GarageDoor({ lit }: { lit: number }) {
+  // horizontal slats, a row of frosted windows near the top letting night in
+  const SLATS = 11
+  const H = 4.4
+  const slatH = H / SLATS
   return (
-    <mesh position={position} rotation={[0, 0, Math.PI / 2]} castShadow>
-      <cylinderGeometry args={[0.36, 0.36, 0.28, 20]} />
-      <meshStandardMaterial color="#0a0a0a" roughness={0.9} metalness={0.1} />
-    </mesh>
+    <group position={[0, 2.0, -4.6]}>
+      {Array.from({ length: SLATS }).map((_, i) => {
+        const y = -H / 2 + slatH * (i + 0.5)
+        const isWindowRow = i === SLATS - 3
+        return (
+          <group key={i} position={[0, y, 0]}>
+            <mesh>
+              <boxGeometry args={[7.2, slatH * 0.94, 0.12]} />
+              <meshStandardMaterial
+                color={i % 2 === 0 ? '#3c3f45' : '#33363c'}
+                roughness={0.8}
+                metalness={0.2}
+                emissive="#0a0b0d"
+                emissiveIntensity={lit * 0.25}
+              />
+            </mesh>
+            {/* slat lip shadow line */}
+            <mesh position={[0, -slatH * 0.47, 0.061]}>
+              <boxGeometry args={[7.2, 0.02, 0.02]} />
+              <meshStandardMaterial color="#111214" roughness={1} />
+            </mesh>
+            {isWindowRow && Array.from({ length: 4 }).map((_, w) => (
+              <mesh key={w} position={[-2.7 + w * 1.8, 0, 0.07]}>
+                <boxGeometry args={[1.25, slatH * 0.6, 0.02]} />
+                <meshStandardMaterial
+                  color="#0c1420"
+                  emissive="#243a5a"
+                  emissiveIntensity={0.5}
+                  roughness={0.3}
+                  metalness={0.1}
+                />
+              </mesh>
+            ))}
+          </group>
+        )
+      })}
+      {/* rails on either side */}
+      {[-3.75, 3.75].map(x => (
+        <mesh key={x} position={[x, 0, -0.1]}>
+          <boxGeometry args={[0.12, H, 0.14]} />
+          <meshStandardMaterial color="#1a1c1f" roughness={0.7} metalness={0.5} />
+        </mesh>
+      ))}
+    </group>
   )
 }
 
-function Cassette({
-  data, found, onFind,
-}: {
-  data: typeof CASSETTES[number]
-  found: boolean
-  onFind: (id: string, label: string) => void
-}) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <mesh
-      position={data.position}
-      onPointerEnter={(e) => { e.stopPropagation(); setHovered(true) }}
-      onPointerLeave={() => setHovered(false)}
-      onClick={(e) => { e.stopPropagation(); onFind(data.id, data.label) }}
-      scale={hovered ? 1.25 : 1}
-    >
-      <boxGeometry args={[0.26, 0.05, 0.42]} />
-      <meshStandardMaterial
-        color={found ? '#F472B6' : '#5a4a30'}
-        emissive={found ? '#F472B6' : '#ffb347'}
-        emissiveIntensity={found ? 0.6 : (hovered ? 0.5 : 0.18)}
-        roughness={0.6}
-      />
-    </mesh>
-  )
-}
-
-function Car({
-  headlightsOn, onToggleHeadlights, trunkOpen, onToggleTrunk,
-}: { headlightsOn: boolean; onToggleHeadlights: () => void; trunkOpen: boolean; onToggleTrunk: () => void }) {
-  const trunkRef = useRef<Group>(null)
-  const headlightMatL = useRef<Mesh>(null)
-  const headlightMatR = useRef<Mesh>(null)
+function Garage({ headlightsOn }: { headlightsOn: boolean }) {
+  const spotL = useRef<SpotLight>(null)
+  const spotR = useRef<SpotLight>(null)
+  const doorMat = useRef<MeshStandardMaterial>(null)
+  const litRef = useRef(0)
 
   useFrame(() => {
-    if (trunkRef.current) {
-      const target = trunkOpen ? -1.1 : 0
-      trunkRef.current.rotation.x += (target - trunkRef.current.rotation.x) * 0.12
-    }
+    const target = headlightsOn ? 1 : 0
+    litRef.current += (target - litRef.current) * 0.08
+    const v = litRef.current
+    if (spotL.current) spotL.current.intensity = v * 55
+    if (spotR.current) spotR.current.intensity = v * 55
   })
 
   return (
-    <group position={[0, 0, 0]}>
-      {/* body */}
-      <mesh position={[0, 0.55, 0]} castShadow>
-        <boxGeometry args={[2.1, 0.5, 4.1]} />
-        <meshStandardMaterial color="#182338" roughness={0.35} metalness={0.55} />
-      </mesh>
-      {/* cabin */}
-      <mesh position={[0, 0.98, -0.15]} castShadow>
-        <boxGeometry args={[1.6, 0.42, 1.9]} />
-        <meshStandardMaterial color="#0c1420" roughness={0.2} metalness={0.4} />
-      </mesh>
-
-      {/* wheels */}
-      <Wheel position={[-1.08, 0.36, 1.45]} />
-      <Wheel position={[1.08, 0.36, 1.45]} />
-      <Wheel position={[-1.08, 0.36, -1.45]} />
-      <Wheel position={[1.08, 0.36, -1.45]} />
-
-      {/* headlights */}
-      <mesh
-        ref={headlightMatL}
-        position={[-0.7, 0.55, 2.05]}
-        onClick={(e) => { e.stopPropagation(); onToggleHeadlights() }}
-      >
-        <sphereGeometry args={[0.13, 16, 16]} />
-        <meshStandardMaterial
-          color={headlightsOn ? '#fff6d8' : '#8a8a8a'}
-          emissive={headlightsOn ? '#ffdf8c' : '#3a3a3a'}
-          emissiveIntensity={headlightsOn ? 2.2 : 0.4}
-          metalness={0.6}
-          roughness={0.3}
-        />
-      </mesh>
-      <mesh
-        ref={headlightMatR}
-        position={[0.7, 0.55, 2.05]}
-        onClick={(e) => { e.stopPropagation(); onToggleHeadlights() }}
-      >
-        <sphereGeometry args={[0.13, 16, 16]} />
-        <meshStandardMaterial
-          color={headlightsOn ? '#fff6d8' : '#8a8a8a'}
-          emissive={headlightsOn ? '#ffdf8c' : '#3a3a3a'}
-          emissiveIntensity={headlightsOn ? 2.2 : 0.4}
-          metalness={0.6}
-          roughness={0.3}
-        />
-      </mesh>
-      {headlightsOn && (
-        <>
-          <spotLight position={[-0.7, 0.55, 2.1]} target-position={[-0.9, 0, 8]} angle={0.5} penumbra={0.6} intensity={90} color="#ffdf8c" distance={16} />
-          <spotLight position={[0.7, 0.55, 2.1]} target-position={[0.9, 0, 8]} angle={0.5} penumbra={0.6} intensity={90} color="#ffdf8c" distance={16} />
-        </>
-      )}
-
-      {/* taillights, always faintly lit */}
-      <mesh position={[-0.75, 0.6, -2.05]}>
-        <sphereGeometry args={[0.1, 12, 12]} />
-        <meshStandardMaterial color="#5a0d0d" emissive="#ff2b3a" emissiveIntensity={0.6} />
-      </mesh>
-      <mesh position={[0.75, 0.6, -2.05]}>
-        <sphereGeometry args={[0.1, 12, 12]} />
-        <meshStandardMaterial color="#5a0d0d" emissive="#ff2b3a" emissiveIntensity={0.6} />
-      </mesh>
-
-      {/* trunk lid — pivots open around back edge */}
-      <group position={[0, 0.78, -1.95]} ref={trunkRef}>
-        <mesh
-          position={[0, 0, -0.15]}
-          onClick={(e) => { e.stopPropagation(); onToggleTrunk() }}
-        >
-          <boxGeometry args={[2.05, 0.06, 0.35]} />
-          <meshStandardMaterial color="#1e2c46" roughness={0.35} metalness={0.5} />
-        </mesh>
-        {/* release button — lit affordance so the trunk reads as interactive in the dark */}
-        <mesh
-          position={[0, 0.07, -0.02]}
-          onClick={(e) => { e.stopPropagation(); onToggleTrunk() }}
-        >
-          <sphereGeometry args={[0.09, 12, 12]} />
-          <meshStandardMaterial
-            color={trunkOpen ? '#fff2d0' : '#ffb347'}
-            emissive={trunkOpen ? '#fff2d0' : '#ffb347'}
-            emissiveIntensity={trunkOpen ? 2.5 : 1.6}
-          />
-        </mesh>
-        <pointLight position={[0, 0.1, -0.02]} intensity={trunkOpen ? 4 : 1.5} distance={1.2} color="#ffb347" />
-      </group>
-      {trunkOpen && (
-        <pointLight position={[0, 1.1, -2.3]} intensity={20} distance={5} color="#fff2d0" />
-      )}
-    </group>
-  )
-}
-
-function Radio({ onClick }: { onClick: () => void }) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <group position={[5.15, 1.02, -3.6]}>
-      <mesh
-        onPointerEnter={() => setHovered(true)}
-        onPointerLeave={() => setHovered(false)}
-        onClick={(e) => { e.stopPropagation(); onClick() }}
-        scale={hovered ? 1.08 : 1}
-      >
-        <boxGeometry args={[0.55, 0.3, 0.3]} />
-        <meshStandardMaterial color="#2b2620" roughness={0.6} />
-      </mesh>
-      <mesh position={[0, 0.02, 0.16]}>
-        <circleGeometry args={[0.07, 20]} />
-        <meshStandardMaterial color="#ffb347" emissive="#ffb347" emissiveIntensity={0.9} />
-      </mesh>
-    </group>
-  )
-}
-
-function Garage() {
-  return (
     <group>
-      {/* floor */}
-      <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[13, 11]} />
-        <meshStandardMaterial color="#14171b" roughness={0.9} metalness={0.05} />
+      {/* concrete floor */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -1.5]}>
+        <planeGeometry args={[14, 12]} />
+        <meshStandardMaterial color="#111316" roughness={0.95} metalness={0.03} />
       </mesh>
-      {/* back wall */}
-      <mesh position={[0, 2, -5.4]}>
-        <planeGeometry args={[13, 4.4]} />
-        <meshStandardMaterial color="#191c21" roughness={0.95} />
+      {/* faint oil stain under the car */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, -1]}>
+        <circleGeometry args={[1.4, 24]} />
+        <meshStandardMaterial color="#08090a" roughness={1} transparent opacity={0.7} />
       </mesh>
-      {/* left wall — corrugated garage door look */}
-      {Array.from({ length: 9 }).map((_, i) => (
-        <mesh key={i} position={[-6.4, 0.3 + i * 0.46, 0]} rotation={[0, Math.PI / 2, 0]}>
-          <boxGeometry args={[10.6, 0.42, 0.06]} />
-          <meshStandardMaterial color={i % 2 === 0 ? '#20242a' : '#191c21'} roughness={0.8} metalness={0.15} />
+
+      <GarageDoor lit={headlightsOn ? 1 : 0} />
+
+      {/* side walls */}
+      <mesh position={[-6.2, 2, -1.5]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[12, 5]} />
+        <meshStandardMaterial ref={doorMat} color="#1a1d21" roughness={0.96} />
+      </mesh>
+      <mesh position={[6.2, 2, -1.5]} rotation={[0, -Math.PI / 2, 0]}>
+        <planeGeometry args={[12, 5]} />
+        <meshStandardMaterial color="#1a1d21" roughness={0.96} />
+      </mesh>
+      {/* ceiling */}
+      <mesh position={[0, 4.4, -1.5]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[14, 12]} />
+        <meshStandardMaterial color="#0e1013" roughness={1} />
+      </mesh>
+
+      {/* pegboard + tool silhouettes on the right wall */}
+      {[[-3.4, 3.0], [-2.7, 3.0], [-2.0, 3.0], [-3.0, 2.4], [-2.3, 2.4]].map(([z, y], i) => (
+        <mesh key={i} position={[6.1, y, z]} rotation={[0, -Math.PI / 2, 0]}>
+          <boxGeometry args={[0.05, 0.5, 0.1]} />
+          <meshStandardMaterial color="#0b0c0e" roughness={0.8} />
         </mesh>
       ))}
-      {/* right wall */}
-      <mesh position={[6.4, 2, 0]} rotation={[0, -Math.PI / 2, 0]}>
-        <planeGeometry args={[10.6, 4.4]} />
-        <meshStandardMaterial color="#191c21" roughness={0.95} />
-      </mesh>
-      {/* pegboard tool silhouettes on right wall */}
-      {[[-2.6, 3.1], [-2.0, 3.1], [-1.4, 3.1], [-2.3, 2.5]].map(([z, y], i) => (
-        <mesh key={i} position={[6.32, y, z]} rotation={[0, -Math.PI / 2, 0]}>
-          <boxGeometry args={[0.05, 0.45, 0.09]} />
-          <meshStandardMaterial color="#0d0e10" roughness={0.7} />
-        </mesh>
-      ))}
-
-      {/* workbench */}
-      <mesh position={[5.15, 0.55, -3.6]}>
-        <boxGeometry args={[1.7, 1.0, 1.0]} />
-        <meshStandardMaterial color="#332318" roughness={0.85} />
+      {/* workbench on the right */}
+      <mesh position={[5.4, 0.6, -3.4]}>
+        <boxGeometry args={[1.5, 1.1, 1.0]} />
+        <meshStandardMaterial color="#2a2018" roughness={0.9} />
       </mesh>
 
-      {/* toolbox */}
-      <mesh position={[-4.5, 0.24, 2.55]} rotation={[0, 0.3, 0]}>
-        <boxGeometry args={[0.75, 0.42, 0.48]} />
-        <meshStandardMaterial color="#7a1f1f" roughness={0.6} metalness={0.2} />
-      </mesh>
+      {/* hanging bulb, warm, swinging faintly */}
+      <SwingingBulb />
 
-      {/* hanging bulb */}
-      <mesh position={[0, 3.6, -1]}>
-        <sphereGeometry args={[0.14, 16, 16]} />
-        <meshStandardMaterial color="#fff3cf" emissive="#ffd98c" emissiveIntensity={1.4} />
+      {/* headlight pools */}
+      <spotLight
+        ref={spotL}
+        position={[-0.75, 0.75, -1.4]}
+        target-position={[-1.3, 1.6, -4.5]}
+        angle={0.55} penumbra={0.7} intensity={0} color="#fff1cf" distance={9}
+      />
+      <spotLight
+        ref={spotR}
+        position={[0.75, 0.75, -1.4]}
+        target-position={[1.3, 1.6, -4.5]}
+        angle={0.55} penumbra={0.7} intensity={0} color="#fff1cf" distance={9}
+      />
+
+      {/* the car's cowl / hood lip at the base of the windshield */}
+      <mesh position={[0, 0.62, 0.55]} rotation={[-0.18, 0, 0]}>
+        <boxGeometry args={[3.4, 0.5, 1.4]} />
+        <meshStandardMaterial color="#0a0c10" roughness={0.5} metalness={0.4} />
       </mesh>
-      <pointLight position={[0, 3.6, -1]} intensity={45} distance={12} color="#ffd98c" />
-      <pointLight position={[0, 2.2, -4.6]} intensity={10} distance={7} color="#4a5a8a" />
     </group>
   )
 }
 
-export default function GarageScene({
-  headlightsOn, onToggleHeadlights, trunkOpen, onToggleTrunk, onRadioClick, foundCassettes, onFindCassette,
-}: GarageSceneProps) {
+function SwingingBulb() {
+  const g = useRef<Mesh>(null)
+  const light = useRef<import('three').PointLight>(null)
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime
+    const sway = Math.sin(t * 0.6) * 0.04 + Math.sin(t * 0.23) * 0.02
+    if (g.current) g.current.position.x = sway
+    if (light.current) {
+      light.current.position.x = sway
+      light.current.intensity = 12 + Math.sin(t * 7.3) * Math.sin(t * 2.1) * 0.6  // faint filament flicker
+    }
+  })
+  return (
+    <group position={[0.6, 3.9, -2.4]}>
+      <mesh ref={g}>
+        <sphereGeometry args={[0.12, 16, 16]} />
+        <meshStandardMaterial color="#fff3cf" emissive="#ffd98c" emissiveIntensity={1.6} />
+      </mesh>
+      <pointLight ref={light} intensity={24} distance={11} color="#ffd7a0" />
+    </group>
+  )
+}
+
+export default function GarageScene({ headlightsOn }: GarageSceneProps) {
   return (
     <Canvas
-      camera={{ position: [3.4, 3.4, 6.2], fov: 48 }}
-      style={{
-        background: '#05070a',
-        imageRendering: 'pixelated',
-      }}
-      dpr={0.22}
-      gl={{ antialias: false, alpha: false }}
+      camera={{ position: [0, 1.16, 1.0], fov: 66 }}
+      style={{ background: '#050608' }}
+      dpr={[0.9, 1.5]}
+      gl={{ antialias: true, alpha: false }}
       shadows={false}
     >
-      <fog attach="fog" args={['#05070a', 9, 22]} />
-      <ambientLight intensity={1.1} color="#4a5a7a" />
-      <hemisphereLight args={['#5a6a8a', '#0a0a0a', 0.9]} />
+      <fog attach="fog" args={['#070809', 6, 18]} />
+      <ambientLight intensity={0.72} color="#48546e" />
+      <hemisphereLight args={['#52627e', '#101012', 0.7]} />
+      {/* faint warm dashboard glow from below */}
+      <pointLight position={[0, 0.8, 1.2]} intensity={2.6} distance={3.5} color="#ffb060" />
+      {/* soft cool fill on the door so it reads even with headlights off */}
+      <pointLight position={[0, 2.6, -2.0]} intensity={5} distance={9} color="#2c3a56" />
 
-      <Garage />
-      <Car headlightsOn={headlightsOn} onToggleHeadlights={onToggleHeadlights} trunkOpen={trunkOpen} onToggleTrunk={onToggleTrunk} />
-      <Radio onClick={onRadioClick} />
-      {CASSETTES.map(c => (
-        <Cassette key={c.id} data={c} found={foundCassettes.includes(c.id)} onFind={onFindCassette} />
-      ))}
+      <Garage headlightsOn={headlightsOn} />
 
       <OrbitControls
-        target={[0, 0.7, 0]}
+        target={[0, 1.05, -0.6]}
         enablePan={false}
-        enableZoom={true}
-        minDistance={3}
-        maxDistance={9}
-        minPolarAngle={0.35}
-        maxPolarAngle={1.35}
-        rotateSpeed={0.5}
+        enableZoom={false}
+        minPolarAngle={1.15}
+        maxPolarAngle={1.62}
+        minAzimuthAngle={-0.5}
+        maxAzimuthAngle={0.5}
+        rotateSpeed={-0.32}
         enableDamping
         dampingFactor={0.08}
       />

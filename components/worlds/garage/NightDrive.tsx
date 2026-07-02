@@ -1,20 +1,26 @@
 'use client'
 import { useRef, useEffect, useState } from 'react'
 import { projects } from '@/lib/data/projects'
+import type { RadioStation } from '@/app/api/radio/route'
+import type { RadioStatus } from './live-radio'
 
 // The drive. A 2D-canvas night highway out of the garage. The road curves and
 // rolls, and the country changes as the odometer turns: the edge of town, open
 // highway, a canyon, a storm on the high plain. Mile-marker signs are the years
-// of your projects. Radio on the dash.
+// of your projects. The live radio keeps playing on the dash.
 
 interface NightDriveProps {
   freq: number
-  stationName: string
-  stationPlaying: string
-  tuned: boolean
+  station: RadioStation | null
+  status: RadioStatus
   onSeek: (dir: number) => void
   onExit: () => void
   onLongDrive: () => void
+}
+
+function flag(code: string) {
+  if (!/^[A-Za-z]{2}$/.test(code)) return '📻'
+  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 127397 + c.charCodeAt(0)))
 }
 
 interface Sign { label: string; sub: string }
@@ -62,7 +68,8 @@ function phaseMix(dist: number): { a: Phase; b: Phase; t: number; label: string 
 }
 const mix = (a: number, b: number, t: number) => a + (b - a) * t
 
-export default function NightDrive({ freq, stationName, stationPlaying, tuned, onSeek, onExit, onLongDrive }: NightDriveProps) {
+export default function NightDrive({ freq, station, status, onSeek, onExit, onLongDrive }: NightDriveProps) {
+  const tuned = status === 'live' || status === 'tuning'
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [signIdx, setSignIdx] = useState(0)
   const [odometer, setOdometer] = useState(0)
@@ -554,13 +561,13 @@ export default function NightDrive({ freq, stationName, stationPlaying, tuned, o
           <div style={{ fontSize: 7, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.3)' }}>MPH · ↑↓</div>
         </div>
 
-        {/* radio readout */}
-        <div style={{ textAlign: 'center', minWidth: 260 }}>
-          <div style={{ fontSize: 11, color: tuned ? 'rgba(255,179,71,0.95)' : 'rgba(255,255,255,0.35)', letterSpacing: '0.14em', textShadow: tuned ? '0 0 10px rgba(255,179,71,0.4)' : 'none' }}>
-            {freq.toFixed(1)} FM {tuned ? `· ${stationName}` : '· static'}
+        {/* radio readout — the live station keeps playing on the drive */}
+        <div style={{ textAlign: 'center', minWidth: 260, maxWidth: 320 }}>
+          <div style={{ fontSize: 11, color: station ? 'rgba(255,179,71,0.95)' : 'rgba(255,255,255,0.35)', letterSpacing: '0.14em', textShadow: station ? '0 0 10px rgba(255,179,71,0.4)' : 'none' }}>
+            {freq.toFixed(1)} FM {station ? `· ${flag(station.country)} ${station.name}` : '· static'}
           </div>
-          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', marginTop: 3, minHeight: 12 }}>
-            {tuned ? stationPlaying : 'seek with ← →'}
+          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', marginTop: 3, minHeight: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {station ? `${status === 'live' ? 'ON AIR' : 'tuning…'} — seek with ← →` : 'between stations — seek with ← →'}
           </div>
         </div>
 
