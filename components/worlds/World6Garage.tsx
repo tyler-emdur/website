@@ -4,28 +4,23 @@ import dynamic from 'next/dynamic'
 import { useWorldStore } from '@/lib/world-store'
 import { projects } from '@/lib/data/projects'
 import HomeButton from './HomeButton'
-import { RadioAudio } from './garage/radio-audio'
+import { RadioAudio, RADIO_STATIONS, type RadioStatus } from './garage/radio-audio'
 
 const GarageScene = dynamic(() => import('./garage/GarageScene'), { ssr: false })
 const NightDrive = dynamic(() => import('./garage/NightDrive'), { ssr: false })
 
-const STATIONS = [
-  { freq: 88.5, name: 'KGRG THE LATE SHIFT', playing: 'now playing: nothing you can name, but you know it' },
-  { freq: 92.3, name: 'HIGHWAY 6 RADIO', playing: 'traffic on I-70 westbound is moving fine tonight' },
-  { freq: 96.1, name: 'AM 96 OLDIES', playing: 'a song your dad used to hum in the driveway' },
-  { freq: 101.7, name: 'DEAD AIR', playing: '— no signal —' },
-  { freq: 104.9, name: 'THE COUNTY LINE', playing: 'high school football scores, three weeks stale' },
-]
+const SORTED_FREQS = RADIO_STATIONS.map(s => s.freq).sort((a, b) => a - b)
 
 export default function World6Garage() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
   const findSecret = useWorldStore(s => s.findSecret)
   const secretsFound = useWorldStore(s => s.secretsFound)
 
   const [headlightsOn, setHeadlightsOn] = useState(false)
-  const [trunkOpen, setTrunkOpen] = useState(false)
+  const [gloveboxOpen, setGloveboxOpen] = useState(false)
   const [radioOpen, setRadioOpen] = useState(false)
-  const [freq, setFreq] = useState(96.1)
+  const [muted, setMuted] = useState(false)
+  const [freq, setFreq] = useState(96.9)
+  const [status, setStatus] = useState<RadioStatus>({ station: null, closeness: 0, state: 'static' })
   const [toast, setToast] = useState<string | null>(null)
   const [showIntro, setShowIntro] = useState(true)
   const [driving, setDriving] = useState(false)
@@ -34,16 +29,19 @@ export default function World6Garage() {
 
   const ensureAudio = useCallback(() => {
     if (!audioRef.current) {
-      audioRef.current = new RadioAudio()
-      audioRef.current.start()
+      const r = new RadioAudio()
+      r.setStatusListener(setStatus)
+      r.start()
+      r.setDial(freq)
+      audioRef.current = r
     }
     return audioRef.current
-  }, [])
+  }, [freq])
 
   useEffect(() => () => { audioRef.current?.stop() }, [])
 
   useEffect(() => {
-    const t = setTimeout(() => setShowIntro(false), 4200)
+    const t = setTimeout(() => setShowIntro(false), 5200)
     return () => clearTimeout(t)
   }, [])
 
@@ -59,24 +57,18 @@ export default function World6Garage() {
     setToast(label)
   }
 
-  const station = STATIONS.reduce((closest, s) =>
-    Math.abs(s.freq - freq) < Math.abs(closest.freq - freq) ? s : closest
-  , STATIONS[0])
-  const tuned = Math.abs(station.freq - freq) < 0.3
-
   // radio audio follows the dial
-  useEffect(() => {
-    if (!audioRef.current) return
-    const closeness = Math.max(0, 1 - Math.abs(station.freq - freq) / 0.3)
-    audioRef.current.setTuning(station.freq === 101.7 ? 0 : closeness, station.freq)
-  }, [freq, station.freq])
+  useEffect(() => { audioRef.current?.setDial(freq) }, [freq])
+  useEffect(() => { audioRef.current?.setMuted(muted) }, [muted])
+
+  const tuned = status.state === 'live' && status.closeness > 0.45
+  const station = status.station
 
   const seekStation = useCallback((dir: number) => {
     ensureAudio()
     setFreq(f => {
-      const sorted = STATIONS.map(s => s.freq).sort((a, b) => a - b)
-      if (dir > 0) return sorted.find(s => s > f + 0.05) ?? sorted[0]
-      return [...sorted].reverse().find(s => s < f - 0.05) ?? sorted[sorted.length - 1]
+      if (dir > 0) return SORTED_FREQS.find(s => s > f + 0.05) ?? SORTED_FREQS[0]
+      return [...SORTED_FREQS].reverse().find(s => s < f - 0.05) ?? SORTED_FREQS[SORTED_FREQS.length - 1]
     })
   }, [ensureAudio])
 
@@ -93,6 +85,17 @@ export default function World6Garage() {
     }, 1500)
   }, [driving, igniting, ensureAudio, findSecret])
 
+  // what the radio readout says, driven by real connection state
+  const readoutName = station
+    ? (status.state === 'live' ? station.name : status.state === 'connecting' ? 'TUNING…' : status.state === 'dead' ? 'SIGNAL LOST' : station.name)
+    : 'STATIC'
+  const readoutSub = station
+    ? (status.state === 'live' ? `${station.place} · ${station.genre}`
+      : status.state === 'connecting' ? `reaching ${station.place.toLowerCase()}…`
+      : status.state === 'dead' ? 'no carrier — try another frequency'
+      : `${station.place} · ${station.genre}`)
+    : 'nothing but the space between stations'
+
   return (
     <div style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', background: '#05070a', overflow: 'hidden' }}>
       <style>{`
@@ -103,9 +106,12 @@ export default function World6Garage() {
       <GarageScene
         headlightsOn={headlightsOn}
         onToggleHeadlights={() => setHeadlightsOn(v => !v)}
-        trunkOpen={trunkOpen}
-        onToggleTrunk={() => setTrunkOpen(v => !v)}
+        gloveboxOpen={gloveboxOpen}
+        onToggleGlovebox={() => setGloveboxOpen(v => !v)}
         onRadioClick={() => { ensureAudio(); setRadioOpen(v => !v) }}
+        radioActive={radioOpen || driving || status.state === 'live'}
+        onIgnition={turnKey}
+        igniting={igniting}
         foundCassettes={secretsFound}
         onFindCassette={handleFindCassette}
       />
@@ -118,8 +124,8 @@ export default function World6Garage() {
       }}>
         <div style={{ fontSize: 13, letterSpacing: '0.25em', textTransform: 'uppercase' }}>Midnight Garage</div>
         {showIntro && (
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 6, maxWidth: 260, lineHeight: 1.6 }}>
-            drag to look around · click the headlights, the trunk, the radio · some things are hidden · or just drive
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 6, maxWidth: 280, lineHeight: 1.6 }}>
+            drag to look around the cabin · click the radio to tune real stations · the knob is the headlights · the glovebox holds the projects · some tapes are hidden · turn the key to drive
           </div>
         )}
       </div>
@@ -158,8 +164,8 @@ export default function World6Garage() {
         </div>
       )}
 
-      {/* Trunk panel */}
-      {trunkOpen && (
+      {/* Glovebox panel — projects */}
+      {gloveboxOpen && (
         <div style={{
           position: 'fixed', right: 24, bottom: 24, top: 24, width: 340, zIndex: 55,
           background: 'rgba(10,12,16,0.92)', border: '1px solid rgba(255,223,140,0.25)',
@@ -170,8 +176,8 @@ export default function World6Garage() {
             position: 'sticky', top: 0, background: 'rgba(10,12,16,0.95)', padding: '14px 16px',
             borderBottom: '1px solid rgba(255,223,140,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
-            <div style={{ fontSize: 11, letterSpacing: '0.2em', color: 'rgba(255,223,140,0.9)' }}>TRUNK — PROJECTS</div>
-            <div onClick={() => setTrunkOpen(false)} style={{ cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>×</div>
+            <div style={{ fontSize: 11, letterSpacing: '0.2em', color: 'rgba(255,223,140,0.9)' }}>GLOVEBOX — PROJECTS</div>
+            <div onClick={() => setGloveboxOpen(false)} style={{ cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>×</div>
           </div>
           <div style={{ padding: '10px 16px 20px' }}>
             {projects.map(p => (
@@ -192,24 +198,30 @@ export default function World6Garage() {
         </div>
       )}
 
-      {/* Radio tuner panel */}
+      {/* Radio tuner panel — real live stations */}
       {radioOpen && (
         <div style={{
           position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 55,
-          width: 380, maxWidth: 'calc(100vw - 48px)', background: 'rgba(10,12,16,0.92)',
+          width: 420, maxWidth: 'calc(100vw - 48px)', background: 'rgba(10,12,16,0.92)',
           border: '1px solid rgba(255,179,71,0.3)', backdropFilter: 'blur(10px)', padding: 16,
           fontFamily: '"Space Mono", monospace', animation: 'garage-fade 0.35s ease',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 11, letterSpacing: '0.2em', color: 'rgba(255,179,71,0.9)' }}>
-              {tuned ? station.name : 'TUNING...'}
+            <div style={{ fontSize: 11, letterSpacing: '0.2em', color: 'rgba(255,179,71,0.9)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              {readoutName}
+              {status.state === 'live' && (
+                <span style={{ fontSize: 7, letterSpacing: '0.14em', color: '#ff5a3c', border: '1px solid rgba(255,90,60,0.5)', padding: '1px 4px' }}>● LIVE</span>
+              )}
             </div>
-            <div onClick={() => setRadioOpen(false)} style={{ cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>×</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div onClick={() => setMuted(m => !m)} title="mute" style={{ cursor: 'pointer', fontSize: 12, color: muted ? 'rgba(255,90,60,0.8)' : 'rgba(255,179,71,0.7)' }}>{muted ? '🔇' : '🔊'}</div>
+              <div onClick={() => setRadioOpen(false)} style={{ cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>×</div>
+            </div>
           </div>
 
-          {/* static visualizer */}
-          <div style={{ display: 'flex', gap: 2, height: 20, alignItems: 'flex-end', marginBottom: 10, opacity: tuned ? 0.35 : 0.9 }}>
-            {Array.from({ length: 28 }).map((_, i) => (
+          {/* static visualizer — quiets as the lock tightens */}
+          <div style={{ display: 'flex', gap: 2, height: 20, alignItems: 'flex-end', marginBottom: 10, opacity: 0.35 + (1 - status.closeness) * 0.55 }}>
+            {Array.from({ length: 34 }).map((_, i) => (
               <div key={i} style={{
                 flex: 1, background: tuned ? '#ffb347' : 'rgba(255,255,255,0.3)', height: '100%',
                 animation: `garage-static-bar ${0.3 + (i % 5) * 0.07}s ease-in-out infinite`,
@@ -219,18 +231,35 @@ export default function World6Garage() {
           </div>
 
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', minHeight: 16, marginBottom: 10 }}>
-            {tuned ? station.playing : 'searching the dial for a signal...'}
+            {readoutSub}
           </div>
 
-          <input
-            type="range" min={88} max={108} step={0.1} value={freq}
-            onChange={e => setFreq(parseFloat(e.target.value))}
-            style={{ width: '100%', accentColor: '#ffb347' }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
+          {/* dial with station ticks */}
+          <div style={{ position: 'relative', marginBottom: 4 }}>
+            <input
+              type="range" min={88} max={108} step={0.1} value={freq}
+              onChange={e => { ensureAudio(); setFreq(parseFloat(e.target.value)) }}
+              style={{ width: '100%', accentColor: '#ffb347' }}
+            />
+            <div style={{ position: 'relative', height: 10, marginTop: 2 }}>
+              {RADIO_STATIONS.map(s => (
+                <div key={s.id} title={`${s.name} — ${s.place}`}
+                  onClick={() => { ensureAudio(); setFreq(s.freq) }}
+                  style={{
+                    position: 'absolute', left: `${((s.freq - 88) / 20) * 100}%`, transform: 'translateX(-50%)',
+                    width: 3, height: 7, cursor: 'pointer',
+                    background: station?.id === s.id ? '#ffb347' : 'rgba(255,179,71,0.35)',
+                  }} />
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
             <span>88.0</span>
             <span style={{ color: '#ffb347' }}>{freq.toFixed(1)} FM</span>
             <span>108.0</span>
+          </div>
+          <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.25)', marginTop: 8, letterSpacing: '0.08em', lineHeight: 1.6 }}>
+            live streams from paris · köln · san francisco · paradise, ca — tap a tick to jump the dial
           </div>
         </div>
       )}
@@ -239,8 +268,8 @@ export default function World6Garage() {
       {driving && (
         <NightDrive
           freq={freq}
-          stationName={station.name}
-          stationPlaying={station.playing}
+          stationName={tuned && station ? station.name : (status.state === 'connecting' ? 'tuning…' : 'static')}
+          stationPlaying={station ? readoutSub : 'seek with ← →'}
           tuned={tuned}
           onSeek={seekStation}
           onExit={() => setDriving(false)}
