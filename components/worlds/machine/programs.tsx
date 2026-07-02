@@ -254,8 +254,126 @@ function Orbits({ active }: { active: boolean }) {
   return <canvas ref={ref} className="w-full h-full" style={{background:'#05030c'}} />
 }
 
+/* ─── Minesweeper ─── the thing you actually did on an old PC ─── */
+const MINE_W = 9, MINE_H = 9, MINE_N = 10
+const NUM_COLORS = ['', '#0000ff', '#008000', '#ff0000', '#000080', '#800000', '#008080', '#000000', '#808080']
+interface MCell { mine: boolean; adj: number; revealed: boolean; flagged: boolean }
+const emptyGrid = (): MCell[] => Array.from({ length: MINE_W * MINE_H }, () => ({ mine: false, adj: 0, revealed: false, flagged: false }))
+const neighbors = (i: number): number[] => {
+  const x = i % MINE_W, y = Math.floor(i / MINE_W), out: number[] = []
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    if (dx === 0 && dy === 0) continue
+    const nx = x + dx, ny = y + dy
+    if (nx >= 0 && nx < MINE_W && ny >= 0 && ny < MINE_H) out.push(ny * MINE_W + nx)
+  }
+  return out
+}
+function Minesweeper({ active }: { active: boolean }) {
+  const [grid, setGrid] = useState<MCell[]>(emptyGrid)
+  const [state, setState] = useState<'ready' | 'playing' | 'won' | 'lost'>('ready')
+  const [time, setTime] = useState(0)
+
+  useEffect(() => {
+    if (state !== 'playing' || !active) return
+    const iv = setInterval(() => setTime(t => Math.min(999, t + 1)), 1000)
+    return () => clearInterval(iv)
+  }, [state, active])
+
+  const flags = grid.filter(c => c.flagged).length
+
+  const reset = () => { setGrid(emptyGrid()); setState('ready'); setTime(0) }
+
+  const revealFrom = (cells: MCell[], start: number) => {
+    const stack = [start]
+    while (stack.length) {
+      const i = stack.pop()!
+      const c = cells[i]
+      if (c.revealed || c.flagged) continue
+      c.revealed = true
+      if (c.adj === 0 && !c.mine) for (const n of neighbors(i)) if (!cells[n].revealed) stack.push(n)
+    }
+  }
+
+  const click = (i: number) => {
+    if (state === 'won' || state === 'lost') return
+    setGrid(prev => {
+      const cells = prev.map(c => ({ ...c }))
+      if (cells[i].flagged) return cells
+      // first click: place mines avoiding the clicked cell + its neighbors
+      if (state === 'ready') {
+        const safe = new Set([i, ...neighbors(i)])
+        let placed = 0
+        while (placed < MINE_N) {
+          const m = Math.floor(Math.random() * cells.length)
+          if (safe.has(m) || cells[m].mine) continue
+          cells[m].mine = true; placed++
+        }
+        for (let k = 0; k < cells.length; k++) cells[k].adj = neighbors(k).filter(n => cells[n].mine).length
+        setState('playing')
+      }
+      if (cells[i].mine) {
+        cells.forEach(c => { if (c.mine) c.revealed = true })
+        setState('lost')
+        return cells
+      }
+      revealFrom(cells, i)
+      const safeTotal = cells.length - MINE_N
+      if (cells.filter(c => c.revealed && !c.mine).length === safeTotal) {
+        cells.forEach(c => { if (c.mine) c.flagged = true })
+        setState('won')
+      }
+      return cells
+    })
+  }
+
+  const flag = (i: number) => {
+    if (state === 'won' || state === 'lost' || state === 'ready') return
+    setGrid(prev => prev.map((c, k) => (k === i && !c.revealed ? { ...c, flagged: !c.flagged } : c)))
+  }
+
+  const face = state === 'lost' ? '😵' : state === 'won' ? '😎' : '🙂'
+  const led = (n: number) => String(Math.max(0, Math.min(999, n))).padStart(3, '0')
+
+  return (
+    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#008080', padding: 12 }}>
+      <div style={{ background: '#c0c0c0', border: '3px outset #fff', padding: 6 }}>
+        {/* header: mine counter · face · timer */}
+        <div style={{ border: '2px inset #fff', padding: '5px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <div style={{ background: '#000', color: '#ff0000', fontFamily: '"Courier New", monospace', fontWeight: 700, fontSize: 20, padding: '1px 4px', letterSpacing: 1 }}>{led(MINE_N - flags)}</div>
+          <button onClick={reset} style={{ width: 30, height: 30, border: '2px outset #fff', background: '#c0c0c0', fontSize: 16, cursor: 'pointer', lineHeight: 1, padding: 0 }}>{face}</button>
+          <div style={{ background: '#000', color: '#ff0000', fontFamily: '"Courier New", monospace', fontWeight: 700, fontSize: 20, padding: '1px 4px', letterSpacing: 1 }}>{led(time)}</div>
+        </div>
+        {/* grid */}
+        <div style={{ border: '2px inset #fff', display: 'grid', gridTemplateColumns: `repeat(${MINE_W}, 24px)` }}>
+          {grid.map((c, i) => (
+            <button
+              key={i}
+              onClick={() => click(i)}
+              onContextMenu={(e) => { e.preventDefault(); flag(i) }}
+              style={{
+                width: 24, height: 24, padding: 0, cursor: 'pointer', lineHeight: 1,
+                fontFamily: '"Courier New", monospace', fontWeight: 700, fontSize: 14,
+                border: c.revealed ? '1px solid #808080' : '3px outset #fff',
+                background: c.revealed && c.mine ? '#ff0000' : '#c0c0c0',
+                color: c.mine ? '#000' : NUM_COLORS[c.adj],
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              {c.flagged ? '🚩' : c.revealed ? (c.mine ? '💣' : c.adj > 0 ? c.adj : '') : ''}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 9, color: '#333', marginTop: 6, textAlign: 'center' }}>
+          {state === 'won' ? 'CLEARED. some things you finish.' : state === 'lost' ? 'boom. click the face to try again.' : 'left-click: dig · right-click: flag'}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Registry ─── */
 export const PROGRAMS = [
+  {id:'mine',title:'MINESWEEPER.EXE',       sub:'left dig · right flag', Comp:Minesweeper},
   {id:'pf',  title:'ParticleFlow.EXE',     sub:'click + drag',      Comp:ParticleFlow},
   {id:'cs',  title:'ColorSynth.EXE',       sub:'move mouse',        Comp:ColorSynth},
   {id:'gd',  title:'GridDistort.EXE',      sub:'move mouse',        Comp:GridDistort},

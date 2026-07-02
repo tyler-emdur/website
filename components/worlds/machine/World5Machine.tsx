@@ -38,6 +38,10 @@ const startupChime = () => playNotes([
 const shutdownChime = () => playNotes([
   { f: 784, t: 0, d: 0.16 }, { f: 523, t: 0.14, d: 0.2 }, { f: 392, t: 0.3, d: 0.45 },
 ])
+// the "uh-oh" you got for typing the wrong thing
+const errorDing = () => playNotes([{ f: 392, t: 0, d: 0.12 }, { f: 294, t: 0.12, d: 0.24 }])
+// tiny tick when a window opens
+const clickBeep = () => playNotes([{ f: 1400, t: 0, d: 0.025 }])
 
 // ── window contents ───────────────────────────────────────────────────────────
 function Notepad({ lines }: { lines: string[] }) {
@@ -183,7 +187,7 @@ function Terminal({ bootCount, onRun, onSecret }: {
         if (!arg || arg === '\\' || arg === '..') { setCwd('C:\\'); break }
         const target = `C:\\${arg.replace(/\\$/, '')}`
         if (DIRS[target]) setCwd(target)
-        else print([`Invalid directory: ${arg}`], '#f66')
+        else { errorDing(); print([`Invalid directory: ${arg}`], '#f66') }
         break
       }
       case 'TYPE': {
@@ -228,6 +232,7 @@ function Terminal({ bootCount, onRun, onSecret }: {
         onSecret('machine-format-refused')
         break
       default:
+        errorDing()
         print([`Bad command or file name: ${word}`], '#f66')
     }
   }
@@ -400,6 +405,54 @@ function ShutdownScreen({ onOut }: { onOut: () => void }) {
   )
 }
 
+// ── screensaver ─────────────────────────────────────────────────────────────
+// After a while idle: warp-field starfield + the bouncing EMDUR/OS logo that
+// recolors every time it kisses an edge. Any input wakes the machine.
+function Screensaver() {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const cv = ref.current; if (!cv) return
+    const ctx = cv.getContext('2d')!
+    let raf = 0
+    const resize = () => { cv.width = cv.offsetWidth; cv.height = cv.offsetHeight }
+    resize()
+    const ro = new ResizeObserver(resize); ro.observe(cv)
+    const stars = Array.from({ length: 240 }, () => ({ x: Math.random() - 0.5, y: Math.random() - 0.5, z: Math.random() }))
+    const COLORS = ['#22C55E', '#F97316', '#A855F7', '#3B82F6', '#EAB308', '#EC4899', '#5ecbe0']
+    const bw = 150, bh = 52
+    let lx = 80, ly = 70, vx = 1.4, vy = 1.15, ci = 0
+    const frame = () => {
+      const W = cv.width, H = cv.height, cx = W / 2, cy = H / 2
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0, W, H)
+      stars.forEach(s => {
+        s.z -= 0.006
+        if (s.z <= 0.02) { s.x = Math.random() - 0.5; s.y = Math.random() - 0.5; s.z = 1 }
+        const px = cx + (s.x / s.z) * W * 0.7
+        const py = cy + (s.y / s.z) * W * 0.7
+        const r = Math.max(0.3, (1 - s.z) * 2.4)
+        ctx.fillStyle = `rgba(200,220,255,${1 - s.z})`
+        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill()
+      })
+      lx += vx; ly += vy
+      let bounced = false
+      if (lx <= 0) { lx = 0; vx = Math.abs(vx); bounced = true }
+      if (lx + bw >= W) { lx = W - bw; vx = -Math.abs(vx); bounced = true }
+      if (ly <= 0) { ly = 0; vy = Math.abs(vy); bounced = true }
+      if (ly + bh >= H) { ly = H - bh; vy = -Math.abs(vy); bounced = true }
+      if (bounced) ci = (ci + 1) % COLORS.length
+      ctx.fillStyle = COLORS[ci]
+      ctx.font = 'bold 26px "Courier New", monospace'; ctx.textBaseline = 'middle'
+      ctx.shadowBlur = 16; ctx.shadowColor = COLORS[ci]
+      ctx.fillText('EMDUR/OS', lx, ly + bh / 2)
+      ctx.shadowBlur = 0
+      raf = requestAnimationFrame(frame)
+    }
+    raf = requestAnimationFrame(frame)
+    return () => { cancelAnimationFrame(raf); ro.disconnect() }
+  }, [])
+  return <canvas ref={ref} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', background: '#000', display: 'block' }} />
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 export default function World5Machine() {
   const navigateTo = useWorldStore(s => s.navigateTo)
@@ -408,10 +461,45 @@ export default function World5Machine() {
   const [bootCount, setBootCount] = useState(1)
   const [windows, setWindows] = useState<Win[]>([])
   const [startOpen, setStartOpen] = useState(false)
+  const [clock, setClock] = useState('')
+  const [saver, setSaver] = useState(false)
   const zRef = useRef(10)
   const openCount = useRef(0)
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => { setBootCount(recordBoot()) }, [])
+
+  // system-tray clock
+  useEffect(() => {
+    const tick = () => {
+      const d = new Date()
+      let h = d.getHours(); const m = d.getMinutes().toString().padStart(2, '0')
+      const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12
+      setClock(`${h}:${m} ${ap}`)
+    }
+    tick(); const iv = setInterval(tick, 15000)
+    return () => clearInterval(iv)
+  }, [])
+
+  // idle → screensaver; any input wakes it
+  useEffect(() => {
+    if (phase !== 'desktop') { setSaver(false); return }
+    const arm = () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+      idleTimerRef.current = setTimeout(() => setSaver(true), 40000)
+    }
+    const wake = () => { setSaver(false); arm() }
+    arm()
+    window.addEventListener('pointermove', wake)
+    window.addEventListener('pointerdown', wake)
+    window.addEventListener('keydown', wake)
+    return () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+      window.removeEventListener('pointermove', wake)
+      window.removeEventListener('pointerdown', wake)
+      window.removeEventListener('keydown', wake)
+    }
+  }, [phase])
 
   const focus = useCallback((id: string) => {
     zRef.current++
@@ -428,6 +516,7 @@ export default function World5Machine() {
       }
       zRef.current++
       const n = openCount.current++
+      clickBeep()
       return [...prev, {
         id, title, node, w, h, z: zRef.current,
         x: 60 + (n % 6) * 32, y: 40 + (n % 6) * 26,
@@ -469,6 +558,7 @@ export default function World5Machine() {
       ]} />
     ), 400, 240) },
     { icon: '⌨', label: 'TERMINAL', act: () => openIcon('terminal') },
+    { icon: '💣', label: 'MINESWEEPER', act: () => openProgram('mine') },
     { icon: '📄', label: 'README.TXT', act: () => openIcon('readme') },
     { icon: '📁', label: 'PROGRAMS', act: () => openIcon('games') },
     { icon: '🗒', label: 'RECOVERED', act: openRecovered },
@@ -575,6 +665,7 @@ export default function World5Machine() {
                 }}>
                   {[
                     { label: '⌨  MS-DOS Prompt', act: () => { openIcon('terminal'); setStartOpen(false) } },
+                    { label: '💣  Minesweeper', act: () => { openProgram('mine'); setStartOpen(false) } },
                     { label: '🕹  Games', act: () => { openIcon('games'); setStartOpen(false) } },
                     { label: '⚙  Projects', act: () => { openIcon('projects'); setStartOpen(false) } },
                     { label: '🧪  Experiments', act: () => { openIcon('experiments'); setStartOpen(false) } },
@@ -617,7 +708,17 @@ export default function World5Machine() {
                 <div style={{ padding: '2px 8px', border: '1px inset #808080', fontFamily: 'Arial, sans-serif', fontSize: 10 }}>
                   boot #{bootCount}
                 </div>
+                <div style={{ padding: '2px 10px', border: '1px inset #808080', fontFamily: 'Arial, sans-serif', fontSize: 10, minWidth: 58, textAlign: 'center' }}>
+                  {clock}
+                </div>
               </div>
+
+              {/* screensaver */}
+              {saver && (
+                <div style={{ position: 'absolute', inset: 0, zIndex: 9400, cursor: 'none' }}>
+                  <Screensaver />
+                </div>
+              )}
             </>
           )}
 
