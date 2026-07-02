@@ -40,6 +40,7 @@ export class LiveRadio {
   private stations: RadioStation[] = []
   private activeId: string | null = null
   private masterVol = 0.75
+  private lastFreq = 98
   private running = false
   private muted = false
 
@@ -90,7 +91,8 @@ export class LiveRadio {
   setMasterVolume(v: number) {
     this.masterVol = Math.max(0, Math.min(1, v))
     if (this.master && this.ctx) this.master.gain.value = this.muted ? 0 : 1
-    if (this.audio) this.audio.volume = this.muted ? 0 : this.audio.volume
+    // re-apply to whatever is currently playing so the slider takes effect immediately
+    this.tune(this.lastFreq)
   }
 
   setMuted(m: boolean) {
@@ -102,6 +104,7 @@ export class LiveRadio {
 
   // Called continuously as the dial moves.
   tune(freq: number) {
+    this.lastFreq = freq
     if (!this.ctx || !this.staticGain || !this.audio) return
     const { station, strength } = nearestStation(freq, this.stations)
     const t = this.ctx.currentTime
