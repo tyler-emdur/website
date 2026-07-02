@@ -153,7 +153,7 @@ function Terminal({ bootCount, onRun, onSecret }: {
     'C:\\': ['PROJECTS       <DIR>', 'EXPERIMENTS    <DIR>', 'GAMES          <DIR>', 'RECOVERED      <DIR>', 'WEBSITE.V1     <DIR>', 'README.TXT', 'COMMITS.LOG'],
     'C:\\PROJECTS': projects.map(p => `${p.id.toUpperCase().slice(0, 12)}.EXE`),
     'C:\\EXPERIMENTS': EXPERIMENTS.map(e => e.title.toUpperCase().replace(/[^A-Z0-9.]/g, '_').slice(0, 20) + '.LOG'),
-    'C:\\GAMES': PROGRAMS.map(p => p.title.toUpperCase()),
+    'C:\\GAMES': ['MINESWEEPER.EXE', ...PROGRAMS.map(p => p.title.toUpperCase())],
     'C:\\RECOVERED': RECOVERED_SECTORS.map(s => s.file),
     'C:\\WEBSITE.V1': ['INDEX.HTM'],
   }
@@ -205,6 +205,7 @@ function Terminal({ bootCount, onRun, onSecret }: {
         break
       }
       case 'RUN': {
+        if (arg.replace('.EXE', '').startsWith('MINESWEEP')) { print(['Starting Minesweeper...']); onRun('minesweeper'); break }
         const prog = PROGRAMS.find(p => p.title.toUpperCase().startsWith(arg.replace('.EXE', '')))
         if (prog) { print([`Starting ${prog.title}...`]); onRun(prog.id) }
         else {
@@ -400,6 +401,189 @@ function ShutdownScreen({ onOut }: { onOut: () => void }) {
   )
 }
 
+// ── Minesweeper ─────────────────────────────────────────────────────────────
+const MS_W = 9, MS_H = 9, MS_MINES = 10
+const NUM_COLORS = ['', '#0000ff', '#008000', '#ff0000', '#000080', '#800000', '#008080', '#000000', '#808080']
+
+interface Cell { mine: boolean; revealed: boolean; flagged: boolean; n: number }
+
+function makeGrid(): Cell[] {
+  return Array.from({ length: MS_W * MS_H }, () => ({ mine: false, revealed: false, flagged: false, n: 0 }))
+}
+function neighbors(i: number): number[] {
+  const x = i % MS_W, y = Math.floor(i / MS_W), out: number[] = []
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    if (dx === 0 && dy === 0) continue
+    const nx = x + dx, ny = y + dy
+    if (nx >= 0 && nx < MS_W && ny >= 0 && ny < MS_H) out.push(ny * MS_W + nx)
+  }
+  return out
+}
+
+function Minesweeper({ onWin }: { onWin: () => void }) {
+  const [grid, setGrid] = useState<Cell[]>(makeGrid)
+  const [state, setState] = useState<'ready' | 'playing' | 'won' | 'lost'>('ready')
+  const [flags, setFlags] = useState(0)
+  const [time, setTime] = useState(0)
+  const [pressed, setPressed] = useState(false)
+  const startedRef = useRef(false)
+
+  useEffect(() => {
+    if (state !== 'playing') return
+    const t = setInterval(() => setTime(v => Math.min(999, v + 1)), 1000)
+    return () => clearInterval(t)
+  }, [state])
+
+  const reset = () => { setGrid(makeGrid()); setState('ready'); setFlags(0); setTime(0); startedRef.current = false }
+
+  const placeMines = (safe: number): Cell[] => {
+    const g = makeGrid()
+    const forbidden = new Set([safe, ...neighbors(safe)])
+    let placed = 0
+    while (placed < MS_MINES) {
+      const i = Math.floor(Math.random() * MS_W * MS_H)
+      if (forbidden.has(i) || g[i].mine) continue
+      g[i].mine = true; placed++
+    }
+    for (let i = 0; i < g.length; i++) if (!g[i].mine) g[i].n = neighbors(i).filter(j => g[j].mine).length
+    return g
+  }
+
+  const reveal = (i: number) => {
+    if (state === 'won' || state === 'lost') return
+    let g = grid
+    if (!startedRef.current) { g = placeMines(i); startedRef.current = true; setState('playing') }
+    if (g[i].revealed || g[i].flagged) return
+    g = g.map(c => ({ ...c }))
+    if (g[i].mine) {
+      g.forEach(c => { if (c.mine) c.revealed = true })
+      setGrid(g); setState('lost'); return
+    }
+    // flood fill zeros
+    const stack = [i]
+    while (stack.length) {
+      const k = stack.pop()!
+      if (g[k].revealed || g[k].flagged) continue
+      g[k].revealed = true
+      if (g[k].n === 0 && !g[k].mine) for (const j of neighbors(k)) if (!g[j].revealed) stack.push(j)
+    }
+    setGrid(g)
+    const safeLeft = g.filter(c => !c.mine && !c.revealed).length
+    if (safeLeft === 0) { g.forEach(c => { if (c.mine) c.flagged = true }); setGrid(g); setState('won'); onWin() }
+  }
+
+  const toggleFlag = (e: React.MouseEvent, i: number) => {
+    e.preventDefault()
+    if (grid[i].revealed || state === 'won' || state === 'lost') return
+    setGrid(g => g.map((c, k) => k === i ? { ...c, flagged: !c.flagged } : c))
+    setFlags(f => f + (grid[i].flagged ? -1 : 1))
+  }
+
+  const face = state === 'lost' ? '😵' : state === 'won' ? '😎' : pressed ? '😮' : '🙂'
+  const lcd = (v: number) => String(Math.max(0, Math.min(999, v))).padStart(3, '0')
+
+  return (
+    <div style={{ background: GRAY, height: '100%', padding: 8, fontFamily: '"Courier New", monospace', userSelect: 'none' }}>
+      <div style={{ border: '3px inset #fff', padding: 6, background: GRAY }}>
+        {/* header */}
+        <div style={{ border: '2px inset #fff', padding: '4px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <div style={{ background: '#000', color: '#ff0000', fontSize: 20, padding: '1px 4px', letterSpacing: 1, fontWeight: 700 }}>{lcd(MS_MINES - flags)}</div>
+          <button onClick={reset}
+            onMouseDown={() => setPressed(true)} onMouseUp={() => setPressed(false)} onMouseLeave={() => setPressed(false)}
+            style={{ width: 30, height: 30, border: '2px outset #fff', background: GRAY, fontSize: 16, cursor: 'pointer', lineHeight: 1 }}>{face}</button>
+          <div style={{ background: '#000', color: '#ff0000', fontSize: 20, padding: '1px 4px', letterSpacing: 1, fontWeight: 700 }}>{lcd(time)}</div>
+        </div>
+        {/* grid */}
+        <div style={{ border: '3px inset #fff', display: 'grid', gridTemplateColumns: `repeat(${MS_W}, 22px)`, width: 'max-content' }}>
+          {grid.map((c, i) => (
+            <div key={i}
+              onClick={() => reveal(i)}
+              onContextMenu={(e) => toggleFlag(e, i)}
+              onMouseDown={() => { if (!c.revealed) setPressed(true) }}
+              onMouseUp={() => setPressed(false)}
+              style={{
+                width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, fontWeight: 700, cursor: 'pointer', boxSizing: 'border-box',
+                border: c.revealed ? '1px solid #808080' : '2px outset #fff',
+                background: c.revealed && c.mine ? '#ff0000' : GRAY,
+                color: NUM_COLORS[c.n] || '#000',
+              }}>
+              {c.revealed ? (c.mine ? '💣' : c.n > 0 ? c.n : '') : c.flagged ? '🚩' : ''}
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 9, color: '#333', marginTop: 6, textAlign: 'center' }}>
+          left-click clears · right-click flags {state === 'won' ? '· YOU WIN' : state === 'lost' ? '· BOOM' : ''}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Idle screensaver: a starfield, the way the CRT drifts off when you stop ──
+function Screensaver({ onWake }: { onWake: () => void }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const c = ref.current; if (!c) return
+    const ctx = c.getContext('2d')!
+    const resize = () => { c.width = c.offsetWidth; c.height = c.offsetHeight }
+    resize()
+    let stars = Array.from({ length: 320 }, () => ({ x: (Math.random() - 0.5) * c.width, y: (Math.random() - 0.5) * c.height, z: Math.random() * c.width }))
+    let raf = 0
+    const draw = () => {
+      const W = c.width, H = c.height, cx = W / 2, cy = H / 2
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, 0, W, H)
+      stars = stars.map(s => {
+        s.z -= 3.2
+        if (s.z <= 1) { s.x = (Math.random() - 0.5) * W; s.y = (Math.random() - 0.5) * H; s.z = W }
+        const k = 128 / s.z
+        const px = cx + s.x * k, py = cy + s.y * k
+        if (px >= 0 && px < W && py >= 0 && py < H) {
+          const size = (1 - s.z / W) * 2.6
+          const shade = Math.min(255, (1 - s.z / W) * 255)
+          ctx.fillStyle = `rgb(${shade},${shade},${shade})`
+          ctx.fillRect(px, py, size, size)
+        }
+        return s
+      })
+      raf = requestAnimationFrame(draw)
+    }
+    draw()
+    return () => cancelAnimationFrame(raf)
+  }, [])
+  return (
+    <div
+      onPointerDown={onWake} onWheel={onWake}
+      style={{ position: 'absolute', inset: 0, zIndex: 9400, background: '#000', cursor: 'none' }}>
+      <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block' }} />
+    </div>
+  )
+}
+
+// ── System-tray clock: keeps time, badly ────────────────────────────────────
+function TrayClock() {
+  // Starts from a fixed skewed offset and drifts — the machine's clock was never right.
+  const [label, setLabel] = useState('--:-- --')
+  const baseRef = useRef<number | null>(null)
+  useEffect(() => {
+    const fmt = () => {
+      if (baseRef.current === null) baseRef.current = performance.now()
+      // fake wall time: 11:47 PM start, running ~1.7% fast, occasional jump
+      const elapsed = (performance.now() - baseRef.current) / 1000
+      let mins = 23 * 60 + 47 + Math.floor(elapsed * 1.017 / 60)
+      mins %= 24 * 60
+      const h = Math.floor(mins / 60), m = mins % 60
+      const ap = h >= 12 ? 'PM' : 'AM'
+      const h12 = ((h + 11) % 12) + 1
+      setLabel(`${h12}:${String(m).padStart(2, '0')} ${ap}`)
+    }
+    fmt()
+    const t = setInterval(fmt, 5000)
+    return () => clearInterval(t)
+  }, [])
+  return <>{label}</>
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 export default function World5Machine() {
   const navigateTo = useWorldStore(s => s.navigateTo)
@@ -408,10 +592,33 @@ export default function World5Machine() {
   const [bootCount, setBootCount] = useState(1)
   const [windows, setWindows] = useState<Win[]>([])
   const [startOpen, setStartOpen] = useState(false)
+  const [saver, setSaver] = useState(false)
   const zRef = useRef(10)
   const openCount = useRef(0)
+  const lastActiveRef = useRef(0)
 
   useEffect(() => { setBootCount(recordBoot()) }, [])
+
+  // Screensaver: if the desktop sits untouched, the CRT drifts off into a starfield.
+  useEffect(() => {
+    if (phase !== 'desktop') return
+    lastActiveRef.current = performance.now()
+    const bump = () => { lastActiveRef.current = performance.now(); setSaver(false) }
+    window.addEventListener('pointermove', bump)
+    window.addEventListener('pointerdown', bump)
+    window.addEventListener('keydown', bump)
+    window.addEventListener('wheel', bump)
+    const check = setInterval(() => {
+      if (performance.now() - lastActiveRef.current > 45000) setSaver(true)
+    }, 1500)
+    return () => {
+      window.removeEventListener('pointermove', bump)
+      window.removeEventListener('pointerdown', bump)
+      window.removeEventListener('keydown', bump)
+      window.removeEventListener('wheel', bump)
+      clearInterval(check)
+    }
+  }, [phase])
 
   const focus = useCallback((id: string) => {
     zRef.current++
@@ -435,10 +642,15 @@ export default function World5Machine() {
     })
   }, [])
 
+  const openMinesweeper = useCallback(() => {
+    open('minesweeper', 'Minesweeper', <Minesweeper onWin={() => findSecret('machine-minesweeper-win')} />, 232, 306)
+  }, [open, findSecret])
+
   const openProgram = useCallback((progId: string) => {
+    if (progId === 'minesweeper') { openMinesweeper(); return }
     const prog = PROGRAMS.find(p => p.id === progId)
     if (prog) open(`prog:${progId}`, prog.title, <ProgramWindow progId={progId} />, 480, 380)
-  }, [open])
+  }, [open, openMinesweeper])
 
   const healedCount = Math.min(RECOVERED_SECTORS.length, Math.max(0, bootCount - 1))
 
@@ -469,6 +681,7 @@ export default function World5Machine() {
       ]} />
     ), 400, 240) },
     { icon: '⌨', label: 'TERMINAL', act: () => openIcon('terminal') },
+    { icon: '💣', label: 'MINESWEEPER', act: openMinesweeper },
     { icon: '📄', label: 'README.TXT', act: () => openIcon('readme') },
     { icon: '📁', label: 'PROGRAMS', act: () => openIcon('games') },
     { icon: '🗒', label: 'RECOVERED', act: openRecovered },
@@ -505,10 +718,13 @@ export default function World5Machine() {
         break
       case 'games':
         open('dir:games', 'C:\\GAMES', (
-          <FolderGrid items={PROGRAMS.map(p => ({
-            icon: '🕹', label: p.title,
-            onOpen: () => openProgram(p.id),
-          }))} />
+          <FolderGrid items={[
+            { icon: '💣', label: 'MINESWEEPER', onOpen: openMinesweeper },
+            ...PROGRAMS.map(p => ({
+              icon: '🕹', label: p.title,
+              onOpen: () => openProgram(p.id),
+            })),
+          ]} />
         ), 460, 300)
         break
     }
@@ -575,6 +791,7 @@ export default function World5Machine() {
                 }}>
                   {[
                     { label: '⌨  MS-DOS Prompt', act: () => { openIcon('terminal'); setStartOpen(false) } },
+                    { label: '💣  Minesweeper', act: () => { openMinesweeper(); setStartOpen(false) } },
                     { label: '🕹  Games', act: () => { openIcon('games'); setStartOpen(false) } },
                     { label: '⚙  Projects', act: () => { openIcon('projects'); setStartOpen(false) } },
                     { label: '🧪  Experiments', act: () => { openIcon('experiments'); setStartOpen(false) } },
@@ -617,7 +834,13 @@ export default function World5Machine() {
                 <div style={{ padding: '2px 8px', border: '1px inset #808080', fontFamily: 'Arial, sans-serif', fontSize: 10 }}>
                   boot #{bootCount}
                 </div>
+                <div style={{ padding: '2px 8px', border: '1px inset #808080', fontFamily: 'Arial, sans-serif', fontSize: 10, minWidth: 62, textAlign: 'center' }}>
+                  <TrayClock />
+                </div>
               </div>
+
+              {/* idle screensaver */}
+              {saver && <Screensaver onWake={() => { lastActiveRef.current = performance.now(); setSaver(false) }} />}
             </>
           )}
 
