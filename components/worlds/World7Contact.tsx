@@ -1,526 +1,323 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
-import { useWorldStore, type WorldId, type PortalType } from '@/lib/world-store'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { useWorldStore } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
-// ── Atmospheric particles (Igloo aesthetic) ─────────────────────────────────
-function AtmosphereParticles() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const rafRef    = useRef(0)
+// ── THE ENDPOINT ─────────────────────────────────────────────────────────────
+// You got here. This is the last position before the signal normalizes
+// completely — the place the whole broadcast was coming from. A single receiver
+// in the dark, its carrier buried in static. Press and hold to bring it in: the
+// noise falls away, the fragments that recurred across every world (88.7, the
+// coordinates, the designation, the object count) lock into place one by one,
+// and when the carrier finally goes quiet, the transmission resolves into plain
+// text — and the real way to reach the person who was sending it.
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')!
-    let W = window.innerWidth, H = window.innerHeight
-    canvas.width = W; canvas.height = H
+const PHOSPHOR = '#46f0a6'
 
-    interface Mote { x: number; y: number; vy: number; vx: number; r: number; opacity: number; phase: number }
-    const motes: Mote[] = Array.from({ length: 38 }, () => ({
-      x: Math.random() * W,
-      y: Math.random() * H,
-      vy: -(0.08 + Math.random() * 0.14),
-      vx: (Math.random() - 0.5) * 0.05,
-      r:  0.5 + Math.random() * 1.1,
-      opacity: 0.06 + Math.random() * 0.18,
-      phase: Math.random() * Math.PI * 2,
-    }))
+interface Fragment { at: number; garble: string; truth: string }
+const FRAGMENTS: Fragment[] = [
+  { at: 0.16, garble: '░8▓.7▒ M░z',              truth: '88.7 MHz' },
+  { at: 0.36, garble: '4▓.0▒5░°N 1░5.2▓0░°W',    truth: '40.0150°N 105.2705°W' },
+  { at: 0.56, garble: 'S▒RV░Y T▓-∅',             truth: 'SURVEY TE-∅' },
+  { at: 0.74, garble: '▓7 O░J▒CTS',              truth: '47 OBJECTS CATALOGUED' },
+  { at: 0.9,  garble: 'OP░R▒T░R — T.░MD▓R',      truth: 'OPERATOR — T. EMDUR' },
+]
 
-    const resize = () => {
-      W = window.innerWidth; H = window.innerHeight
-      canvas.width = W; canvas.height = H
-    }
-    window.addEventListener('resize', resize)
+// A carrier tone that starts detuned/beating and pitch-corrects toward a single
+// clean note as the lock fills, then gates off when the signal normalizes.
+class CarrierAudio {
+  private ctx: AudioContext | null = null
+  private master: GainNode | null = null
+  private oscs: OscillatorNode[] = []
+  private staticGain: GainNode | null = null
 
-    let t = 0
-    function draw() {
-      ctx.clearRect(0, 0, W, H)
-      t += 0.008
-      motes.forEach(m => {
-        m.y += m.vy
-        m.x += m.vx + Math.sin(t + m.phase) * 0.03
-        if (m.y < -5) { m.y = H + 5; m.x = Math.random() * W }
-        const alpha = m.opacity * (0.5 + 0.5 * Math.sin(t * 1.1 + m.phase))
-        ctx.beginPath()
-        ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(140,170,220,${alpha})`
-        ctx.fill()
+  start() {
+    if (this.ctx) return
+    try {
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      this.ctx = new Ctx()
+      this.master = this.ctx.createGain()
+      this.master.gain.value = 0.5
+      this.master.connect(this.ctx.destination)
+
+      // two oscillators a few Hz apart → an audible beat that we'll close as lock rises
+      ;[220, 223.5].forEach(f => {
+        const o = this.ctx!.createOscillator()
+        o.type = 'sine'; o.frequency.value = f
+        const g = this.ctx!.createGain(); g.gain.value = 0.06
+        o.connect(g).connect(this.master!)
+        o.start(); this.oscs.push(o)
       })
-      rafRef.current = requestAnimationFrame(draw)
-    }
-    rafRef.current = requestAnimationFrame(draw)
-    return () => {
-      cancelAnimationFrame(rafRef.current)
-      window.removeEventListener('resize', resize)
-    }
-  }, [])
 
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-    />
-  )
+      // static bed
+      const len = this.ctx.sampleRate * 2
+      const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate)
+      const d = buf.getChannelData(0)
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.4
+      const src = this.ctx.createBufferSource(); src.buffer = buf; src.loop = true
+      const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.4
+      this.staticGain = this.ctx.createGain(); this.staticGain.gain.value = 0.12
+      src.connect(bp).connect(this.staticGain).connect(this.master)
+      src.start(); this.oscs.push(src as unknown as OscillatorNode)
+    } catch { /* silent */ }
+  }
+
+  update(lock: number) {
+    if (!this.ctx || !this.staticGain) return
+    const t = this.ctx.currentTime
+    // close the beat: second osc converges on the first
+    if (this.oscs[1] && 'frequency' in this.oscs[1]) {
+      this.oscs[1].frequency.setTargetAtTime(220 + (1 - lock) * 3.5, t, 0.1)
+    }
+    this.staticGain.gain.setTargetAtTime(0.13 * (1 - lock * 0.98), t, 0.1)
+    // once normalized, fade the carrier out too — silence is the resolution
+    if (this.master) this.master.gain.setTargetAtTime(lock >= 1 ? 0.02 : 0.5, t, 0.4)
+  }
+
+  stop() { try { this.oscs.forEach(o => { try { o.stop() } catch {} }); this.ctx?.close() } catch {}; this.ctx = null }
 }
 
-// ── Abstract image tile (muted, atmospheric) ────────────────────────────────
-function Tile({ seed, selected, onClick, label }: {
-  seed: number; selected: boolean; onClick: () => void; label?: string
-}) {
-  const h1 = ((seed * 73) % 60) + 200 // cool hues only
-  const h2 = ((seed * 31 + 60) % 60) + 220
-  const cx = 15 + (seed * 43) % 70
-  const cy = 15 + (seed * 61) % 70
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        aspectRatio: '1', padding: 0, outline: 'none',
-        border: selected ? '1px solid rgba(140,170,220,0.7)' : '1px solid rgba(140,170,220,0.15)',
-        background: `radial-gradient(circle at ${cx}% ${cy}%, hsl(${h1},22%,22%), hsl(${h2},14%,10%))`,
-        position: 'relative', overflow: 'hidden',
-        borderRadius: 2,
-        transition: 'border-color 0.4s, transform 0.4s',
-        transform: selected ? 'scale(0.95)' : 'scale(1)',
-        boxShadow: selected ? '0 0 12px rgba(140,170,220,0.15)' : 'none',
-      }}
-    >
-      {selected && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'rgba(140,170,220,0.12)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'rgba(200,220,255,0.7)', fontSize: 14,
-        }}>✓</div>
-      )}
-      {label && (
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, padding: '2px 4px',
-          background: 'rgba(0,0,0,0.5)', color: 'rgba(140,170,220,0.4)',
-          fontSize: 6, fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.06em',
-        }}>{label}</div>
-      )}
-    </button>
-  )
-}
-
-// ── Drawing canvas ──────────────────────────────────────────────────────────
-function DrawCanvas({ onSubmit }: { onSubmit: () => void }) {
-  const ref      = useRef<HTMLCanvasElement>(null)
-  const drawing  = useRef(false)
-  const hasDrawn = useRef(false)
-
+// ── the oscilloscope ─────────────────────────────────────────────────────────
+function Scope({ lockRef, holdingRef }: { lockRef: React.MutableRefObject<number>; holdingRef: React.MutableRefObject<boolean> }) {
+  const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const c = ref.current; if (!c) return
     const ctx = c.getContext('2d')!
-    ctx.fillStyle = 'rgba(8,12,22,1)'; ctx.fillRect(0, 0, c.width, c.height)
-    ctx.strokeStyle = 'rgba(140,170,220,0.7)'; ctx.lineWidth = 1.5
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round'
-  }, [])
+    const resize = () => { c.width = c.offsetWidth * 2; c.height = c.offsetHeight * 2 }
+    resize()
+    window.addEventListener('resize', resize)
+    let raf = 0, phase = 0
+    const draw = () => {
+      const W = c.width, H = c.height, mid = H / 2
+      const lock = lockRef.current
+      // phosphor persistence
+      ctx.fillStyle = 'rgba(2,6,4,0.28)'
+      ctx.fillRect(0, 0, W, H)
+      phase += 0.05 + lock * 0.03
 
-  const getPos = (e: React.MouseEvent, c: HTMLCanvasElement) => {
-    const r = c.getBoundingClientRect()
-    return { x: (e.clientX - r.left) * (c.width / r.width), y: (e.clientY - r.top) * (c.height / r.height) }
-  }
-  const onDown = (e: React.MouseEvent) => {
-    drawing.current = true; hasDrawn.current = true
-    const c = ref.current!; const ctx = c.getContext('2d')!; const p = getPos(e, c)
-    ctx.beginPath(); ctx.moveTo(p.x, p.y)
-  }
-  const onMove = (e: React.MouseEvent) => {
-    if (!drawing.current) return
-    const c = ref.current!; const ctx = c.getContext('2d')!; const p = getPos(e, c)
-    ctx.lineTo(p.x, p.y); ctx.stroke()
-  }
-  const onUp = () => { drawing.current = false }
+      // graticule
+      ctx.strokeStyle = 'rgba(70,240,166,0.06)'; ctx.lineWidth = 1
+      for (let gx = 0; gx <= W; gx += W / 10) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke() }
+      for (let gy = 0; gy <= H; gy += H / 6) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke() }
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-      <canvas
-        ref={ref} width={320} height={180}
-        style={{
-          border: '1px solid rgba(140,170,220,0.18)', borderRadius: 2,
-          maxWidth: '100%', touchAction: 'none', display: 'block',
-        }}
-        onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
-      />
-      <button
-        onClick={() => hasDrawn.current && onSubmit()}
-        style={{
-          padding: '9px 28px',
-          background: 'rgba(140,170,220,0.1)',
-          color: 'rgba(200,220,255,0.7)',
-          border: '1px solid rgba(140,170,220,0.25)',
-          borderRadius: 2, fontFamily: '"JetBrains Mono", monospace',
-          fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase',
-        }}
-      >Submit</button>
-    </div>
-  )
+      // the trace: static that resolves to a clean carrier
+      ctx.beginPath()
+      const noise = (1 - lock) * H * 0.34
+      const amp = H * (0.06 + lock * 0.20)
+      const freq = 5 + lock * 3
+      const settle = lock >= 1 ? 0.15 : 1  // normalized: nearly flat, slow breath
+      for (let x = 0; x <= W; x += 2) {
+        const u = x / W
+        const carrier = Math.sin(u * Math.PI * 2 * freq + phase) * amp * settle
+        const jitter = (Math.random() * 2 - 1) * noise
+        const y = mid + carrier + jitter
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+      }
+      ctx.strokeStyle = PHOSPHOR
+      ctx.lineWidth = 2
+      ctx.shadowBlur = 12 + lock * 10
+      ctx.shadowColor = PHOSPHOR
+      ctx.globalAlpha = 0.9
+      ctx.stroke()
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1
+
+      // lock reticle sweeps to center as it fills
+      if (holdingRef.current && lock < 1) {
+        ctx.fillStyle = 'rgba(70,240,166,0.5)'
+        ctx.fillRect(W / 2 - 1, 0, 2, H)
+      }
+      raf = requestAnimationFrame(draw)
+    }
+    draw()
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize) }
+  }, [lockRef, holdingRef])
+  return <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block' }} />
 }
 
-// ── Phase types ─────────────────────────────────────────────────────────────
-type Phase = 'intro' | 'normal1' | 'normal2' | 'weird' | 'draw' | 'analyzing' | 'reclassify' | 'complete'
-
-const WEIRD_PROMPTS = [
-  'Select all images containing distance.',
-  'Select all images where it is currently 3:00pm.',
-  'Identify every object that sounds like the number seven.',
-  'Select every memory you regret.',
-]
-
-const ATTRIBUTES = [
-  { text: 'Hesitation (2.8 seconds)',              ms: 600  },
-  { text: 'Backtracking on second tile',           ms: 1200 },
-  { text: 'Strategy attempt detected',             ms: 1900 },
-  { text: 'Uncertainty about what "correct" means',ms: 2700 },
-  { text: 'Wondering if this is a trick',          ms: 3500 },
-  { text: 'Continuing anyway',                     ms: 4200 },
-]
-
-const SEEDS = [17, 42, 8, 61, 33, 79, 25, 54, 11]
-
 export default function World7Contact() {
-  const navigateTo = useWorldStore(s => s.navigateTo)
-  const [phase,      setPhase]      = useState<Phase>('intro')
-  const [sel,        setSel]        = useState<Set<number>>(new Set())
-  const [weirdIdx,   setWeirdIdx]   = useState(0)
-  const [failCount,  setFailCount]  = useState(0)
-  const [attrs,      setAttrs]      = useState<string[]>([])
-  const [showResult, setShowResult] = useState(false)
-  const [dots,       setDots]       = useState('')
-  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null)
-  const timersRef    = useRef<ReturnType<typeof setTimeout>[]>([])
+  const findSecret = useWorldStore(s => s.findSecret)
+  const lockRef = useRef(0)
+  const holdingRef = useRef(false)
+  const audioRef = useRef<CarrierAudio | null>(null)
+  const [lock, setLock] = useState(0)
+  const [locked, setLocked] = useState(false)
+  const [reveal, setReveal] = useState(false)
 
-  useEffect(() => () => {
-    if (intervalRef.current) clearInterval(intervalRef.current)
-    timersRef.current.forEach(clearTimeout)
-  }, [])
-
-  const toggle = (i: number) => setSel(prev => {
-    const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n
-  })
-
-  const confirmNormal = () => { setSel(new Set()); setPhase(phase === 'normal1' ? 'normal2' : 'weird') }
-  const confirmWeird  = () => {
-    setSel(new Set()); setFailCount(c => c + 1)
-    if (weirdIdx < WEIRD_PROMPTS.length - 1) setWeirdIdx(i => i + 1)
-    else setPhase('draw')
-  }
-
-  const submitDraw = () => {
-    setPhase('analyzing')
-    let i = 0
-    intervalRef.current = setInterval(() => {
-      setDots('.'.repeat(++i % 4))
-      if (i >= 9) {
-        if (intervalRef.current) clearInterval(intervalRef.current)
-        setPhase('reclassify')
-        ATTRIBUTES.forEach(({ text, ms }) => {
-          timersRef.current.push(setTimeout(() => setAttrs(prev => [...prev, text]), ms))
-        })
-        timersRef.current.push(setTimeout(() => setShowResult(true), 5000))
+  // lock integrator: rises while held, ebbs slowly when released (forgiving)
+  useEffect(() => {
+    let raf = 0
+    let last = performance.now()
+    const tick = (now: number) => {
+      const dt = Math.min((now - last) / 1000, 0.05); last = now
+      if (!locked) {
+        const v = lockRef.current + (holdingRef.current ? 0.26 : -0.11) * dt
+        lockRef.current = Math.max(0, Math.min(1, v))
+        setLock(lockRef.current)
+        audioRef.current?.update(lockRef.current)
+        if (lockRef.current >= 1) {
+          setLocked(true)
+          holdingRef.current = false
+          findSecret('endpoint-signal-normalized')
+          audioRef.current?.update(1)
+          setTimeout(() => setReveal(true), 900)
+        }
       }
-    }, 380)
-  }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [locked, findSecret])
 
-  // ── Shared card style (dark atmospheric glass) ──────────────────────────
-  const card: React.CSSProperties = {
-    background: 'rgba(6,10,20,0.85)',
-    border: '1px solid rgba(140,170,220,0.14)',
-    borderRadius: 4,
-    padding: '36px 32px',
-    width: 'min(400px, 88vw)',
-    maxHeight: '88vh',
-    overflowY: 'auto',
-    backdropFilter: 'blur(12px)',
-    boxShadow: '0 24px 80px rgba(0,0,8,0.7), 0 0 0 1px rgba(0,0,0,0.4)',
-  }
+  useEffect(() => () => { audioRef.current?.stop() }, [])
 
-  const label: React.CSSProperties = {
-    fontFamily: '"JetBrains Mono", monospace',
-    fontSize: 9, letterSpacing: '0.26em',
-    color: 'rgba(140,170,220,0.45)',
-    textTransform: 'uppercase',
-    marginBottom: 10,
-  }
+  const beginHold = useCallback(() => {
+    if (locked) return
+    if (!audioRef.current) { audioRef.current = new CarrierAudio(); audioRef.current.start() }
+    holdingRef.current = true
+  }, [locked])
+  const endHold = useCallback(() => { holdingRef.current = false }, [])
 
-  const heading: React.CSSProperties = {
-    fontFamily: '"Oxanium", sans-serif',
-    fontSize: 17, fontWeight: 400,
-    color: 'rgba(200,220,255,0.82)',
-    lineHeight: 1.45, marginBottom: 18,
-  }
-
-  const sub: React.CSSProperties = {
-    fontFamily: '"JetBrains Mono", monospace',
-    fontSize: 11, color: 'rgba(140,170,220,0.45)',
-    lineHeight: 1.85, marginBottom: 24,
-  }
-
-  const btn: React.CSSProperties = {
-    width: '100%', padding: '12px 0',
-    background: 'rgba(140,170,220,0.08)',
-    color: 'rgba(200,220,255,0.7)',
-    border: '1px solid rgba(140,170,220,0.22)',
-    borderRadius: 2,
-    fontFamily: '"JetBrains Mono", monospace',
-    fontSize: 10, letterSpacing: '0.22em',
-    textTransform: 'uppercase' as const,
-    cursor: 'pointer',
-    transition: 'background 0.5s, border-color 0.5s',
-  }
-
-  const btnActive: React.CSSProperties = {
-    ...btn,
-    background: 'rgba(140,170,220,0.15)',
-    borderColor: 'rgba(140,170,220,0.4)',
-    color: 'rgba(220,235,255,0.9)',
-  }
+  const pct = Math.round(lock * 100)
 
   return (
     <>
       <style>{`
-        @keyframes w9-fadein  { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
-        @keyframes w9-spin    { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
-        @keyframes w9-pulse   { 0%,100%{opacity:0.3} 50%{opacity:0.7} }
-        .w9-attr { animation: w9-fadein 0.7s ease both; }
-        .w9-card { animation: w9-fadein 0.9s ease both; }
+        @keyframes ep-fade { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes ep-dust { 0%{transform:translateY(0);opacity:0} 12%{opacity:.5} 100%{transform:translateY(-70px);opacity:0} }
+        .ep-in { animation: ep-fade 1s ease both }
       `}</style>
 
-      <div style={{
-        position: 'fixed', inset: 0,
-        background: 'radial-gradient(ellipse 120% 100% at 50% 80%, #060c1a 0%, #020508 70%)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        overflow: 'hidden',
-      }}>
-        <AtmosphereParticles />
-
-        {/* Soft center light source — like a lamp in a dark room */}
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 60% 55% at 50% 50%, rgba(140,170,220,0.04) 0%, transparent 70%)',
-        }} />
+      <div
+        onPointerDown={beginHold}
+        onPointerUp={endHold}
+        onPointerLeave={endHold}
+        onPointerCancel={endHold}
+        style={{
+          position: 'fixed', inset: 0, overflowY: 'auto', overflowX: 'hidden',
+          background: 'radial-gradient(ellipse 90% 70% at 50% 46%, #06120c 0%, #020403 72%)',
+          fontFamily: '"Space Mono", "JetBrains Mono", monospace', cursor: locked ? 'auto' : 'pointer',
+          userSelect: 'none',
+        }}
+      >
+       <div style={{
+         minHeight: '100%', display: 'flex', flexDirection: 'column',
+         alignItems: 'center', justifyContent: 'center', padding: '48px 20px',
+       }}>
+        {/* floating dust in the receiver's glow */}
+        {[18, 33, 47, 58, 71, 82].map((l, i) => (
+          <div key={i} style={{
+            position: 'absolute', left: `${l}%`, top: `${40 + (i % 3) * 8}%`, width: 2, height: 2, borderRadius: '50%',
+            background: 'rgba(70,240,166,0.4)', animation: `ep-dust ${9 + i * 2}s ${i}s ease-in-out infinite`, pointerEvents: 'none',
+          }} />
+        ))}
 
         <HomeButton />
 
-        <div style={card} className="w9-card">
-
-          {phase === 'intro' && (
-            <div style={{ textAlign: 'center' }}>
-              <div style={label}>CAPTCHA v4.1.2</div>
-              <div style={heading}>Verify you are human.</div>
-              <div style={sub}>
-                This system uses advanced behavioral analysis<br />
-                to confirm whether you qualify as a person.
-              </div>
-              <div style={{ ...label, marginBottom: 28, opacity: 0.5 }}>
-                Protected by SOME AUTHORITY · Privacy · Terms
-              </div>
-              <button onClick={() => setPhase('normal1')} style={btnActive}>
-                Begin Verification
-              </button>
-            </div>
-          )}
-
-          {(phase === 'normal1' || phase === 'normal2') && (
-            <div>
-              <div style={label}>Step {phase === 'normal1' ? '1' : '2'} of 2</div>
-              <div style={heading}>
-                {phase === 'normal1'
-                  ? 'Select all images containing a traffic light.'
-                  : 'Select all images containing a crosswalk.'}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 3, marginBottom: 18 }}>
-                {SEEDS.map((s, i) => (
-                  <Tile key={i} seed={s + (phase === 'normal2' ? 100 : 0)} selected={sel.has(i)} onClick={() => toggle(i)} />
-                ))}
-              </div>
-              <button onClick={confirmNormal} disabled={sel.size === 0} style={sel.size > 0 ? btnActive : btn}>
-                {sel.size === 0 ? 'Skip' : 'Verify'}
-              </button>
-            </div>
-          )}
-
-          {phase === 'weird' && (
-            <div>
-              {failCount > 0 && (
-                <div style={{
-                  padding: '8px 12px', marginBottom: 14,
-                  background: 'rgba(200,60,60,0.08)',
-                  border: '1px solid rgba(200,60,60,0.2)',
-                  borderRadius: 2,
-                  fontFamily: '"JetBrains Mono", monospace',
-                  fontSize: 10, color: 'rgba(220,100,100,0.7)', letterSpacing: '0.1em',
-                }}>
-                  ✗ Verification failed. Please try again.
-                </div>
-              )}
-              <div style={label}>Additional Verification Required</div>
-              <div style={heading}>{WEIRD_PROMPTS[weirdIdx]}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 3, marginBottom: 18 }}>
-                {SEEDS.map((s, i) => (
-                  <Tile key={i} seed={s + weirdIdx * 53} selected={sel.has(i)} onClick={() => toggle(i)}
-                    label={weirdIdx === 3 ? `MEMORY_00${i + 1}` : undefined} />
-                ))}
-              </div>
-              <button onClick={confirmWeird} style={btnActive}>
-                {weirdIdx < WEIRD_PROMPTS.length - 1 ? 'Verify' : 'Submit'}
-              </button>
-            </div>
-          )}
-
-          {phase === 'draw' && (
-            <div>
-              <div style={label}>New Verification Method Required</div>
-              <div style={heading}>Please draw the shape of silence.</div>
-              <div style={sub}>Your response will be analyzed. There is no wrong answer.</div>
-              <DrawCanvas onSubmit={submitDraw} />
-            </div>
-          )}
-
-          {phase === 'analyzing' && (
-            <div style={{ textAlign: 'center', padding: '48px 0' }}>
-              <div style={{
-                width: 28, height: 28, margin: '0 auto 20px',
-                border: '1px solid rgba(140,170,220,0.4)',
-                borderTopColor: 'rgba(140,170,220,0.9)',
-                borderRadius: '50%',
-                animation: 'w9-spin 1.4s linear infinite',
-              }} />
-              <div style={{
-                fontFamily: '"JetBrains Mono", monospace',
-                fontSize: 10, letterSpacing: '0.24em',
-                color: 'rgba(140,170,220,0.55)',
-                textTransform: 'uppercase',
-              }}>Analyzing{dots}</div>
-              <div style={{ ...sub, marginBottom: 0, marginTop: 10 }}>Do not close this window.</div>
-            </div>
-          )}
-
-          {phase === 'reclassify' && (
-            <div>
-              <div style={label}>Pattern Analysis Complete</div>
-              <div style={sub} >During this session, you demonstrated the following:</div>
-              <div style={{ marginBottom: 24 }}>
-                {attrs.map((a, i) => (
-                  <div key={i} className="w9-attr" style={{
-                    padding: '8px 12px',
-                    borderLeft: '1px solid rgba(140,170,220,0.25)',
-                    marginBottom: 6,
-                    fontFamily: '"JetBrains Mono", monospace',
-                    fontSize: 10, letterSpacing: '0.06em',
-                    color: 'rgba(140,170,220,0.65)',
-                    animationDelay: `${i * 0.1}s`,
-                  }}>· {a}</div>
-                ))}
-              </div>
-              {showResult && (
-                <div style={{ animation: 'w9-fadein 0.9s ease' }}>
-                  <div style={{
-                    padding: '14px 16px', marginBottom: 20,
-                    background: 'rgba(140,170,220,0.06)',
-                    border: '1px solid rgba(140,170,220,0.18)',
-                    borderRadius: 2,
-                    fontFamily: '"JetBrains Mono", monospace',
-                    fontSize: 10, letterSpacing: '0.08em',
-                    color: 'rgba(140,170,220,0.65)',
-                    lineHeight: 2,
-                  }}>
-                    RECLASSIFICATION:<br />
-                    Entity class: <span style={{ color: 'rgba(200,220,255,0.85)', letterSpacing: '0.14em' }}>HUMAN ENOUGH</span>
-                  </div>
-                  <button onClick={() => setPhase('complete')} style={btnActive}>Continue</button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {phase === 'complete' && (
-            <div>
-              <div style={{ ...label, marginBottom: 6 }}>Verification Complete</div>
-
-              {/* Slow-reveal contact block — the atmospheric Igloo payoff */}
-              <div style={{
-                marginBottom: 28, paddingTop: 8,
-                animation: 'w9-fadein 1.4s 0.3s ease both',
-              }}>
-                <div style={{
-                  fontFamily: '"Oxanium", sans-serif',
-                  fontSize: 28, fontWeight: 300,
-                  color: 'rgba(200,220,255,0.7)',
-                  lineHeight: 1.15, letterSpacing: '-0.01em',
-                  marginBottom: 24,
-                }}>
-                  Tyler Emdur.
-                </div>
-
-                {/* Email */}
-                <a href="mailto:healthreinvented@gmail.com" style={{
-                  display: 'block', textDecoration: 'none',
-                  padding: '14px 16px', marginBottom: 8,
-                  border: '1px solid rgba(140,170,220,0.1)',
-                  borderRadius: 2,
-                  background: 'rgba(140,170,220,0.04)',
-                  transition: 'border-color 0.6s, background 0.6s',
-                  animation: 'w9-fadein 1s 0.6s ease both',
-                }}>
-                  <div style={{ ...label, marginBottom: 4 }}>Email</div>
-                  <div style={{
-                    fontFamily: '"JetBrains Mono", monospace',
-                    fontSize: 11, color: 'rgba(140,170,220,0.75)',
-                    letterSpacing: '0.04em',
-                  }}>
-                    healthreinvented@gmail.com
-                  </div>
-                </a>
-
-                {/* GitHub */}
-                <a href="https://github.com/tyler-emdur" target="_blank" rel="noopener noreferrer" style={{
-                  display: 'block', textDecoration: 'none',
-                  padding: '14px 16px', marginBottom: 8,
-                  border: '1px solid rgba(140,170,220,0.1)',
-                  borderRadius: 2,
-                  background: 'rgba(140,170,220,0.04)',
-                  transition: 'border-color 0.6s, background 0.6s',
-                  animation: 'w9-fadein 1s 0.9s ease both',
-                }}>
-                  <div style={{ ...label, marginBottom: 4 }}>GitHub</div>
-                  <div style={{
-                    fontFamily: '"JetBrains Mono", monospace',
-                    fontSize: 11, color: 'rgba(140,170,220,0.75)',
-                    letterSpacing: '0.04em',
-                  }}>
-                    github.com/tyler-emdur
-                  </div>
-                </a>
-
-                {/* Location */}
-                <div style={{
-                  padding: '14px 16px',
-                  border: '1px solid rgba(140,170,220,0.1)',
-                  borderRadius: 2,
-                  background: 'rgba(140,170,220,0.04)',
-                  animation: 'w9-fadein 1s 1.2s ease both',
-                }}>
-                  <div style={{ ...label, marginBottom: 4 }}>Location</div>
-                  <div style={{
-                    fontFamily: '"JetBrains Mono", monospace',
-                    fontSize: 11, color: 'rgba(140,170,220,0.75)',
-                    letterSpacing: '0.04em',
-                  }}>
-                    Boulder, CO · 40.0150°N 105.2705°W
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ ...label, marginBottom: 0, opacity: 0.35, animation: 'w9-fadein 1s 1.8s ease both' }}>
-                Designation: T.EMDUR · Access granted
-              </div>
-            </div>
-          )}
-
+        {/* header */}
+        <div style={{ textAlign: 'center', marginBottom: 18 }}>
+          <div style={{ fontSize: 9, letterSpacing: '0.4em', color: 'rgba(70,240,166,0.45)' }}>ENDPOINT · TE-∅</div>
+          <div style={{ fontSize: 'clamp(16px,3vw,22px)', letterSpacing: '0.14em', color: 'rgba(200,255,230,0.9)', marginTop: 8 }}>
+            {locked ? 'SIGNAL NORMALIZED' : 'CARRIER LOST IN NOISE'}
+          </div>
         </div>
+
+        {/* the receiver */}
+        <div style={{
+          width: 'min(680px, 90vw)',
+          background: 'linear-gradient(180deg, #0c1712, #060b08)',
+          border: '1px solid rgba(70,240,166,0.18)', borderRadius: 10, padding: 14,
+          boxShadow: '0 30px 90px rgba(0,0,0,0.8), inset 0 1px 0 rgba(70,240,166,0.08)',
+        }}>
+          {/* scope */}
+          <div style={{
+            position: 'relative', aspectRatio: '16/6', borderRadius: 6, overflow: 'hidden',
+            background: '#020604', border: '1px solid rgba(70,240,166,0.14)',
+            boxShadow: 'inset 0 0 40px rgba(0,0,0,0.9)',
+          }}>
+            <Scope lockRef={lockRef} holdingRef={holdingRef} />
+            {/* scanlines */}
+            <div style={{
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.22) 2px, rgba(0,0,0,0.22) 3px)',
+            }} />
+          </div>
+
+          {/* lock meter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+            <span style={{ fontSize: 9, letterSpacing: '0.2em', color: 'rgba(70,240,166,0.6)' }}>CARRIER LOCK</span>
+            <div style={{ flex: 1, height: 8, background: 'rgba(70,240,166,0.08)', borderRadius: 4, overflow: 'hidden', border: '1px solid rgba(70,240,166,0.12)' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: PHOSPHOR, boxShadow: `0 0 10px ${PHOSPHOR}`, transition: 'width 0.05s linear' }} />
+            </div>
+            <span style={{ fontSize: 11, color: PHOSPHOR, width: 40, textAlign: 'right' }}>{pct}%</span>
+          </div>
+
+          {/* resolving anomaly fragments */}
+          <div style={{ marginTop: 12, display: 'grid', gap: 4 }}>
+            {FRAGMENTS.map(f => {
+              const resolved = lock >= f.at
+              return (
+                <div key={f.truth} style={{
+                  display: 'flex', justifyContent: 'space-between', fontSize: 11, letterSpacing: '0.06em',
+                  padding: '4px 8px', borderLeft: `1px solid ${resolved ? PHOSPHOR : 'rgba(70,240,166,0.15)'}`,
+                  color: resolved ? 'rgba(200,255,230,0.92)' : 'rgba(70,240,166,0.3)',
+                  transition: 'color 0.3s, border-color 0.3s',
+                }}>
+                  <span>{resolved ? f.truth : f.garble}</span>
+                  <span style={{ color: resolved ? PHOSPHOR : 'rgba(70,240,166,0.25)', fontSize: 9 }}>
+                    {resolved ? 'LOCKED' : '— — —'}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* prompt / resolution */}
+        {!locked && (
+          <div style={{ marginTop: 20, fontSize: 11, letterSpacing: '0.2em', color: 'rgba(200,255,230,0.55)', textAlign: 'center' }}>
+            {holdingRef.current || lock > 0.02 ? 'HOLD IT STEADY…' : 'PRESS AND HOLD ANYWHERE TO BRING THE SIGNAL IN'}
+          </div>
+        )}
+
+        {locked && reveal && (
+          <div className="ep-in" style={{ marginTop: 22, width: 'min(560px, 90vw)', textAlign: 'center' }}>
+            <div style={{ fontSize: 12, lineHeight: 2, color: 'rgba(200,255,230,0.8)', marginBottom: 20 }}>
+              you reached the end of the signal.<br />
+              this is the place it was coming from. it was only ever one person,<br />
+              in boulder, making things at 3am and pointing them at the dark.
+            </div>
+
+            <div style={{ fontFamily: '"Oxanium", sans-serif', fontSize: 26, fontWeight: 300, color: 'rgba(200,255,230,0.85)', marginBottom: 18 }}>
+              Tyler Emdur
+            </div>
+
+            {[
+              { label: 'TRANSMIT', value: 'healthreinvented@gmail.com', href: 'mailto:healthreinvented@gmail.com' },
+              { label: 'SOURCE', value: 'github.com/tyler-emdur', href: 'https://github.com/tyler-emdur' },
+              { label: 'ORIGIN', value: 'Boulder, CO · 40.0150°N 105.2705°W · 88.7 MHz', href: null },
+            ].map((row, i) => {
+              const inner = (
+                <>
+                  <div style={{ fontSize: 8, letterSpacing: '0.3em', color: 'rgba(70,240,166,0.5)', marginBottom: 4 }}>{row.label}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(200,255,230,0.85)', letterSpacing: '0.04em' }}>{row.value}</div>
+                </>
+              )
+              const style: React.CSSProperties = {
+                display: 'block', textDecoration: 'none', padding: '12px 16px', marginBottom: 8, textAlign: 'left',
+                border: '1px solid rgba(70,240,166,0.16)', borderRadius: 4, background: 'rgba(70,240,166,0.04)',
+                animation: `ep-fade 0.8s ${0.3 + i * 0.25}s ease both`,
+              }
+              return row.href
+                ? <a key={row.label} href={row.href} target={row.href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" style={style}>{inner}</a>
+                : <div key={row.label} style={style}>{inner}</div>
+            })}
+
+            <div style={{ fontSize: 8, letterSpacing: '0.28em', color: 'rgba(70,240,166,0.35)', marginTop: 10 }}>
+              DESIGNATION T.EMDUR · END OF TRANSMISSION
+            </div>
+          </div>
+        )}
+       </div>
       </div>
     </>
   )

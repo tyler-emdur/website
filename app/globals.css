@@ -373,17 +373,16 @@ html[data-world="1"] body {
   background: #00000d;
 }
 
-/* World 7: Contact — show system cursor, allow scrolling */
+/* World 7: The Endpoint — the signal terminus, a dark room with a receiver */
 html[data-world="7"] {
   cursor: auto;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 html[data-world="7"] body {
-  overflow-y: auto;
+  overflow: hidden;
   cursor: auto;
-  color: #1a1a1a;
-  background: #fff;
+  color: #cfe;
+  background: #020403;
 }
 
 /* World 4: Blackbird — grab cursor */
