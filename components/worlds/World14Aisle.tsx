@@ -7,6 +7,103 @@ import { getSlot, getSpecial, loadBasket, addToBasket, type BasketEntry } from '
 
 const AisleCanvas = dynamic(() => import('./AisleCanvas'), { ssr: false })
 
+// ── Fluorescent buzz: the sound of the backrooms ─────────────────────────────
+// A mains hum + the harsh harmonic whine of failing fluorescent tubes, with
+// intermittent crackle and — occasionally — a total drop to dead silence. Gets
+// worse the deeper you walk. Starts on the first input (autoplay policy).
+class AisleAmbience {
+  private ctx: AudioContext | null = null
+  private master: GainNode | null = null
+  private buzzGain: GainNode | null = null
+  private nodes: (OscillatorNode | AudioBufferSourceNode)[] = []
+  private depth = 0
+  private running = false
+  private crackleTimer: ReturnType<typeof setTimeout> | null = null
+
+  start() {
+    if (this.running) return
+    try {
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      this.ctx = new Ctx()
+      this.master = this.ctx.createGain()
+      this.master.gain.value = 0.0001
+      this.master.connect(this.ctx.destination)
+      this.master.gain.exponentialRampToValueAtTime(0.55, this.ctx.currentTime + 2)
+
+      this.buzzGain = this.ctx.createGain()
+      this.buzzGain.gain.value = 0.5
+      this.buzzGain.connect(this.master)
+
+      const hum = (f: number, g: number, type: OscillatorType) => {
+        const o = this.ctx!.createOscillator()
+        o.type = type; o.frequency.value = f
+        const gain = this.ctx!.createGain(); gain.gain.value = g
+        o.connect(gain).connect(this.buzzGain!)
+        o.start(); this.nodes.push(o)
+      }
+      hum(60, 0.05, 'sine')       // mains
+      hum(120, 0.05, 'sawtooth')  // the ugly harmonic of a dying tube
+      hum(180, 0.018, 'sawtooth')
+      // a thin high whine, filtered
+      const o = this.ctx.createOscillator()
+      o.type = 'square'; o.frequency.value = 7200
+      const wf = this.ctx.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 7200; wf.Q.value = 6
+      const wg = this.ctx.createGain(); wg.gain.value = 0.006
+      o.connect(wf).connect(wg).connect(this.buzzGain)
+      o.start(); this.nodes.push(o)
+
+      this.scheduleCrackle()
+      this.running = true
+    } catch { /* silent */ }
+  }
+
+  private scheduleCrackle() {
+    if (!this.ctx) return
+    // deeper = more frequent crackle + occasional dead-silence dropout
+    const gap = 2600 - this.depth * 1900 + Math.random() * 2500
+    this.crackleTimer = setTimeout(() => {
+      if (!this.ctx || !this.buzzGain) return
+      const t = this.ctx.currentTime
+      if (Math.random() < 0.25 + this.depth * 0.4) {
+        // power dip → dead silence → snap back
+        this.buzzGain.gain.cancelScheduledValues(t)
+        this.buzzGain.gain.setValueAtTime(this.buzzGain.gain.value, t)
+        this.buzzGain.gain.linearRampToValueAtTime(0.0001, t + 0.04)
+        this.buzzGain.gain.setValueAtTime(0.0001, t + 0.1 + Math.random() * 0.5)
+        this.buzzGain.gain.linearRampToValueAtTime(0.5, t + 0.7 + Math.random() * 0.6)
+      } else {
+        // a crackle
+        const len = this.ctx.sampleRate * 0.08
+        const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate)
+        const d = buf.getChannelData(0)
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len)
+        const src = this.ctx.createBufferSource(); src.buffer = buf
+        const g = this.ctx.createGain(); g.gain.value = 0.12 + this.depth * 0.12
+        src.connect(g).connect(this.master!)
+        src.start(t); src.stop(t + 0.1)
+      }
+      this.scheduleCrackle()
+    }, Math.max(500, gap))
+  }
+
+  setDepth(d: number) { this.depth = Math.max(0, Math.min(1, d)) }
+
+  stop() {
+    try {
+      if (this.crackleTimer) clearTimeout(this.crackleTimer)
+      this.nodes.forEach(n => { try { n.stop() } catch {} })
+      this.ctx?.close()
+    } catch {}
+    this.ctx = null; this.nodes = []; this.running = false
+  }
+}
+
+// how "deep/dark" a given item index is — mirrors zoneAt().dark in AisleCanvas
+function darkAt(idx: number) {
+  const t = Math.max(0, Math.min(1, (idx - 105) / 50))
+  return t * t * (3 - 2 * t)
+}
+
 // PA announcements fire once as you pass each depth. Deadpan. The store knows.
 const PA_LINES: { at: number; text: string }[] = [
   { at: 20, text: 'attention shoppers: the store closes in ten minutes. it has been closing for some time now.' },
@@ -28,6 +125,11 @@ export default function World14Aisle() {
   const foundGemsRef = useRef<Set<string>>(new Set())
   const paFiredRef = useRef<Set<number>>(new Set())
   const paTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const ambienceRef = useRef<AisleAmbience | null>(null)
+
+  const startAmbience = useCallback(() => {
+    if (!ambienceRef.current) { ambienceRef.current = new AisleAmbience(); ambienceRef.current.start() }
+  }, [])
 
   const special = useMemo(() => getSpecial(), [])
   const currentSlot = useMemo(() => getSlot(Math.max(0, centerIndex)), [centerIndex])
@@ -67,17 +169,21 @@ export default function World14Aisle() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      setHasMoved(true)
+      setHasMoved(true); startAmbience()
       if (e.key.toLowerCase() === 'e') takeItem()
     }
-    const onWheel = () => setHasMoved(true)
+    const onWheel = () => { setHasMoved(true); startAmbience() }
     window.addEventListener('keydown', onKey)
     window.addEventListener('wheel', onWheel, { passive: true })
     return () => {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('wheel', onWheel)
     }
-  }, [takeItem])
+  }, [takeItem, startAmbience])
+
+  // the buzz worsens the deeper you walk
+  useEffect(() => { ambienceRef.current?.setDepth(darkAt(centerIndex)) }, [centerIndex])
+  useEffect(() => () => { ambienceRef.current?.stop() }, [])
 
   useEffect(() => {
     if (!taken) return
@@ -91,6 +197,18 @@ export default function World14Aisle() {
   return (
     <div data-world="14" style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#0b0b10' }}>
       <HomeButton />
+
+      {/* liminal film grain — static, always there like a bad photograph */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 10, pointerEvents: 'none', opacity: 0.07, mixBlendMode: 'overlay',
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+      }} />
+      {/* vignette that closes in the deeper you go */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 10, pointerEvents: 'none',
+        background: `radial-gradient(ellipse 78% 74% at 50% 46%, transparent ${52 - darkAt(centerIndex) * 26}%, rgba(0,0,0,${0.5 + darkAt(centerIndex) * 0.42}) 100%)`,
+        transition: 'background 0.6s ease',
+      }} />
 
       <div style={{
         position: 'fixed', top: 20, left: 24, zIndex: 20, fontFamily: '"Space Mono", monospace',

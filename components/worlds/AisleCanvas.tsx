@@ -3,7 +3,7 @@ import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
   MathUtils, Object3D, Color, InstancedMesh, CanvasTexture, Mesh,
-  MeshStandardMaterial, PointLight, AmbientLight, Fog, NearestFilter,
+  MeshStandardMaterial, MeshBasicMaterial, PointLight, AmbientLight, Fog, NearestFilter,
 } from 'three'
 import { SPACING, RAIL_X, getSlot, type Slot, type Shape } from './aisle-data'
 
@@ -282,8 +282,9 @@ function Fixture({ index }: { index: number }) {
     let v = 1
     if (flickery) {
       const t = state.clock.elapsedTime * 14 + phase
-      v = Math.sin(t) * Math.sin(t * 3.7) > -0.2 ? 1 : 0.25
-      if (Math.sin(t * 0.31) > 0.96) v = 0.1
+      v = Math.sin(t) * Math.sin(t * 3.7) > -0.2 ? 1 : 0.16
+      if (Math.sin(t * 0.31) > 0.9) v = 0.04                                 // long dead spells
+      if (Math.sin(t * 2.3 + phase) * Math.sin(t * 7.1) > 0.72) v = 1.7      // fluorescent surge
     }
     m.emissiveIntensity = v * (1.4 - zone.decay * 0.4)
   })
@@ -457,6 +458,52 @@ function ExitSign() {
   )
 }
 
+// ── someone, far down the aisle, who is gone when the light comes back ───────
+function makeFigureTexture() {
+  const cv = document.createElement('canvas'); cv.width = 64; cv.height = 128
+  const cx = cv.getContext('2d')!
+  cx.fillStyle = 'rgba(5,6,7,0.96)'
+  cx.beginPath(); cx.arc(32, 24, 10, 0, Math.PI * 2); cx.fill()        // head
+  cx.beginPath()                                                       // body
+  cx.moveTo(21, 36); cx.lineTo(43, 36); cx.lineTo(39, 118); cx.lineTo(25, 118); cx.closePath(); cx.fill()
+  const tex = new CanvasTexture(cv)
+  return tex
+}
+function Figure() {
+  const ref = useRef<Mesh>(null)
+  const tex = useMemo(() => makeFigureTexture(), [])
+  useEffect(() => () => tex.dispose(), [tex])
+  const st = useRef({ vis: 0, target: 0, z: -9999, until: 0, next: 10 })
+  useFrame(({ camera, clock }) => {
+    const t = clock.elapsedTime
+    const idx = Math.max(0, -camera.position.z / SPACING)
+    const dark = zoneAt(idx).dark
+    const s = st.current
+    if (s.target === 0 && t > s.next && dark > 0.12) {
+      s.z = camera.position.z - (10 + Math.random() * 7)
+      s.target = 1
+      s.until = t + 1.3 + Math.random() * 2.4
+    }
+    if (s.target === 1 && (t > s.until || camera.position.z - s.z < 4.5)) {
+      s.target = 0
+      s.next = t + 18 + Math.random() * 34
+    }
+    s.vis += (s.target - s.vis) * (s.target === 1 ? 0.05 : 0.16)
+    const m = ref.current
+    if (m) {
+      m.position.set(0, 1.02, s.z)
+      m.visible = s.vis > 0.01 && camera.position.z > s.z
+      ;(m.material as MeshBasicMaterial).opacity = s.vis * 0.7 * Math.min(1, dark * 1.4)
+    }
+  })
+  return (
+    <mesh ref={ref} visible={false} position={[0, 1.02, -9999]}>
+      <planeGeometry args={[0.85, 1.85]} />
+      <meshBasicMaterial map={tex} transparent opacity={0} depthWrite={false} toneMapped={false} />
+    </mesh>
+  )
+}
+
 // ── atmosphere: fog / light / background track the walker's depth ────────────
 function Atmosphere() {
   const { scene } = useThree()
@@ -465,6 +512,8 @@ function Atmosphere() {
   const p2 = useRef<PointLight>(null)
   const fogRef = useRef<Fog | null>(null)
   const bg = useRef(new Color())
+  // whole-corridor brown-out: every so often the power sags and everything dims
+  const brown = useRef({ level: 1, until: 0, next: 4 })
   useEffect(() => {
     fogRef.current = new Fog('#b9bfc6', 6, 26)
     scene.fog = fogRef.current
@@ -473,27 +522,43 @@ function Atmosphere() {
   useFrame(({ camera, clock }) => {
     const idx = Math.max(0, -camera.position.z / SPACING)
     const { flicker, decay, dark } = zoneAt(idx)
+    const t = clock.elapsedTime
+
+    // brown-out scheduler — more frequent and deeper the further in you are
+    const b = brown.current
+    if (t > b.next) {
+      b.until = t + 0.25 + Math.random() * (0.9 + dark)
+      b.next = t + (6 - dark * 3) + Math.random() * (7 - dark * 4)
+    }
+    if (t < b.until) {
+      // flickering sag while it lasts, sometimes near-total
+      const s = 0.18 + Math.abs(Math.sin(t * 33)) * 0.4
+      b.level += (s - b.level) * 0.4
+    } else {
+      b.level += (1 - b.level) * 0.15
+    }
+    const bl = b.level
+
     const fog = fogRef.current
     if (fog) {
       fog.color.copy(FOG_BRIGHT).lerp(FOG_DECAY, decay).lerp(FOG_DARK, dark)
       fog.near = 6 - dark * 3.5
       fog.far = 26 - decay * 6 - dark * 9
-      bg.current.copy(fog.color)
+      bg.current.copy(fog.color).multiplyScalar(0.55 + bl * 0.45)
       scene.background = bg.current
     }
-    if (ambientRef.current) ambientRef.current.intensity = 0.85 - decay * 0.3 - dark * 0.42
+    if (ambientRef.current) ambientRef.current.intensity = (0.85 - decay * 0.3 - dark * 0.42) * (0.4 + bl * 0.6)
     // two pooled lights ride along near the closest fixtures
-    const t = clock.elapsedTime
-    const flickMul = flicker > 0.05 && Math.sin(t * 17.3) * Math.sin(t * 5.1) < -0.75 ? 0.35 : 1
+    const flickMul = flicker > 0.05 && Math.sin(t * 17.3) * Math.sin(t * 5.1) < -0.75 ? 0.28 : 1
     const zBase = Math.round(camera.position.z / (SPACING * FIXTURE_EVERY)) * SPACING * FIXTURE_EVERY
     if (p1.current) {
       p1.current.position.set(0, CEIL_Y - 0.3, zBase - SPACING)
-      p1.current.intensity = (2.4 - decay * 0.8 - dark * 1.9) * flickMul
+      p1.current.intensity = (2.4 - decay * 0.8 - dark * 1.9) * flickMul * bl
       p1.current.color.set(decay > 0.4 ? '#cfe8c4' : '#eef2f5')
     }
     if (p2.current) {
       p2.current.position.set(0, CEIL_Y - 0.3, zBase - SPACING * (FIXTURE_EVERY + 1))
-      p2.current.intensity = 1.8 - decay * 0.6 - dark * 1.5
+      p2.current.intensity = (1.8 - decay * 0.6 - dark * 1.5) * bl
       p2.current.color.set(decay > 0.4 ? '#cfe8c4' : '#eef2f5')
     }
   })
@@ -637,6 +702,7 @@ function Scene({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => vo
       <Floor />
       <Ceiling />
       <ExitSign />
+      <Figure />
       <SlotWindow />
     </>
   )
