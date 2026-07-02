@@ -1,8 +1,21 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import HomeButton from './HomeButton'
+import { BroadcastAudio } from './broadcast-audio'
 
 const CHANNELS = [2, 4, 7, 9, 13, 22, 44, 66, 88]
+
+// Curated channels that load instantly (no server round-trip) so the set has
+// signal on the very first paint while the novel iptv-org pool warms up behind
+// it. These are long-lived public web streams; if one is down it self-heals via
+// the same onDead → replace path as any pool channel.
+const INSTANT_CHANNELS: LiveChannelInfo[] = [
+  { id: 'i-aljazeera-en', name: 'Al Jazeera English', country: 'QA', language: 'eng', url: 'https://live-hls-web-aje.getaj.net/AJE/index.m3u8' },
+  { id: 'i-dw-en', name: 'DW English', country: 'DE', language: 'eng', url: 'https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8' },
+  { id: 'i-france24-en', name: 'FRANCE 24 English', country: 'FR', language: 'eng', url: 'https://static.france24.com/live/F24_EN_LO_HLS/live_web.m3u8' },
+  { id: 'i-redbull', name: 'Red Bull TV', country: 'AT', language: 'eng', url: 'https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8' },
+  { id: 'i-nhk', name: 'NHK World Japan', country: 'JP', language: 'eng', url: 'https://nhkwlive-ojp.akamaized.net/hls/live/2003459/nhkwlive-ojp-en/index.m3u8' },
+]
 
 // A distinct ambient glow per channel slot — purely cosmetic, gives each number its own identity.
 const SLOT_GLOW = [
@@ -330,29 +343,61 @@ export default function World3Broadcast() {
   const [tearY, setTearY] = useState(40)
   const [soundOn, setSoundOn] = useState(false)
 
-  // One pinned live channel per slot, assigned once the verified feed pool loads and kept
-  // stable across channel flips — undefined = still loading, null = exhausted/unavailable.
-  const [pins, setPins] = useState<(LiveChannelInfo | null | undefined)[]>(() => CHANNELS.map(() => undefined))
-  const feedPoolRef = useRef<LiveChannelInfo[]>([])
-  const usedIdsRef = useRef<Set<string>>(new Set())
+  // One pinned live channel per slot. Seeded from the curated instant channels so
+  // there is signal immediately; empty slots fill from the novel pool when it loads.
+  // undefined = still loading, null = exhausted/unavailable.
+  const [pins, setPins] = useState<(LiveChannelInfo | null | undefined)[]>(
+    () => CHANNELS.map((_, i) => INSTANT_CHANNELS[i] ?? undefined)
+  )
+  const feedPoolRef = useRef<LiveChannelInfo[]>([...INSTANT_CHANNELS])
+  const usedIdsRef = useRef<Set<string>>(new Set(INSTANT_CHANNELS.map(c => c.id)))
   const attemptsRef = useRef<number[]>(CHANNELS.map(() => 0))
+  const audioRef = useRef<BroadcastAudio | null>(null)
+
+  // ambient CRT room tone — starts on the first interaction (autoplay policy)
+  useEffect(() => {
+    audioRef.current = new BroadcastAudio()
+    const wake = () => audioRef.current?.resume()
+    window.addEventListener('pointerdown', wake)
+    window.addEventListener('keydown', wake)
+    return () => {
+      window.removeEventListener('pointerdown', wake)
+      window.removeEventListener('keydown', wake)
+      audioRef.current?.stop()
+    }
+  }, [])
 
   useEffect(() => {
     fetch('/api/livetv')
       .then(r => r.json())
       .then(d => {
         const list: LiveChannelInfo[] = Array.isArray(d?.channels) ? d.channels : []
-        feedPoolRef.current = list
         const shuffled = [...list]
         for (let i = shuffled.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1))
           ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
         }
-        const initial = CHANNELS.map((_, i) => shuffled[i] ?? null)
-        initial.forEach(c => { if (c) usedIdsRef.current.add(c.id) })
-        setPins(initial)
+        // add the novel pool for replacements / dial-spinning, keeping instants
+        feedPoolRef.current = [...feedPoolRef.current, ...shuffled.filter(c => !usedIdsRef.current.has(c.id))]
+        // fill any slot still empty (beyond the instant seeds) with novel channels
+        setPins(prev => {
+          const next = [...prev]
+          let si = 0
+          for (let i = 0; i < next.length; i++) {
+            if (next[i] !== undefined) continue
+            while (si < shuffled.length && usedIdsRef.current.has(shuffled[si].id)) si++
+            if (si < shuffled.length) {
+              next[i] = shuffled[si]
+              usedIdsRef.current.add(shuffled[si].id)
+              si++
+            } else {
+              next[i] = null
+            }
+          }
+          return next
+        })
       })
-      .catch(() => setPins(CHANNELS.map(() => null)))
+      .catch(() => setPins(prev => prev.map(p => (p === undefined ? null : p))))
   }, [])
 
   const replaceChannel = useCallback((index: number) => {
@@ -372,6 +417,8 @@ export default function World3Broadcast() {
   }, [])
 
   const changeChannel = useCallback((dir: number) => {
+    audioRef.current?.resume()
+    audioRef.current?.staticBurst()
     setSwitching(true)
     setTimeout(() => {
       setChIdx(i => (i + dir + CHANNELS.length) % CHANNELS.length)
