@@ -373,19 +373,6 @@ html[data-world="1"] body {
   background: #00000d;
 }
 
-/* World 7: Contact — show system cursor, allow scrolling */
-html[data-world="7"] {
-  cursor: auto;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-html[data-world="7"] body {
-  overflow-y: auto;
-  cursor: auto;
-  color: #1a1a1a;
-  background: #fff;
-}
-
 /* World 4: Blackbird — grab cursor */
 html[data-world="4"] { cursor: grab; }
 

@@ -1,9 +1,9 @@
 'use client'
 import { create } from 'zustand'
 
-export type WorldId = 0 | 1 | 2 | 3 | 5 | 6 | 7 | 9 | 14
+export type WorldId = 0 | 1 | 2 | 3 | 5 | 6 | 9 | 14
 
-export const WORLD_IDS: WorldId[] = [0, 1, 2, 3, 5, 6, 7, 9, 14]
+export const WORLD_IDS: WorldId[] = [0, 1, 2, 3, 5, 6, 9, 14]
 
 export type PortalType =
   | 'door'
@@ -33,7 +33,6 @@ const WORLD_TITLES: Record<WorldId, string> = {
   3: 'KWND — broadcasting',
   5: 'EMDUR-486 — press any key',
   6: '12:47 AM · engine off',
-  7: 'Tyler Emdur — tyleremdur.com',
   9: 'one new message',
   14: "the aisle · it doesn't end",
 }
@@ -182,7 +181,6 @@ export function getWorldLog(): string {
     3: 'THE BROADCAST',
     5: 'THE MACHINE',
     6: 'THE GARAGE',
-    7: 'THE CONTACT PAGE',
     9: 'THE ANSWERING MACHINE',
     14: 'THE ENDLESS AISLE',
   }

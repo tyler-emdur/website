@@ -40,7 +40,6 @@ const ALL_WORLDS: WorldItem[] = [
   { id: 3, name: 'Broadcast', bg: '#220022', ac: '#ff55ff' },
   { id: 5, name: 'The Machine', bg: '#0a0e14', ac: '#5ecbe0' },
   { id: 6, name: 'Garage', bg: '#0a0e14', ac: '#ffb347' },
-  { id: 7, name: 'Contact', bg: '#220044', ac: '#aa55ff' },
   { id: 9, name: 'Answering Machine', bg: '#0c0805', ac: '#ff4433' },
   { id: 14, name: 'The Endless Aisle', bg: '#0b0b10', ac: '#F472B6' },
 ]
