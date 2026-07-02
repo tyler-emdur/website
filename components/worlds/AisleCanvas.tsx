@@ -3,14 +3,17 @@ import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
   MathUtils, Object3D, Color, InstancedMesh, CanvasTexture, Mesh,
-  MeshStandardMaterial, PointLight, AmbientLight, Fog, NearestFilter,
+  MeshStandardMaterial, MeshBasicMaterial, PointLight, AmbientLight, Fog, NearestFilter,
 } from 'three'
 import { SPACING, RAIL_X, getSlot, type Slot, type Shape } from './aisle-data'
 
 // The Endless Aisle: an actual supermarket at closing time. Fluorescent
 // fixtures, stocked gondola shelving, checkered linoleum. The deeper you walk,
-// the wronger it gets — lights thin out, the color drifts green, the stock
-// gives way to gaps, and something red glows up ahead that you never reach.
+// the wronger it gets — lights thin out, the color drifts sickly yellow, the
+// stock gives way to gaps, the floor gives way to a stained carpet that
+// shouldn't be in a grocery store, something is standing far down the aisle
+// that you never get closer to, and a red glow waits up ahead that you never
+// reach either.
 
 const WINDOW_BEHIND = 3
 const WINDOW_AHEAD = 24
@@ -31,14 +34,15 @@ const smooth = (a: number, b: number, x: number) => {
 }
 export function zoneAt(idx: number) {
   return {
-    flicker: smooth(18, 55, idx),   // lights begin to misbehave
-    decay: smooth(55, 105, idx),    // green cast, gaps in stock, skew
-    dark: smooth(105, 155, idx),    // most lights dead, red glow ahead
+    flicker: smooth(18, 55, idx),    // lights begin to misbehave
+    decay: smooth(55, 105, idx),     // sickly yellow cast, gaps in stock, skew
+    backrooms: smooth(85, 135, idx), // the carpet appears, shelving thins to nothing
+    dark: smooth(105, 155, idx),     // most lights dead, red glow ahead
   }
 }
 
 const FOG_BRIGHT = new Color('#b9bfc6')
-const FOG_DECAY = new Color('#79876f')
+const FOG_DECAY = new Color('#8a8140') // sickly fluorescent yellow — the backrooms cast
 const FOG_DARK = new Color('#0a0807')
 
 // seeded per-slot random, independent of aisle-data's slot rng
@@ -146,15 +150,16 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
           const sy = SHELF_YS[s]
           const n = 3 + Math.floor(rnd() * 3)
           for (let p = 0; p < n; p++) {
-            const present = rnd() > 0.08 + zone.decay * 0.45 + zone.dark * 0.4
+            const present = rnd() > 0.08 + zone.decay * 0.4 + zone.backrooms * 0.35 + zone.dark * 0.35
             if (!present) continue
             const isCan = rnd() < 0.35
             const px = side * (AISLE_HALF + 0.16 + rnd() * (SHELF_DEPTH - 0.3))
             const pz = z - SPACING / 2 + (p + 0.5) * (SPACING / n) + (rnd() - 0.5) * 0.1
-            const skew = (rnd() - 0.5) * zone.decay * 0.5
+            const skew = (rnd() - 0.5) * (zone.decay * 0.5 + zone.backrooms * 0.3)
             col.set(PRODUCT_COLORS[Math.floor(rnd() * PRODUCT_COLORS.length)])
-            // stock greys out as the aisle decays
-            col.lerp(new Color('#4a4a48'), zone.decay * 0.45 + zone.dark * 0.3)
+            // stock greys out — then yellows, sickly, as the backrooms take over
+            col.lerp(new Color('#4a4a48'), zone.decay * 0.4 + zone.dark * 0.25)
+            col.lerp(new Color('#8a7a3a'), zone.backrooms * 0.4)
             if (isCan) {
               const ch = 0.16 + rnd() * 0.1
               o.position.set(px, sy + ch / 2 + 0.025, pz)
@@ -272,23 +277,26 @@ function Fixture({ index }: { index: number }) {
   const zone = zoneAt(index)
   const rnd = srand(index * 31 + 5)
   const deadRoll = rnd()
-  const dead = deadRoll < zone.flicker * 0.12 + zone.dark * 0.72
-  const flickery = !dead && rnd() < 0.2 + zone.flicker * 0.5
+  const dead = deadRoll < zone.flicker * 0.14 + zone.dark * 0.78
+  const flickery = !dead && rnd() < 0.22 + zone.flicker * 0.55 + zone.backrooms * 0.2
   const phase = rnd() * 100
+  const violence = 1 + zone.backrooms * 1.6 + zone.dark * 1.4 // how hard the tube stutters
   useFrame((state) => {
     const m = matRef.current
     if (!m) return
     if (dead) { m.emissiveIntensity = 0.02; return }
     let v = 1
     if (flickery) {
-      const t = state.clock.elapsedTime * 14 + phase
-      v = Math.sin(t) * Math.sin(t * 3.7) > -0.2 ? 1 : 0.25
-      if (Math.sin(t * 0.31) > 0.96) v = 0.1
+      const t = state.clock.elapsedTime * (14 + violence * 5) + phase
+      v = Math.sin(t) * Math.sin(t * 3.7) > -0.2 + zone.backrooms * 0.35 ? 1 : 0.2
+      if (Math.sin(t * 0.31) > 0.96 - zone.backrooms * 0.1) v = 0.08
+      // full dropouts get more likely and longer the deeper you are
+      if (Math.sin(t * 0.07 + phase) > 0.985 - zone.dark * 0.25) v = 0
     }
     m.emissiveIntensity = v * (1.4 - zone.decay * 0.4)
   })
-  // fluorescent drifts green as the aisle decays
-  const tube = zone.decay > 0.4 ? '#d8f0d0' : '#f2f6f8'
+  // fluorescent turns a sickly, over-saturated backrooms yellow as the aisle decays
+  const tube = zone.backrooms > 0.5 ? '#e8d868' : zone.decay > 0.4 ? '#e6dc9a' : '#f2f6f8'
   return (
     <group position={[0, CEIL_Y, -index * SPACING]}>
       <mesh>
@@ -414,6 +422,51 @@ function Floor() {
   )
 }
 
+// ── carpet: the backrooms floor bleeding through the linoleum ───────────────
+// A stained, mottled yellow carpet has no business being in a grocery aisle.
+// It fades in over the tile as zone.backrooms rises and never fully replaces
+// it — the tile is still faintly visible underneath, like the store is lying.
+function CarpetOverlay() {
+  const ref = useRef<Mesh>(null)
+  const matRef = useRef<MeshStandardMaterial>(null)
+  const tex = useMemo(() => {
+    const cv = document.createElement('canvas')
+    cv.width = 256; cv.height = 256
+    const cx = cv.getContext('2d')!
+    cx.fillStyle = '#8a7a3a'
+    cx.fillRect(0, 0, 256, 256)
+    for (let i = 0; i < 240; i++) {
+      const x = (i * 53) % 256, y = (i * 97) % 256
+      const r = 4 + (i % 7) * 3
+      cx.fillStyle = `rgba(${40 + (i % 3) * 10},${34 + (i % 4) * 8},${10 + (i % 5) * 4},${0.08 + (i % 4) * 0.03})`
+      cx.beginPath(); cx.arc(x, y, r, 0, Math.PI * 2); cx.fill()
+    }
+    for (let i = 0; i < 900; i++) {
+      const x = Math.random() * 256, y = Math.random() * 256
+      cx.fillStyle = Math.random() < 0.5 ? 'rgba(120,108,50,0.06)' : 'rgba(50,42,16,0.07)'
+      cx.fillRect(x, y, 1, 1)
+    }
+    const t = new CanvasTexture(cv)
+    t.wrapS = t.wrapT = 1000 // RepeatWrapping
+    t.repeat.set(5, 50)
+    return t
+  }, [])
+  useEffect(() => () => tex.dispose(), [tex])
+  useFrame(({ camera }) => {
+    if (!ref.current) return
+    const period = SPACING * 2
+    ref.current.position.z = Math.round(camera.position.z / period) * period
+    const idx = Math.max(0, -camera.position.z / SPACING)
+    if (matRef.current) matRef.current.opacity = zoneAt(idx).backrooms * 0.92
+  })
+  return (
+    <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
+      <planeGeometry args={[9, 160]} />
+      <meshStandardMaterial ref={matRef} map={tex} roughness={0.95} metalness={0} transparent opacity={0} />
+    </mesh>
+  )
+}
+
 function Ceiling() {
   const ref = useRef<Mesh>(null)
   useFrame(({ camera }) => {
@@ -457,6 +510,60 @@ function ExitSign() {
   )
 }
 
+// ── the figure ───────────────────────────────────────────────────────────────
+// Something is standing far down the aisle. It stays exactly as far ahead of
+// you as it started — you never gain a step. It flickers in and out on its own
+// schedule, unrelated to your movement, like it's only sometimes looking back.
+function makeFigureTexture() {
+  const w = 96, h = 220
+  const cv = document.createElement('canvas')
+  cv.width = w; cv.height = h
+  const cx = cv.getContext('2d')!
+  cx.fillStyle = '#040406'
+  cx.beginPath(); cx.arc(w / 2, h * 0.15, w * 0.155, 0, Math.PI * 2); cx.fill()
+  cx.beginPath()
+  cx.moveTo(w * 0.30, h * 0.28)
+  cx.quadraticCurveTo(w * 0.5, h * 0.24, w * 0.70, h * 0.28)
+  cx.lineTo(w * 0.63, h * 0.98)
+  cx.lineTo(w * 0.37, h * 0.98)
+  cx.closePath(); cx.fill()
+  return new CanvasTexture(cv)
+}
+const FIGURE_AHEAD = 19 // fixed distance in front of the camera — never closes
+function DistantFigure() {
+  const ref = useRef<Mesh>(null)
+  const opacityRef = useRef(0)
+  const stateRef = useRef({ visible: false, timer: 4 + Math.random() * 5 })
+  const tex = useMemo(() => makeFigureTexture(), [])
+  useEffect(() => () => tex.dispose(), [tex])
+  useFrame(({ camera }, rawDelta) => {
+    const delta = Math.min(rawDelta, 0.05)
+    const idx = Math.max(0, -camera.position.z / SPACING)
+    const { dark } = zoneAt(idx)
+    const m = ref.current
+    if (!m) return
+    const mat = m.material as MeshBasicMaterial
+    if (dark < 0.25) { mat.opacity = 0; opacityRef.current = 0; return }
+    const st = stateRef.current
+    st.timer -= delta
+    if (st.timer <= 0) {
+      st.visible = !st.visible
+      st.timer = st.visible ? 1.5 + Math.random() * 2.2 : 5 + Math.random() * 9
+    }
+    const lane = Math.sin(idx * 0.29) > 0 ? 1 : -1
+    m.position.set(lane * AISLE_HALF * 0.55, 1.05, camera.position.z - FIGURE_AHEAD)
+    const target = st.visible ? dark * 0.5 : 0
+    opacityRef.current += (target - opacityRef.current) * Math.min(1, delta * 3)
+    mat.opacity = opacityRef.current
+  })
+  return (
+    <mesh ref={ref}>
+      <planeGeometry args={[0.85, 1.9]} />
+      <meshBasicMaterial map={tex} transparent opacity={0} depthWrite={false} toneMapped={false} />
+    </mesh>
+  )
+}
+
 // ── atmosphere: fog / light / background track the walker's depth ────────────
 function Atmosphere() {
   const { scene } = useThree()
@@ -472,29 +579,32 @@ function Atmosphere() {
   }, [scene])
   useFrame(({ camera, clock }) => {
     const idx = Math.max(0, -camera.position.z / SPACING)
-    const { flicker, decay, dark } = zoneAt(idx)
+    const { flicker, decay, backrooms, dark } = zoneAt(idx)
     const fog = fogRef.current
     if (fog) {
       fog.color.copy(FOG_BRIGHT).lerp(FOG_DECAY, decay).lerp(FOG_DARK, dark)
-      fog.near = 6 - dark * 3.5
-      fog.far = 26 - decay * 6 - dark * 9
+      fog.near = 6 - dark * 3.5 - backrooms * 1.2
+      fog.far = 26 - decay * 6 - backrooms * 4 - dark * 9
       bg.current.copy(fog.color)
       scene.background = bg.current
     }
     if (ambientRef.current) ambientRef.current.intensity = 0.85 - decay * 0.3 - dark * 0.42
-    // two pooled lights ride along near the closest fixtures
+    // two pooled lights ride along near the closest fixtures — flicker gets
+    // more violent and more frequent the deeper the backrooms cast goes
     const t = clock.elapsedTime
-    const flickMul = flicker > 0.05 && Math.sin(t * 17.3) * Math.sin(t * 5.1) < -0.75 ? 0.35 : 1
+    const flickThresh = -0.75 + backrooms * 0.35
+    const flickMul = flicker > 0.05 && Math.sin(t * (17.3 + backrooms * 9)) * Math.sin(t * 5.1) < flickThresh ? (0.35 - backrooms * 0.2) : 1
     const zBase = Math.round(camera.position.z / (SPACING * FIXTURE_EVERY)) * SPACING * FIXTURE_EVERY
+    const lightCol = backrooms > 0.4 ? '#e8d868' : decay > 0.4 ? '#e6dc9a' : '#eef2f5'
     if (p1.current) {
       p1.current.position.set(0, CEIL_Y - 0.3, zBase - SPACING)
       p1.current.intensity = (2.4 - decay * 0.8 - dark * 1.9) * flickMul
-      p1.current.color.set(decay > 0.4 ? '#cfe8c4' : '#eef2f5')
+      p1.current.color.set(lightCol)
     }
     if (p2.current) {
       p2.current.position.set(0, CEIL_Y - 0.3, zBase - SPACING * (FIXTURE_EVERY + 1))
       p2.current.intensity = 1.8 - decay * 0.6 - dark * 1.5
-      p2.current.color.set(decay > 0.4 ? '#cfe8c4' : '#eef2f5')
+      p2.current.color.set(lightCol)
     }
   })
   return (
@@ -635,8 +745,10 @@ function Scene({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => vo
       <Atmosphere />
       <Rig onDistance={handleDistance} />
       <Floor />
+      <CarpetOverlay />
       <Ceiling />
       <ExitSign />
+      <DistantFigure />
       <SlotWindow />
     </>
   )

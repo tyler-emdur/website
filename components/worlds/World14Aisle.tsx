@@ -4,8 +4,15 @@ import dynamic from 'next/dynamic'
 import HomeButton from './HomeButton'
 import { useWorldStore } from '@/lib/world-store'
 import { getSlot, getSpecial, loadBasket, addToBasket, type BasketEntry } from './aisle-data'
+import { AisleAudio } from './aisle-audio'
 
 const AisleCanvas = dynamic(() => import('./AisleCanvas'), { ssr: false })
+
+// how far into the wrongness, 0..1 — drives the fluorescent hum + sub drone
+function depthLevel(idx: number) {
+  const s = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
+  return Math.min(1, s(18, 55, idx) * 0.35 + s(55, 110, idx) * 0.3 + s(105, 170, idx) * 0.45)
+}
 
 // PA announcements fire once as you pass each depth. Deadpan. The store knows.
 const PA_LINES: { at: number; text: string }[] = [
@@ -28,11 +35,29 @@ export default function World14Aisle() {
   const foundGemsRef = useRef<Set<string>>(new Set())
   const paFiredRef = useRef<Set<number>>(new Set())
   const paTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const audioRef = useRef<AisleAudio | null>(null)
 
   const special = useMemo(() => getSpecial(), [])
   const currentSlot = useMemo(() => getSlot(Math.max(0, centerIndex)), [centerIndex])
 
   useEffect(() => { setBasket(loadBasket()) }, [])
+
+  // fluorescent hum + sub drone — wakes on first interaction, tracks depth
+  useEffect(() => {
+    audioRef.current = new AisleAudio()
+    const wake = () => audioRef.current?.resume()
+    window.addEventListener('pointerdown', wake)
+    window.addEventListener('keydown', wake)
+    window.addEventListener('wheel', wake, { passive: true })
+    return () => {
+      window.removeEventListener('pointerdown', wake)
+      window.removeEventListener('keydown', wake)
+      window.removeEventListener('wheel', wake)
+      audioRef.current?.stop()
+    }
+  }, [])
+
+  useEffect(() => { audioRef.current?.setDepth(depthLevel(centerIndex)) }, [centerIndex])
 
   useEffect(() => {
     for (const line of PA_LINES) {
