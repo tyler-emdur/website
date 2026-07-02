@@ -17,6 +17,74 @@ const SLOT_GLOW = [
   'rgba(160,120,60,0.10)',
 ]
 
+// ── Ambient room tone ────────────────────────────────────────────────────────
+// The sound of a CRT that is simply on, in a dark room: a low mains hum, the
+// faint high flyback whine older sets give off, and a bed of room hiss. Starts
+// only after a user gesture (autoplay policy) and stays under everything.
+class TVAmbience {
+  private ctx: AudioContext | null = null
+  private master: GainNode | null = null
+  private nodes: (OscillatorNode | AudioBufferSourceNode)[] = []
+  private running = false
+
+  start() {
+    if (this.running) return
+    try {
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      this.ctx = new Ctx()
+      this.master = this.ctx.createGain()
+      this.master.gain.value = 0.0001
+      this.master.connect(this.ctx.destination)
+      this.master.gain.exponentialRampToValueAtTime(0.9, this.ctx.currentTime + 1.6)
+
+      const hum = (f: number, g: number) => {
+        const o = this.ctx!.createOscillator()
+        o.type = 'sine'; o.frequency.value = f
+        const gain = this.ctx!.createGain(); gain.gain.value = g
+        o.connect(gain).connect(this.master!)
+        o.start(); this.nodes.push(o)
+      }
+      hum(60, 0.020)     // mains hum
+      hum(120, 0.010)    // its harmonic
+      hum(15734, 0.0035) // CRT flyback whine — barely there
+
+      // room hiss
+      const len = this.ctx.sampleRate * 2
+      const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate)
+      const d = buf.getChannelData(0)
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.12
+      const src = this.ctx.createBufferSource()
+      src.buffer = buf; src.loop = true
+      const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200
+      const hiss = this.ctx.createGain(); hiss.gain.value = 0.05
+      src.connect(lp).connect(hiss).connect(this.master)
+      src.start(); this.nodes.push(src)
+
+      this.running = true
+    } catch { /* no audio — silent room */ }
+  }
+
+  // a brief swell of static when the channel is knocked over
+  blip() {
+    if (!this.ctx || !this.master) return
+    const t = this.ctx.currentTime
+    const len = this.ctx.sampleRate * 0.25
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate)
+    const d = buf.getChannelData(0)
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1)
+    const src = this.ctx.createBufferSource(); src.buffer = buf
+    const g = this.ctx.createGain()
+    g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22)
+    src.connect(g).connect(this.master)
+    src.start(t); src.stop(t + 0.26)
+  }
+
+  stop() {
+    try { this.nodes.forEach(n => { try { n.stop() } catch {} }); this.ctx?.close() } catch {}
+    this.ctx = null; this.nodes = []; this.running = false
+  }
+}
+
 // ── CRT animation keyframes ──────────────────────────────────────────────────
 const CRT_STYLES = `
   @keyframes screen-flicker {
@@ -161,7 +229,7 @@ function StaticScreen() {
 }
 
 // ── World Feed — every channel is a live broadcast from somewhere on Earth ───
-interface LiveChannelInfo { id: string; name: string; country: string; language: string | null; url: string }
+interface LiveChannelInfo { id: string; name: string; country: string; language: string | null; category: string | null; url: string }
 
 function regionName(code: string) {
   try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code } catch { return code }
@@ -279,6 +347,11 @@ function WorldFeedChannel({ info, onDead, soundOn, onRequestSound }: { info: Liv
             <span>{countryFlag(info.country)}</span>
             <span>{regionName(info.country)}</span>
             <span style={{ background:'#cc0000', padding:'1px 5px', fontSize:'0.7em' }}>LIVE</span>
+            {info.category && (
+              <span style={{ background:'rgba(255,220,120,0.16)', color:'rgba(255,225,150,0.9)', padding:'1px 5px', fontSize:'0.62em', letterSpacing:'0.08em' }}>
+                {info.category}
+              </span>
+            )}
           </div>
           <div style={{ color:'rgba(255,255,255,0.7)', fontSize:'clamp(7px,1vw,10px)', marginTop:2, letterSpacing:'0.06em' }}>
             {info.name}{info.language ? ` · ${languageName(info.language)}` : ''}
@@ -336,6 +409,21 @@ export default function World3Broadcast() {
   const feedPoolRef = useRef<LiveChannelInfo[]>([])
   const usedIdsRef = useRef<Set<string>>(new Set())
   const attemptsRef = useRef<number[]>(CHANNELS.map(() => 0))
+  const ambienceRef = useRef<TVAmbience | null>(null)
+
+  // Ambient room tone — starts on the first user gesture, then runs quietly.
+  useEffect(() => {
+    const startAmbience = () => {
+      if (!ambienceRef.current) { ambienceRef.current = new TVAmbience(); ambienceRef.current.start() }
+    }
+    window.addEventListener('pointerdown', startAmbience, { once: true })
+    window.addEventListener('keydown', startAmbience, { once: true })
+    return () => {
+      window.removeEventListener('pointerdown', startAmbience)
+      window.removeEventListener('keydown', startAmbience)
+      ambienceRef.current?.stop()
+    }
+  }, [])
 
   useEffect(() => {
     fetch('/api/livetv')
@@ -372,6 +460,7 @@ export default function World3Broadcast() {
   }, [])
 
   const changeChannel = useCallback((dir: number) => {
+    ambienceRef.current?.blip()
     setSwitching(true)
     setTimeout(() => {
       setChIdx(i => (i + dir + CHANNELS.length) % CHANNELS.length)

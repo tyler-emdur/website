@@ -23,14 +23,56 @@ export interface LiveChannel {
   name: string
   country: string
   language: string | null
+  category: string | null
   url: string
 }
 
-const MAX_PER_COUNTRY = 4
-const VERIFIED_TARGET = 36
-const PROBE_BATCH = 90
+const MAX_PER_COUNTRY = 5
+const VERIFIED_TARGET = 30
+const PROBE_BATCH = 96
 const MAX_PROBE_ROUNDS = 2
-const PROBE_TIMEOUT_MS = 2500
+const PROBE_TIMEOUT_MS = 2200
+
+// The whole point of CH-flipping this TV is the feeling of stumbling into a
+// broadcast from the far side of the planet that has no business existing. So we
+// bias hard toward the genres that produce that feeling — a 24/7 fireplace, a
+// parliament nobody watches, home-shopping for a knife, a weather radar loop, a
+// televangelist at 3am — and away from bland international news/general feeds.
+const NOVELTY: Record<string, number> = {
+  relax: 12, religious: 9, shop: 9, legislative: 8, weather: 7, classic: 7,
+  culture: 6, outdoor: 6, kids: 6, animation: 6, cooking: 5, travel: 5,
+  music: 5, science: 4, education: 4, comedy: 4, documentary: 3, auto: 3,
+  family: 2, lifestyle: 2, entertainment: 1, movies: 1, series: 1, sports: 1,
+  news: -3, general: -2, business: -3,
+}
+
+const CATEGORY_LABEL: Record<string, string> = {
+  relax: 'AMBIENT LOOP', religious: 'DEVOTIONAL', shop: 'HOME SHOPPING',
+  legislative: 'STATE / PARLIAMENT', weather: 'WEATHER', classic: 'CLASSIC TV',
+  culture: 'CULTURE', outdoor: 'OUTDOOR', kids: 'CHILDREN', animation: 'ANIMATION',
+  cooking: 'COOKING', travel: 'TRAVEL', music: 'MUSIC', science: 'SCIENCE',
+  education: 'EDUCATION', comedy: 'COMEDY', documentary: 'DOCUMENTARY', auto: 'MOTORING',
+  news: 'NEWS', general: 'GENERAL', movies: 'CINEMA', series: 'SERIES', sports: 'SPORTS',
+}
+
+function scoreCategories(cats: string[]): number {
+  if (!cats.length) return 0
+  let s = 0
+  for (const c of cats) s += NOVELTY[c] ?? 0
+  return s
+}
+
+// Pick the most evocative category to show as the channel's genre tag.
+function pickCategory(cats: string[]): string | null {
+  let best: string | null = null
+  let bestW = -Infinity
+  for (const c of cats) {
+    const w = NOVELTY[c] ?? 0
+    if (w > bestW) { bestW = w; best = c }
+  }
+  if (!best) return null
+  return CATEGORY_LABEL[best] ?? best.toUpperCase()
+}
 
 function shuffle<T>(arr: T[]) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -39,7 +81,7 @@ function shuffle<T>(arr: T[]) {
   }
 }
 
-async function buildRawPool(): Promise<LiveChannel[]> {
+async function buildRawPool(): Promise<(LiveChannel & { score: number })[]> {
   const [channelsRes, streamsRes] = await Promise.all([
     fetch('https://iptv-org.github.io/api/channels.json', { cache: 'no-store' }),
     fetch('https://iptv-org.github.io/api/streams.json', { cache: 'no-store' }),
@@ -71,17 +113,26 @@ async function buildRawPool(): Promise<LiveChannel[]> {
     streamByChannel.set(s.channel, s.url)
   }
 
-  const byCountry = new Map<string, LiveChannel[]>()
+  const byCountry = new Map<string, (LiveChannel & { score: number })[]>()
   for (const [id, url] of streamByChannel) {
     const c = channelById.get(id)!
+    const cats = c.categories ?? []
     const list = byCountry.get(c.country) ?? []
-    list.push({ id, name: c.name, country: c.country, language: c.languages?.[0] ?? null, url })
+    list.push({
+      id, name: c.name, country: c.country,
+      language: c.languages?.[0] ?? null,
+      category: pickCategory(cats),
+      url,
+      score: scoreCategories(cats),
+    })
     byCountry.set(c.country, list)
   }
 
-  const pool: LiveChannel[] = []
+  // From each country take its most novel channels, so the world tour skews
+  // strange everywhere instead of defaulting to that country's news channel.
+  const pool: (LiveChannel & { score: number })[] = []
   for (const list of byCountry.values()) {
-    shuffle(list)
+    list.sort((a, b) => b.score - a.score)
     pool.push(...list.slice(0, MAX_PER_COUNTRY))
   }
   return pool
@@ -89,8 +140,7 @@ async function buildRawPool(): Promise<LiveChannel[]> {
 
 // A manifest URL being listed doesn't mean it actually loads — many are geo-blocked, dead,
 // or missing CORS. Probe candidates server-side (parallel, short-timeout) so the client only
-// ever receives channels that are already known to work, instead of hunting through dead
-// streams itself with multi-second timeouts per attempt.
+// ever receives channels that are already known to work.
 async function probeChannel(c: LiveChannel): Promise<boolean> {
   const controller = new AbortController()
   const t = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS)
@@ -106,31 +156,30 @@ async function probeChannel(c: LiveChannel): Promise<boolean> {
   }
 }
 
-async function buildVerifiedPool(raw: LiveChannel[]): Promise<LiveChannel[]> {
+async function buildVerifiedPool(raw: (LiveChannel & { score: number })[]): Promise<LiveChannel[]> {
   const verified: LiveChannel[] = []
-  const shuffled = [...raw]
-  shuffle(shuffled)
+  // Probe the most novel channels first (light in-band shuffle keeps it fresh),
+  // so the verified set we hand the TV is the weird stuff, not the leftovers.
+  const ordered = [...raw].sort((a, b) => b.score - a.score + (Math.random() - 0.5) * 3)
   let idx = 0
-  for (let round = 0; round < MAX_PROBE_ROUNDS && verified.length < VERIFIED_TARGET && idx < shuffled.length; round++) {
-    const batch = shuffled.slice(idx, idx + PROBE_BATCH)
+  for (let round = 0; round < MAX_PROBE_ROUNDS && verified.length < VERIFIED_TARGET && idx < ordered.length; round++) {
+    const batch = ordered.slice(idx, idx + PROBE_BATCH)
     idx += PROBE_BATCH
     const results = await Promise.all(batch.map(async c => (await probeChannel(c)) ? c : null))
-    for (const c of results) if (c) verified.push(c)
+    for (const c of results) {
+      if (c) verified.push({ id: c.id, name: c.name, country: c.country, language: c.language, category: c.category, url: c.url })
+    }
   }
   return verified
 }
 
-// unstable_cache persists the (small) result across serverless invocations on Vercel — unlike a
-// plain module-level variable, which resets on every cold start and would otherwise make nearly
-// every visit pay the full raw-fetch + probing cost. Split into two layers so a verified-pool
-// refresh (every 20m) usually reuses the still-fresh raw pool (6h) instead of redownloading it.
-const getRawPool = unstable_cache(buildRawPool, ['livetv-raw-pool'], { revalidate: 6 * 60 * 60 })
+const getRawPool = unstable_cache(buildRawPool, ['livetv-raw-pool-v2'], { revalidate: 6 * 60 * 60 })
 
 const getVerifiedPool = unstable_cache(async (): Promise<LiveChannel[]> => {
   const raw = await getRawPool()
   if (raw.length === 0) return []
   return buildVerifiedPool(raw)
-}, ['livetv-verified-pool'], { revalidate: 20 * 60 })
+}, ['livetv-verified-pool-v2'], { revalidate: 20 * 60 })
 
 export async function GET() {
   try {
