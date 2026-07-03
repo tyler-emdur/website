@@ -1,21 +1,22 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import HomeButton from './HomeButton'
-
-const CHANNELS = [2, 4, 7, 9, 13, 22, 44, 66, 88]
+import BroadcastScreen from './broadcast/BroadcastScreen'
+import { CHANNELS, DEFAULT_CHANNEL_ID } from '@/lib/broadcast/channels'
+import type { ChannelStatus } from '@/app/api/broadcast/route'
 
 // A distinct ambient glow per channel slot — purely cosmetic, gives each number its own identity.
 const SLOT_GLOW = [
   'rgba(180,80,40,0.10)',
-  'rgba(60,100,180,0.09)',
   'rgba(60,140,60,0.09)',
   'rgba(150,60,200,0.09)',
   'rgba(40,60,200,0.10)',
   'rgba(60,120,200,0.10)',
   'rgba(100,100,160,0.08)',
-  'rgba(0,160,80,0.08)',
   'rgba(160,120,60,0.10)',
 ]
+
+const FAVORITE_KEY = 'broadcast-favorite-tally'
 
 // ── Ambient room tone ────────────────────────────────────────────────────────
 // The sound of a CRT that is simply on, in a dark room: a low mains hum, the
@@ -137,7 +138,6 @@ function PhosphorOverlay() {
 
     const draw = () => {
       tick.current++
-      // Re-render noise only every 3 frames to avoid expense
       if (tick.current % 3 === 0) {
         const W = c.offsetWidth || 320
         const H = c.offsetHeight || 240
@@ -228,139 +228,19 @@ function StaticScreen() {
   return <canvas ref={ref} style={{ width:'100%', height:'100%', display:'block' }} />
 }
 
-// ── World Feed — every channel is a live broadcast from somewhere on Earth ───
-interface LiveChannelInfo { id: string; name: string; country: string; language: string | null; category: string | null; url: string }
-
-function regionName(code: string) {
-  try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code } catch { return code }
-}
-function languageName(code: string) {
-  try { return new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code } catch { return code }
-}
-function countryFlag(code: string) {
-  if (!/^[A-Za-z]{2}$/.test(code)) return ''
-  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 127397 + c.charCodeAt(0)))
-}
-
-// The server pre-verifies streams actually load before handing them to us, so a channel
-// usually connects on the first try — this only covers the rare case one goes dead between
-// verification and viewing.
-function WorldFeedChannel({ info, onDead, soundOn, onRequestSound }: { info: LiveChannelInfo | null | undefined; onDead: () => void; soundOn: boolean; onRequestSound: () => void }) {
-  const [live, setLive] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const onDeadRef = useRef(onDead)
-  useEffect(() => { onDeadRef.current = onDead }, [onDead])
-
-  // Sound has to start muted (autoplay policy) — once the user has unmuted once, keep new
-  // channels unmuted too, since browsers treat that as an established preference for the tab.
-  useEffect(() => {
-    if (videoRef.current) videoRef.current.muted = !soundOn
-  }, [soundOn, live])
-
-  useEffect(() => {
-    setLive(false)
-    if (!info) return
-    const video = videoRef.current
-    if (!video) return
-    video.muted = !soundOn
-    let cancelled = false
-    let resolved = false
-    let hls: import('hls.js').default | null = null
-
-    const fail = () => {
-      if (cancelled || resolved) return
-      resolved = true
-      onDeadRef.current()
-    }
-    const succeed = () => {
-      if (cancelled || resolved) return
-      resolved = true
-      setLive(true)
-    }
-
-    import('hls.js').then(({ default: Hls }) => {
-      if (cancelled) return
-      if (Hls.isSupported()) {
-        hls = new Hls({ maxBufferLength: 15 })
-        hls.loadSource(info.url)
-        hls.attachMedia(video)
-        hls.on(Hls.Events.ERROR, (_evt, data) => { if (data.fatal) fail() })
-        video.addEventListener('playing', succeed, { once: true })
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = info.url
-        video.addEventListener('playing', succeed, { once: true })
-        video.addEventListener('error', fail, { once: true })
-        video.play().catch(() => {})
-      } else {
-        fail()
-      }
-    }).catch(fail)
-
-    const timeout = setTimeout(fail, 5000)
-
-    return () => {
-      cancelled = true
-      clearTimeout(timeout)
-      video.removeEventListener('playing', succeed)
-      hls?.destroy()
-    }
-  }, [info])
-
-  const handleClick = () => {
-    if (!info) return
-    // First click just turns sound on (a real user gesture, so browsers allow it); once sound
-    // is already on, clicking spins the dial to a new channel instead.
-    if (!soundOn) { onRequestSound(); return }
-    onDeadRef.current()
-  }
-
+// A single frame that looks like it might belong to another channel — the
+// rare "channel 88 bleeds into the real channels" wink from the brief.
+const BLEED_CITIES = [...CHANNELS.filter(c => c.kind !== 'custom').map(c => c.city), '??']
+function BleedFlash() {
+  const city = useRef(BLEED_CITIES[Math.floor(Math.random() * BLEED_CITIES.length)])
   return (
-    <div onClick={handleClick} style={{ position:'relative', width:'100%', height:'100%', background:'#000', cursor: info ? 'pointer' : 'default' }}>
-      <video ref={videoRef} autoPlay muted={!soundOn} playsInline style={{
-        position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover',
-        opacity: live ? 1 : 0, transition:'opacity 0.3s ease',
-      }} />
-
-      {!live && <StaticScreen />}
-
-      {info === null && (
-        <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'monospace', color:'rgba(255,255,255,0.5)', fontSize:'clamp(7px,1vw,10px)', letterSpacing:'0.15em', textAlign:'center', padding:16 }}>
-          NO SIGNAL FROM ORBIT
-        </div>
-      )}
-
-      {!live && info && (
-        <div style={{ position:'absolute', bottom:8, left:8, right:8, fontFamily:'monospace', fontSize:'clamp(6px,0.9vw,9px)', color:'rgba(255,255,255,0.55)', letterSpacing:'0.1em' }}>
-          TUNING {countryFlag(info.country)} {regionName(info.country)}…
-        </div>
-      )}
-
-      {info === undefined && (
-        <div style={{ position:'absolute', bottom:8, left:8, right:8, fontFamily:'monospace', fontSize:'clamp(6px,0.9vw,9px)', color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em' }}>
-          LOCATING SATELLITE…
-        </div>
-      )}
-
-      {live && info && (
-        <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'14px 10px 8px', background:'linear-gradient(to top, rgba(0,0,0,0.75), transparent)', fontFamily:'monospace' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:6, color:'#fff', fontSize:'clamp(9px,1.3vw,13px)', fontWeight:700 }}>
-            <span>{countryFlag(info.country)}</span>
-            <span>{regionName(info.country)}</span>
-            <span style={{ background:'#cc0000', padding:'1px 5px', fontSize:'0.7em' }}>LIVE</span>
-            {info.category && (
-              <span style={{ background:'rgba(255,220,120,0.16)', color:'rgba(255,225,150,0.9)', padding:'1px 5px', fontSize:'0.62em', letterSpacing:'0.08em' }}>
-                {info.category}
-              </span>
-            )}
-          </div>
-          <div style={{ color:'rgba(255,255,255,0.7)', fontSize:'clamp(7px,1vw,10px)', marginTop:2, letterSpacing:'0.06em' }}>
-            {info.name}{info.language ? ` · ${languageName(info.language)}` : ''}
-          </div>
-          <div style={{ color:'rgba(255,255,255,0.3)', fontSize:'clamp(6px,0.85vw,8px)', marginTop:3, letterSpacing:'0.1em' }}>
-            {soundOn ? 'CLICK SCREEN TO SPIN THE DIAL' : 'CLICK SCREEN FOR SOUND 🔇'}
-          </div>
-        </div>
-      )}
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 13, background: '#000',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: 'monospace', fontSize: 'clamp(10px,1.6vw,14px)',
+      color: 'rgba(255,60,60,0.8)', letterSpacing: '0.2em',
+    }}>
+      {city.current}
     </div>
   )
 }
@@ -393,22 +273,43 @@ function DustParticles() {
   )
 }
 
-const MAX_ATTEMPTS_PER_SLOT = 6
+function loadFavoriteIndex(): number {
+  if (typeof window === 'undefined') return CHANNELS.findIndex(c => c.id === DEFAULT_CHANNEL_ID)
+  try {
+    const raw = localStorage.getItem(FAVORITE_KEY)
+    const tally: Record<string, number> = raw ? JSON.parse(raw) : {}
+    let best: string | null = null
+    let bestCount = 0
+    for (const [id, count] of Object.entries(tally)) {
+      if (count > bestCount) { best = id; bestCount = count }
+    }
+    const idx = best ? CHANNELS.findIndex(c => c.id === best) : -1
+    return idx >= 0 ? idx : CHANNELS.findIndex(c => c.id === DEFAULT_CHANNEL_ID)
+  } catch {
+    return CHANNELS.findIndex(c => c.id === DEFAULT_CHANNEL_ID)
+  }
+}
+
+function recordTune(id: string) {
+  if (typeof window === 'undefined') return
+  try {
+    const raw = localStorage.getItem(FAVORITE_KEY)
+    const tally: Record<string, number> = raw ? JSON.parse(raw) : {}
+    tally[id] = (tally[id] ?? 0) + 1
+    localStorage.setItem(FAVORITE_KEY, JSON.stringify(tally))
+  } catch { /* ignore */ }
+}
 
 // ── Main world ───────────────────────────────────────────────────────────────
 export default function World3Broadcast() {
-  const [chIdx, setChIdx] = useState(1)
+  const [chIdx, setChIdx] = useState(() => loadFavoriteIndex())
   const [switching, setSwitching] = useState(false)
   const [glitch, setGlitch] = useState<GlitchType>('none')
+  const [bleed, setBleed] = useState(false)
   const [tearY, setTearY] = useState(40)
   const [soundOn, setSoundOn] = useState(false)
-
-  // One pinned live channel per slot, assigned once the verified feed pool loads and kept
-  // stable across channel flips — undefined = still loading, null = exhausted/unavailable.
-  const [pins, setPins] = useState<(LiveChannelInfo | null | undefined)[]>(() => CHANNELS.map(() => undefined))
-  const feedPoolRef = useRef<LiveChannelInfo[]>([])
-  const usedIdsRef = useRef<Set<string>>(new Set())
-  const attemptsRef = useRef<number[]>(CHANNELS.map(() => 0))
+  const [status, setStatus] = useState<Record<string, ChannelStatus>>({})
+  const [dead, setDead] = useState<Record<string, boolean>>({})
   const ambienceRef = useRef<TVAmbience | null>(null)
 
   // Ambient room tone — starts on the first user gesture, then runs quietly.
@@ -425,39 +326,20 @@ export default function World3Broadcast() {
     }
   }, [])
 
+  // Server-checked liveness for the whole lineup, fetched once. Cached and
+  // cheap, so this typically resolves before anyone's looking closely —
+  // channels never block on it, they just start "on" and settle if a check
+  // says otherwise.
   useEffect(() => {
-    fetch('/api/livetv')
+    fetch('/api/broadcast')
       .then(r => r.json())
-      .then(d => {
-        const list: LiveChannelInfo[] = Array.isArray(d?.channels) ? d.channels : []
-        feedPoolRef.current = list
-        const shuffled = [...list]
-        for (let i = shuffled.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1))
-          ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-        }
-        const initial = CHANNELS.map((_, i) => shuffled[i] ?? null)
-        initial.forEach(c => { if (c) usedIdsRef.current.add(c.id) })
-        setPins(initial)
-      })
-      .catch(() => setPins(CHANNELS.map(() => null)))
+      .then(d => setStatus(d?.status ?? {}))
+      .catch(() => {})
   }, [])
 
-  const replaceChannel = useCallback((index: number) => {
-    attemptsRef.current[index] += 1
-    if (attemptsRef.current[index] > MAX_ATTEMPTS_PER_SLOT) {
-      setPins(prev => { const next = [...prev]; next[index] = null; return next })
-      return
-    }
-    const candidates = feedPoolRef.current.filter(c => !usedIdsRef.current.has(c.id))
-    if (candidates.length === 0) {
-      setPins(prev => { const next = [...prev]; next[index] = null; return next })
-      return
-    }
-    const pick = candidates[Math.floor(Math.random() * candidates.length)]
-    usedIdsRef.current.add(pick.id)
-    setPins(prev => { const next = [...prev]; next[index] = pick; return next })
-  }, [])
+  useEffect(() => {
+    recordTune(CHANNELS[chIdx].id)
+  }, [chIdx])
 
   const changeChannel = useCallback((dir: number) => {
     ambienceRef.current?.blip()
@@ -477,12 +359,19 @@ export default function World3Broadcast() {
     return () => window.removeEventListener('keydown', onKey)
   }, [changeChannel])
 
-  // Glitch scheduler — occasional random events
+  // Glitch scheduler — occasional random events, and much more rarely a
+  // "bleed" where the screen cuts to a one-frame flash of another channel.
   useEffect(() => {
     let tid: ReturnType<typeof setTimeout>
     const sched = () => {
       const delay = 9000 + Math.random() * 22000
       tid = setTimeout(() => {
+        if (Math.random() < 0.08) {
+          setBleed(true)
+          ambienceRef.current?.blip()
+          setTimeout(() => { setBleed(false); sched() }, 200)
+          return
+        }
         const types: GlitchType[] = ['roll', 'bright', 'tear', 'roll']
         const type = types[Math.floor(Math.random() * types.length)]
         if (type === 'tear') setTearY(18 + Math.floor(Math.random() * 55))
@@ -495,8 +384,10 @@ export default function World3Broadcast() {
     return () => clearTimeout(tid)
   }, [])
 
-  const ch = CHANNELS[chIdx]
-  const roomGlow = switching ? 'rgba(20,20,20,0.05)' : SLOT_GLOW[chIdx]
+  const channel = CHANNELS[chIdx]
+  const channelStatus = status[channel.id]
+  const effectiveLive = dead[channel.id] ? false : (channelStatus?.live ?? true)
+  const roomGlow = switching ? 'rgba(20,20,20,0.05)' : SLOT_GLOW[chIdx % SLOT_GLOW.length]
 
   return (
     <>
@@ -530,7 +421,6 @@ export default function World3Broadcast() {
         <div style={{
           position:'relative',
           width:'min(620px, 88vw)',
-          // Aged, yellowed plastic — warm cream-brown, not pure wood
           background:'linear-gradient(160deg, #3a3018 0%, #28200e 55%, #1c1808 85%, #161305 100%)',
           borderRadius:16,
           boxShadow:[
@@ -538,13 +428,11 @@ export default function World3Broadcast() {
             '0 8px 24px rgba(0,0,0,0.7)',
             'inset 0 1px 0 rgba(255,255,200,0.05)',
             'inset 0 -1px 0 rgba(0,0,0,0.4)',
-            // TV glow on cabinet face
             '0 0 120px rgba(140,110,50,0.12)',
           ].join(', '),
           padding:'22px 22px 16px',
         }}>
 
-          {/* Cabinet top — dust accumulation gradient */}
           <div style={{
             position:'absolute', top:0, left:0, right:0, height:24,
             background:'linear-gradient(to bottom, rgba(0,0,0,0.15), transparent)',
@@ -552,7 +440,6 @@ export default function World3Broadcast() {
             pointerEvents:'none',
           }} />
 
-          {/* Brand plate */}
           <div style={{
             position:'absolute', top:10, left:22,
             fontFamily:'monospace', fontSize:'clamp(5px,0.75vw,7px)',
@@ -564,7 +451,6 @@ export default function World3Broadcast() {
             <span style={{ opacity:0.6 }}>MODEL VT-14A</span>
           </div>
 
-          {/* Scratches overlay on cabinet */}
           <div style={{
             position:'absolute', inset:0,
             background:'repeating-linear-gradient(82deg, transparent, transparent 60px, rgba(255,255,255,0.007) 60px, rgba(255,255,255,0.007) 61px)',
@@ -572,7 +458,6 @@ export default function World3Broadcast() {
             pointerEvents:'none',
           }} />
 
-          {/* Screen bezel */}
           <div style={{
             background:'#0a0905',
             borderRadius:6,
@@ -584,28 +469,35 @@ export default function World3Broadcast() {
             ].join(', '),
             marginBottom:12,
           }}>
-            {/* Screen + CRT layers */}
             <div style={{
               position:'relative',
               aspectRatio:'4/3',
-              // CRT curvature — slightly rounded corners
               borderRadius:6,
               overflow:'hidden',
               background:'#000',
-              // Screen flicker via animation
               animation:'screen-flicker 6s ease-in-out infinite',
-              // Slight screen glow bleed
               boxShadow:'inset 0 0 30px rgba(0,0,0,0.5)',
             }}>
               {/* Channel content */}
               {switching
                 ? <StaticScreen />
-                : <WorldFeedChannel key={chIdx} info={pins[chIdx]} onDead={() => replaceChannel(chIdx)} soundOn={soundOn} onRequestSound={() => setSoundOn(true)} />}
+                : (
+                  <BroadcastScreen
+                    key={channel.id}
+                    channel={channel}
+                    live={effectiveLive}
+                    soundOn={soundOn}
+                    onRequestSound={() => setSoundOn(true)}
+                    onAdvance={() => changeChannel(1)}
+                    onDead={() => setDead(prev => ({ ...prev, [channel.id]: true }))}
+                    onSignalCut={() => ambienceRef.current?.blip()}
+                  />
+                )}
 
-              {/* Phosphor noise */}
+              {bleed && !switching && <BleedFlash />}
+
               <PhosphorOverlay />
 
-              {/* Scanlines — slight opacity variation creates imperfection */}
               <div style={{
                 position:'absolute', inset:0, pointerEvents:'none', zIndex:4,
                 background:`repeating-linear-gradient(
@@ -617,47 +509,55 @@ export default function World3Broadcast() {
                 )`,
               }} />
 
-              {/* CRT curvature mask — soft curved edges */}
               <div style={{
                 position:'absolute', inset:0, pointerEvents:'none', zIndex:5,
                 background:'radial-gradient(ellipse 100% 100% at center, transparent 72%, rgba(0,0,0,0.55) 88%, rgba(0,0,0,0.85) 100%)',
               }} />
 
-              {/* Chromatic aberration — very subtle color fringe at edges */}
               <div style={{
                 position:'absolute', inset:0, pointerEvents:'none', zIndex:6,
                 background:'linear-gradient(90deg, rgba(255,0,0,0.025) 0%, transparent 8%, transparent 92%, rgba(0,80,255,0.025) 100%)',
                 mixBlendMode:'screen',
               }} />
 
-              {/* Glass surface — diagonal glare highlight */}
               <div style={{
                 position:'absolute', inset:0, pointerEvents:'none', zIndex:7,
                 background:'linear-gradient(135deg, rgba(255,255,240,0.055) 0%, rgba(255,255,240,0.018) 28%, transparent 50%)',
               }} />
-              {/* Glass — faint edge highlight suggesting curvature */}
               <div style={{
                 position:'absolute', inset:0, pointerEvents:'none', zIndex:7,
                 boxShadow:'inset 1px 1px 0 rgba(255,255,220,0.06), inset -1px -1px 0 rgba(0,0,0,0.3)',
               }} />
 
-              {/* Glitch overlay */}
               <GlitchOverlay type={glitch} tearY={tearY} />
 
-              {/* Channel readout */}
+              {/* Channel readout — city name only. No flags, no categories, no explanations. */}
               <div style={{
                 position:'absolute', top:5, right:7, zIndex:8,
-                fontFamily:'monospace', fontSize:'clamp(9px,1.5vw,13px)',
+                fontFamily:'monospace', fontSize:'clamp(8px,1.3vw,11px)',
                 color:'rgba(34,197,94,0.65)',
                 letterSpacing:'0.08em',
                 textShadow:'0 0 10px rgba(34,197,94,0.4)',
-              }}>CH {ch}</div>
+                textAlign:'right',
+              }}>
+                CH {channel.ch}<br/>
+                <span style={{ opacity:0.75, fontSize:'0.85em' }}>{channel.city}</span>
+              </div>
+
+              {!soundOn && (
+                <div style={{
+                  position:'absolute', bottom:6, left:0, right:0, zIndex:8,
+                  textAlign:'center', fontFamily:'monospace', fontSize:'clamp(6px,0.85vw,8px)',
+                  color:'rgba(255,255,255,0.3)', letterSpacing:'0.1em',
+                }}>
+                  CLICK SCREEN FOR SOUND 🔇
+                </div>
+              )}
             </div>
           </div>
 
           {/* Controls row */}
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 4px' }}>
-            {/* Speaker grille — more bars, slightly worn */}
             <div style={{ display:'flex', gap:2.5 }}>
               {Array.from({length: 9}).map((_,i) => (
                 <div key={i} style={{
@@ -668,7 +568,6 @@ export default function World3Broadcast() {
               ))}
             </div>
 
-            {/* Channel selector */}
             <div style={{ display:'flex', gap:8, alignItems:'center' }}>
               <button onClick={() => changeChannel(-1)} style={{
                 width:34, height:34, borderRadius:'50%',
@@ -680,7 +579,7 @@ export default function World3Broadcast() {
               <div style={{
                 fontFamily:'monospace', fontSize:9, color:'rgba(255,240,160,0.2)',
                 letterSpacing:'0.08em', textAlign:'center', lineHeight:1.5,
-              }}>CH<br />{ch}</div>
+              }}>CH<br />{channel.ch}</div>
               <button onClick={() => changeChannel(1)} style={{
                 width:34, height:34, borderRadius:'50%',
                 background:'linear-gradient(145deg, #3a3020, #1e1808)',
@@ -690,7 +589,6 @@ export default function World3Broadcast() {
               }}>▼</button>
             </div>
 
-            {/* Power indicator + service sticker */}
             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
               <div style={{ width:7, height:7, borderRadius:'50%', background:'#1a4a1a', boxShadow:'0 0 5px rgba(30,180,30,0.6)' }} />
               <div style={{ fontFamily:'monospace', fontSize:6, color:'rgba(255,255,180,0.12)', letterSpacing:'0.08em' }}>PWR</div>
@@ -702,7 +600,6 @@ export default function World3Broadcast() {
             </div>
           </div>
 
-          {/* Legs */}
           <div style={{ display:'flex', justifyContent:'space-between', padding:'0 44px', marginTop:5 }}>
             {[0,1].map(i => (
               <div key={i} style={{
@@ -715,7 +612,6 @@ export default function World3Broadcast() {
           </div>
         </div>
 
-        {/* Instruction hint */}
         <div style={{
           position:'fixed', bottom:22, left:'50%', transform:'translateX(-50%)',
           fontFamily:'monospace', fontSize:8, color:'rgba(255,255,200,0.14)',
