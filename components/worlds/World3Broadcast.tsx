@@ -486,6 +486,7 @@ export default function World3Broadcast() {
                     key={channel.id}
                     channel={channel}
                     live={effectiveLive}
+                    preferredUrl={channelStatus?.url}
                     soundOn={soundOn}
                     onRequestSound={() => setSoundOn(true)}
                     onAdvance={() => changeChannel(1)}

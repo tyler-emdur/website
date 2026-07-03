@@ -112,6 +112,19 @@ function HlsChannel({ url, soundOn, onRequestSound, onAdvance, onDead }: {
     const fail = () => { if (cancelled || resolved) return; resolved = true; onDeadRef.current() }
     const succeed = () => { if (cancelled || resolved) return; resolved = true; setLive(true) }
 
+    // Two tuning deadlines: a short one for streams where nothing happens at
+    // all, and a long one for streams that are demonstrably alive but slow —
+    // some of these stations serve 10-second segments from the far side of
+    // the world, and the first one can take longer than 9s to arrive.
+    let timer = setTimeout(fail, 9000)
+    let extended = false
+    const stillTrying = () => {
+      if (extended || resolved || cancelled) return
+      extended = true
+      clearTimeout(timer)
+      timer = setTimeout(fail, 30000)
+    }
+
     import('hls.js').then(({ default: Hls }) => {
       if (cancelled) return
       if (Hls.isSupported()) {
@@ -119,6 +132,7 @@ function HlsChannel({ url, soundOn, onRequestSound, onAdvance, onDead }: {
         hls.loadSource(url)
         hls.attachMedia(video)
         hls.on(Hls.Events.ERROR, (_e, data) => { if (data.fatal) fail() })
+        hls.on(Hls.Events.LEVEL_LOADED, stillTrying)
         // hls.js attaches the stream via MediaSource, which doesn't reliably
         // trigger the <video autoplay> heuristic on its own — without an
         // explicit play() call the element just sits fully buffered and
@@ -127,6 +141,7 @@ function HlsChannel({ url, soundOn, onRequestSound, onAdvance, onDead }: {
         video.addEventListener('playing', succeed, { once: true })
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url
+        video.addEventListener('loadedmetadata', stillTrying, { once: true })
         video.addEventListener('playing', succeed, { once: true })
         video.addEventListener('error', fail, { once: true })
         video.play().catch(() => {})
@@ -135,10 +150,9 @@ function HlsChannel({ url, soundOn, onRequestSound, onAdvance, onDead }: {
       }
     }).catch(fail)
 
-    const timeout = setTimeout(fail, 9000)
     return () => {
       cancelled = true
-      clearTimeout(timeout)
+      clearTimeout(timer)
       video.removeEventListener('playing', succeed)
       hls?.destroy()
     }
@@ -158,6 +172,7 @@ function HlsChannel({ url, soundOn, onRequestSound, onAdvance, onDead }: {
 interface Props {
   channel: BroadcastChannel
   live: boolean // server-checked status; ignored for 'custom'
+  preferredUrl?: string // server-picked feed for this slot (primary or a live backup)
   soundOn: boolean
   onRequestSound: () => void
   onAdvance: () => void
@@ -165,18 +180,35 @@ interface Props {
   onSignalCut?: () => void
 }
 
-export default function BroadcastScreen({ channel, live, soundOn, onRequestSound, onAdvance, onDead, onSignalCut }: Props) {
+export default function BroadcastScreen({ channel, live, preferredUrl, soundOn, onRequestSound, onAdvance, onDead, onSignalCut }: Props) {
+  // The slot's full cascade, with whatever the server vouched for moved to the
+  // front. If the player still dies, fall through the rest before going dark.
+  const allUrls = channel.kind === 'hls' && channel.hlsUrl ? [channel.hlsUrl, ...(channel.altHlsUrls ?? [])] : []
+  const urls = preferredUrl && allUrls.includes(preferredUrl)
+    ? [preferredUrl, ...allUrls.filter(u => u !== preferredUrl)]
+    : allUrls
+  const [urlIdx, setUrlIdx] = useState(0)
+
   if (channel.kind === 'custom') {
     return <Channel88 onCut={onSignalCut} />
   }
 
-  if (!live) {
+  if (!live || urlIdx >= urls.length) {
     return <OffAirScreen city={channel.city} />
   }
 
   return (
     <ReceptionJitter reception={channel.reception}>
-      <HlsChannel url={channel.hlsUrl!} soundOn={soundOn} onRequestSound={onRequestSound} onAdvance={onAdvance} onDead={onDead} />
+      <HlsChannel
+        url={urls[urlIdx]}
+        soundOn={soundOn}
+        onRequestSound={onRequestSound}
+        onAdvance={onAdvance}
+        onDead={() => {
+          if (urlIdx < urls.length - 1) setUrlIdx(i => i + 1) // next feed, same city
+          else onDead()
+        }}
+      />
     </ReceptionJitter>
   )
 }
