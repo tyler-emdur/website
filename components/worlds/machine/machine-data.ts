@@ -20,20 +20,45 @@ export const EXPERIMENTS: MachineExperiment[] = [
 ]
 
 export const README_TXT = [
-  'README.TXT — last modified a while ago',
+  'README.TXT — DO NOT TURN THIS MACHINE OFF',
   '',
-  'This is (a reconstruction of) the machine where all of it started.',
+  'This machine hosts tyleremdur.com.',
   '',
-  'Version 1 of tyleremdur.com was written on a computer a lot like',
-  'this one: one page, one font, a list of links. The site you are',
-  'standing in grew out of that page the way a house grows out of',
-  'a tent.',
+  'Not a copy. Not a mirror. The site you are standing in right now',
+  'is served from this disk, out of a closet in Boulder, Colorado,',
+  'on a carrier of 88.7 MHz. SRVHOST.EXE keeps it on the air.',
   '',
-  'Poke around. DIR is a good place to start. Some sectors were',
-  'damaged and are still being recovered — come back later and',
-  'more of the disk will be readable.',
+  'The worlds live in C:\\WORLDS\\ as .WLD files. Opening one loads',
+  'it — the machine renders the world, and then you are in it.',
+  '',
+  'Some sectors were damaged in the outage and are still being',
+  'recovered. Boot the machine again; more of the disk becomes',
+  'readable each time.',
+  '',
+  'If you can read this file, you are already inside the server.',
   '',
   '— T. EMDUR, BOULDER CO',
+]
+
+// The .WLD files — every world on this site, as seen from the machine
+// that serves them. Opening one really does take you there.
+export interface WorldFile {
+  file: string
+  world: number
+  size: string
+  note: string
+}
+
+export const WORLD_FILES: WorldFile[] = [
+  { file: 'SURFACE.WLD',  world: 0,  size: '12K',   note: 'the front door' },
+  { file: 'UNIVERSE.WLD', world: 1,  size: '4,096K', note: 'the hub' },
+  { file: 'TRACE.WLD',    world: 2,  size: '881K',  note: 'boulder, from above' },
+  { file: 'BROADCST.WLD', world: 3,  size: '88K',   note: 'seven channels + one' },
+  { file: 'MACHINE.WLD',  world: 5,  size: '486K',  note: 'this machine' },
+  { file: 'GARAGE.WLD',   world: 6,  size: '124K',  note: '12:47 am, engine off' },
+  { file: 'ENDPOINT.WLD', world: 7,  size: '1K',    note: 'signal terminus' },
+  { file: 'ANSWERNG.WLD', world: 9,  size: '33K',   note: 'one new message' },
+  { file: 'AISLE_14.WLD', world: 14, size: '???K',  note: "it doesn't end" },
 ]
 
 // Recovered sectors: unreadable on early boots, heal over repeat visits.

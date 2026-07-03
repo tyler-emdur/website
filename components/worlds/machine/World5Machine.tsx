@@ -1,11 +1,11 @@
 'use client'
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
-import { useWorldStore } from '@/lib/world-store'
+import { useWorldStore, type WorldId } from '@/lib/world-store'
 import HomeButton from '../HomeButton'
 import { projects } from '@/lib/data/projects'
 import { PROGRAMS } from './programs'
 import {
-  EXPERIMENTS, README_TXT, RECOVERED_SECTORS, WEBSITE_V1_LINKS,
+  EXPERIMENTS, README_TXT, RECOVERED_SECTORS, WEBSITE_V1_LINKS, WORLD_FILES,
   garbleLine, getBootCount, recordBoot,
 } from './machine-data'
 
@@ -111,12 +111,101 @@ function ProgramWindow({ progId }: { progId: string }) {
   )
 }
 
+// ── SRVHOST.EXE — the server monitor ─────────────────────────────────────────
+// The reason this machine exists: it is serving tyleremdur.com, right now,
+// to you. The log is a mix of the truth (worlds you have actually visited,
+// damage that is actually on the disk) and the machine's own bookkeeping.
+const SRV_EPOCH = new Date('2024-11-09T23:47:00').getTime() // digger v1.0 deploy
+const SRV_CITIES = [
+  'BOULDER, CO', 'PORTLAND, OR', 'BROOKLYN, NY', 'DELHI', 'REYKJAVIK',
+  'TAIPEI', 'ULAANBAATAR', 'HAVANA', 'DUSHANBE', 'SAXON HARBOR, WI',
+]
+let srvSeq = 0
+function ServerMonitor({ bootCount }: { bootCount: number }) {
+  const visited = useWorldStore(s => s.visited)
+  const current = useWorldStore(s => s.current)
+  const [lines, setLines] = useState<{ id: number; text: string; color?: string }[]>([])
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const visitorRef = useRef(1200 + Math.floor(Math.random() * 90))
+
+  const stamp = () => {
+    const d = new Date()
+    return `[${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}]`
+  }
+
+  useEffect(() => {
+    const damaged = Math.max(0, RECOVERED_SECTORS.length - Math.max(0, bootCount - 1))
+    const boot: { id: number; text: string; color?: string }[] = [
+      { id: ++srvSeq, text: 'SRVHOST.EXE v4.86 — tyleremdur.com', color: '#5ecbe0' },
+      { id: ++srvSeq, text: `carrier 88.7 MHz · listening`, color: '#5ecbe0' },
+      { id: ++srvSeq, text: '' },
+      ...visited.map(w => ({ id: ++srvSeq, text: `${stamp()} cache warm · WORLD_${w}.WLD (visited this session)` })),
+      { id: ++srvSeq, text: `${stamp()} serving WORLD_${current}.WLD to visitor #1247 — that's you`, color: '#f6c66a' },
+      ...(damaged > 0 ? [{ id: ++srvSeq, text: `${stamp()} WARN ${damaged} damaged sector(s) — recovery on next boot`, color: '#f66' }] : []),
+    ]
+    setLines(boot)
+
+    let tid: ReturnType<typeof setTimeout>
+    const tick = () => {
+      tid = setTimeout(() => {
+        const r = Math.random()
+        let text = ''
+        let color: string | undefined
+        if (r < 0.42) {
+          const w = WORLD_FILES[Math.floor(Math.random() * WORLD_FILES.length)]
+          text = `${stamp()} GET /world/${w.world} · 200 · ${8 + Math.floor(Math.random() * 120)}ms`
+        } else if (r < 0.62) {
+          visitorRef.current += 1
+          text = `${stamp()} visitor #${visitorRef.current} connected (${SRV_CITIES[Math.floor(Math.random() * SRV_CITIES.length)]})`
+        } else if (r < 0.78) {
+          text = `${stamp()} carrier 88.7 MHz — signal ${Math.random() < 0.85 ? 'good' : 'drifting'}`
+        } else if (r < 0.9) {
+          text = `${stamp()} mem ${(6.2 + Math.random() * 1.6).toFixed(1)}MB/8.0MB · disk ok · fan ok`
+        } else if (r < 0.97) {
+          text = `${stamp()} keepalive → visitor #1247 · you're still here`
+          color = '#f6c66a'
+        } else {
+          text = `${stamp()} visitor #0000 connected (40.0150°N 105.2705°W)`
+          color = '#f472b6'
+        }
+        setLines(prev => [...prev.slice(-140), { id: ++srvSeq, text, color }])
+        tick()
+      }, 1200 + Math.random() * 2600)
+    }
+    tick()
+    return () => clearTimeout(tid)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }) }, [lines])
+
+  const upDays = Math.floor((Date.now() - SRV_EPOCH) / 86400000)
+
+  return (
+    <div style={{ background: '#000', height: '100%', display: 'flex', flexDirection: 'column', fontFamily: '"Courier New", monospace', fontSize: 12 }}>
+      <div style={{ padding: '5px 10px', borderBottom: '1px solid #1c3a2c', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <span style={{ color: '#5ecbe0' }}>STATUS: <span style={{ color: '#6ee86e' }}>ON THE AIR</span></span>
+        <span style={{ color: '#3a7a3a' }}>up {upDays}d · visitors now: 3</span>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3fae4a', boxShadow: '0 0 6px rgba(63,174,74,0.9)', animation: 'm5-blink 1.8s step-end infinite' }} />
+      </div>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '6px 10px', lineHeight: 1.65 }}>
+        {lines.map(l => <div key={l.id} style={{ color: l.color ?? '#3a9a4a', whiteSpace: 'pre-wrap' }}>{l.text || ' '}</div>)}
+      </div>
+      <div style={{ padding: '4px 10px', borderTop: '1px solid #1c3a2c', color: '#2a5a3a', fontSize: 10, flexShrink: 0 }}>
+        do not close this window. the site stays up either way, but still.
+      </div>
+    </div>
+  )
+}
+
 // ── terminal ──────────────────────────────────────────────────────────────────
 let termSeq = 0
-function Terminal({ bootCount, onRun, onSecret }: {
+function Terminal({ bootCount, onRun, onSecret, onWorld, onSrv }: {
   bootCount: number
   onRun: (progId: string) => void
   onSecret: (id: string) => void
+  onWorld: (world: number) => void
+  onSrv: () => void
 }) {
   const [out, setOut] = useState<{ id: number; text: string; color?: string }[]>([
     { id: ++termSeq, text: 'EMDUR/OS [Version 4.86]' },
@@ -150,7 +239,8 @@ function Terminal({ bootCount, onRun, onSecret }: {
     setOut(prev => [...prev, ...lines.map(text => ({ id: ++termSeq, text, color }))])
 
   const DIRS: Record<string, string[]> = {
-    'C:\\': ['PROJECTS       <DIR>', 'EXPERIMENTS    <DIR>', 'GAMES          <DIR>', 'RECOVERED      <DIR>', 'WEBSITE.V1     <DIR>', 'README.TXT', 'COMMITS.LOG'],
+    'C:\\': ['WORLDS         <DIR>', 'PROJECTS       <DIR>', 'EXPERIMENTS    <DIR>', 'GAMES          <DIR>', 'RECOVERED      <DIR>', 'WEBSITE.V1     <DIR>', 'SRVHOST.EXE', 'README.TXT', 'COMMITS.LOG'],
+    'C:\\WORLDS': WORLD_FILES.map(w => `${w.file.padEnd(14)}${w.size.padStart(7)}  ${w.note}`),
     'C:\\PROJECTS': projects.map(p => `${p.id.toUpperCase().slice(0, 12)}.EXE`),
     'C:\\EXPERIMENTS': EXPERIMENTS.map(e => e.title.toUpperCase().replace(/[^A-Z0-9.]/g, '_').slice(0, 20) + '.LOG'),
     'C:\\GAMES': ['MINESWEEPER.EXE', ...PROGRAMS.map(p => p.title.toUpperCase())],
@@ -166,7 +256,12 @@ function Terminal({ bootCount, onRun, onSecret }: {
     const arg = rest.join(' ').toUpperCase()
     switch (word.toUpperCase()) {
       case 'HELP':
-        print(['DIR · CD <dir> · TYPE <file> · RUN <program> · COMMITS · CLS · VER · FORMAT'])
+        print([
+          'DIR · CD <dir> · TYPE <file> · RUN <program> · COMMITS · CLS · VER · FORMAT',
+          '',
+          'This machine serves tyleremdur.com. The worlds are in C:\\WORLDS\\ —',
+          'RUN <name>.WLD loads one. RUN SRVHOST attaches the server monitor.',
+        ])
         break
       case 'VER':
         print([`EMDUR/OS 4.86 — boot #${bootCount} — uptime: longer than expected`])
@@ -205,6 +300,15 @@ function Terminal({ bootCount, onRun, onSecret }: {
         break
       }
       case 'RUN': {
+        if (arg.startsWith('SRVHOST')) { print(['SRVHOST.EXE is already running. Attaching monitor...']); onSrv(); break }
+        if (arg.endsWith('.WLD')) {
+          const wf = WORLD_FILES.find(w => w.file === arg)
+          if (!wf) { print([`No such world: ${arg}`], '#f66'); break }
+          if (wf.world === 5) { print(['MACHINE.WLD is already running. You are inside it.'], '#f6c66a'); break }
+          print([`Loading ${wf.file} — ${wf.note}...`], '#5ecbe0')
+          setTimeout(() => onWorld(wf.world), 900)
+          break
+        }
         if (arg.replace('.EXE', '').startsWith('MINESWEEP')) { print(['Starting Minesweeper...']); onRun('minesweeper'); break }
         const prog = PROGRAMS.find(p => p.title.toUpperCase().startsWith(arg.replace('.EXE', '')))
         if (prog) { print([`Starting ${prog.title}...`]); onRun(prog.id) }
@@ -260,13 +364,25 @@ function Terminal({ bootCount, onRun, onSecret }: {
 }
 
 // ── folder listings ───────────────────────────────────────────────────────────
-function FolderGrid({ items }: { items: { icon: string; label: string; onOpen: () => void; dim?: boolean }[] }) {
+// Click selects (like a real machine); double-click opens.
+function FolderGrid({ items }: { items: { icon: string; label: string; sub?: string; onOpen: () => void; dim?: boolean }[] }) {
+  const [sel, setSel] = useState<string | null>(null)
   return (
-    <div style={{ background: '#fff', height: '100%', overflowY: 'auto', padding: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, 84px)', gap: 8 }}>
+    <div onClick={() => setSel(null)} style={{ background: '#fff', height: '100%', overflowY: 'auto', padding: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, 92px)', gap: 8, alignContent: 'start' }}>
       {items.map(it => (
-        <div key={it.label} onDoubleClick={it.onOpen} onClick={it.onOpen} style={{ textAlign: 'center', cursor: 'pointer', opacity: it.dim ? 0.45 : 1 }}>
+        <div key={it.label}
+          onClick={e => { e.stopPropagation(); setSel(it.label) }}
+          onDoubleClick={e => { e.stopPropagation(); it.onOpen() }}
+          style={{ textAlign: 'center', cursor: 'pointer', opacity: it.dim ? 0.45 : 1, userSelect: 'none' }}>
           <div style={{ fontSize: 26 }}>{it.icon}</div>
-          <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 9, color: '#000', wordBreak: 'break-all', lineHeight: 1.3, marginTop: 2 }}>{it.label}</div>
+          <div style={{
+            fontFamily: 'Arial, sans-serif', fontSize: 9, wordBreak: 'break-all', lineHeight: 1.3, marginTop: 2,
+            display: 'inline-block', padding: '1px 3px',
+            background: sel === it.label ? '#000080' : 'transparent',
+            color: sel === it.label ? '#fff' : '#000',
+            outline: sel === it.label ? '1px dotted #ff0' : 'none',
+          }}>{it.label}</div>
+          {it.sub && <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 8, color: '#666', marginTop: 1 }}>{it.sub}</div>}
         </div>
       ))}
     </div>
@@ -274,23 +390,39 @@ function FolderGrid({ items }: { items: { icon: string; label: string; onOpen: (
 }
 
 // ── draggable window ──────────────────────────────────────────────────────────
-interface Win { id: string; title: string; node: ReactNode; x: number; y: number; w: number; h: number; z: number }
+interface Win {
+  id: string; title: string; node: ReactNode
+  x: number; y: number; w: number; h: number; z: number
+  min?: boolean; max?: boolean
+}
 
-function MachineWindow({ win, onFocus, onClose }: { win: Win; onFocus: () => void; onClose: () => void }) {
+const winBtn: React.CSSProperties = {
+  width: 18, height: 15, background: GRAY, border: '1px outset #fff',
+  fontSize: 9, lineHeight: 1, cursor: 'pointer', color: '#000',
+  fontFamily: 'Arial, sans-serif', padding: 0,
+}
+
+function MachineWindow({ win, onFocus, onClose, onMin, onMax, onMoved }: {
+  win: Win; onFocus: () => void; onClose: () => void; onMin: () => void; onMax: () => void
+  onMoved: (x: number, y: number) => void
+}) {
   const elRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null)
   const posRef = useRef({ x: win.x, y: win.y })
 
   return (
     <div ref={elRef} onPointerDown={onFocus} style={{
-      position: 'absolute', left: win.x, top: win.y, width: win.w, height: win.h,
-      maxWidth: 'calc(100% - 16px)', maxHeight: 'calc(100% - 46px)',
-      display: 'flex', flexDirection: 'column', zIndex: win.z,
+      position: 'absolute',
+      left: win.max ? 4 : win.x, top: win.max ? 4 : win.y,
+      width: win.max ? 'calc(100% - 8px)' : win.w, height: win.max ? 'calc(100% - 38px)' : win.h,
+      maxWidth: 'calc(100% - 8px)', maxHeight: 'calc(100% - 38px)',
+      display: win.min ? 'none' : 'flex', flexDirection: 'column', zIndex: win.z,
       border: '2px outset #fff', background: GRAY,
       boxShadow: '2px 2px 0 rgba(0,0,0,0.5)',
     }}>
       <div
         onPointerDown={e => {
+          if (win.max) return
           dragRef.current = { sx: e.clientX, sy: e.clientY, ox: posRef.current.x, oy: posRef.current.y }
           e.currentTarget.setPointerCapture(e.pointerId)
         }}
@@ -301,7 +433,11 @@ function MachineWindow({ win, onFocus, onClose }: { win: Win; onFocus: () => voi
           posRef.current = { x: nx, y: ny }
           if (elRef.current) { elRef.current.style.left = nx + 'px'; elRef.current.style.top = ny + 'px' }
         }}
-        onPointerUp={() => { dragRef.current = null }}
+        onPointerUp={() => {
+          if (dragRef.current) onMoved(posRef.current.x, posRef.current.y)
+          dragRef.current = null
+        }}
+        onDoubleClick={onMax}
         style={{
           background: 'linear-gradient(90deg, #000080, #1084d0)', color: '#fff',
           padding: '3px 4px 3px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -309,11 +445,11 @@ function MachineWindow({ win, onFocus, onClose }: { win: Win; onFocus: () => voi
         }}
       >
         <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{win.title}</span>
-        <button
-          onClick={onClose}
-          onPointerDown={e => e.stopPropagation()}
-          style={{ width: 18, height: 15, background: GRAY, border: '1px outset #fff', fontSize: 9, lineHeight: 1, cursor: 'pointer', color: '#000', fontFamily: 'Arial, sans-serif' }}
-        >×</button>
+        <span style={{ display: 'flex', gap: 2 }} onPointerDown={e => e.stopPropagation()}>
+          <button onClick={onMin} style={winBtn}>▁</button>
+          <button onClick={onMax} style={winBtn}>{win.max ? '❐' : '□'}</button>
+          <button onClick={onClose} style={{ ...winBtn, marginLeft: 2 }}>×</button>
+        </span>
       </div>
       <div style={{ flex: 1, overflow: 'hidden', borderTop: '1px solid #808080', minHeight: 0 }}>
         {win.node}
@@ -344,7 +480,8 @@ function BootScreen({ bootCount, onDone }: { bootCount: number; onDone: () => vo
       { t: 3500, line: bootCount === 1 ? 'Improper shutdown detected. Running CHKDSK...' : `Boot #${bootCount}. Resuming recovery...` },
       { t: 4300, line: healedAll ? 'Disk recovery complete. All sectors readable.' : `CHKDSK: ${damaged} damaged sector(s) remain in C:\\RECOVERED\\` },
       { t: 4700, line: '' },
-      { t: 4900, line: 'Starting EMDUR/OS...' },
+      { t: 4900, line: 'SRVHOST.EXE ........ OK — tyleremdur.com on the air (88.7 MHz)' },
+      { t: 5300, line: 'Starting EMDUR/OS...' },
     ]
     const timers = SCRIPT.map(({ t, line }) =>
       setTimeout(() => { if (line !== 'MEM') setLines(prev => [...prev, line]) }, t)
@@ -394,8 +531,9 @@ function ShutdownScreen({ onOut }: { onOut: () => void }) {
       <div style={{ fontFamily: '"Courier New", monospace', fontSize: 'clamp(16px, 3vw, 26px)', color: '#ff8800', textAlign: 'center', lineHeight: 1.6 }}>
         It&apos;s now safe to turn off<br />your computer.
       </div>
-      <div style={{ fontFamily: '"Courier New", monospace', fontSize: 10, color: 'rgba(255,136,0,0.4)' }}>
-        (click to leave the machine)
+      <div style={{ fontFamily: '"Courier New", monospace', fontSize: 10, color: 'rgba(255,136,0,0.4)', textAlign: 'center', lineHeight: 1.8 }}>
+        (click to leave the machine)<br />
+        <span style={{ opacity: 0.6 }}>the site comes back up. it always does.</span>
       </div>
     </div>
   )
@@ -593,6 +731,8 @@ export default function World5Machine() {
   const [windows, setWindows] = useState<Win[]>([])
   const [startOpen, setStartOpen] = useState(false)
   const [saver, setSaver] = useState(false)
+  const [confirmOff, setConfirmOff] = useState(false)
+  const [selIcon, setSelIcon] = useState<string | null>(null)
   const zRef = useRef(10)
   const openCount = useRef(0)
   const lastActiveRef = useRef(0)
@@ -627,11 +767,22 @@ export default function World5Machine() {
 
   const close = useCallback((id: string) => setWindows(prev => prev.filter(w => w.id !== id)), [])
 
+  const minimize = useCallback((id: string) =>
+    setWindows(prev => prev.map(w => w.id === id ? { ...w, min: true } : w)), [])
+
+  const toggleMax = useCallback((id: string) => {
+    zRef.current++
+    setWindows(prev => prev.map(w => w.id === id ? { ...w, max: !w.max, min: false, z: zRef.current } : w))
+  }, [])
+
+  const moved = useCallback((id: string, x: number, y: number) =>
+    setWindows(prev => prev.map(w => w.id === id ? { ...w, x, y } : w)), [])
+
   const open = useCallback((id: string, title: string, node: ReactNode, w = 420, h = 320) => {
     setWindows(prev => {
       if (prev.some(win => win.id === id)) {
         zRef.current++
-        return prev.map(win => win.id === id ? { ...win, z: zRef.current } : win)
+        return prev.map(win => win.id === id ? { ...win, z: zRef.current, min: false } : win)
       }
       zRef.current++
       const n = openCount.current++
@@ -654,6 +805,40 @@ export default function World5Machine() {
 
   const healedCount = Math.min(RECOVERED_SECTORS.length, Math.max(0, bootCount - 1))
 
+  // Opening a .WLD file really loads that world. The machine serves the
+  // site; from here you can go anywhere on it.
+  const loadWorld = useCallback((world: number) => {
+    if (world === 5) {
+      open('wld-running', 'MACHINE.WLD', (
+        <Notepad lines={[
+          'Cannot load MACHINE.WLD:',
+          '',
+          'This world is already running.',
+          'You are inside it right now.',
+        ]} />
+      ), 340, 180)
+      return
+    }
+    findSecret('machine-opened-a-wld')
+    navigateTo(world as WorldId, { type: 'fold' })
+  }, [open, findSecret, navigateTo])
+
+  const openWorlds = useCallback(() => {
+    open('dir:worlds', 'C:\\WORLDS — the whole site lives here', (
+      <FolderGrid items={WORLD_FILES.map(wf => ({
+        icon: wf.world === 5 ? '💾' : '🌐',
+        label: wf.file,
+        sub: `${wf.size} · ${wf.note}`,
+        onOpen: () => loadWorld(wf.world),
+      }))} />
+    ), 520, 330)
+  }, [open, loadWorld])
+
+  const openSrvhost = useCallback(() => {
+    findSecret('machine-found-the-server')
+    open('srvhost', 'SRVHOST.EXE — tyleremdur.com', <ServerMonitor bootCount={bootCount} />, 560, 380)
+  }, [open, findSecret, bootCount])
+
   const openRecovered = useCallback(() => {
     open('dir:recovered', 'C:\\RECOVERED', (
       <FolderGrid items={RECOVERED_SECTORS.map((s, i) => ({
@@ -672,26 +857,32 @@ export default function World5Machine() {
   const DESKTOP_ICONS = [
     { icon: '💻', label: 'My Computer', act: () => open('dir:root', 'C:\\', (
       <FolderGrid items={[
+        { icon: '🌐', label: 'WORLDS', onOpen: openWorlds },
         { icon: '📁', label: 'PROJECTS', onOpen: () => openIcon('projects') },
         { icon: '📁', label: 'EXPERIMENTS', onOpen: () => openIcon('experiments') },
         { icon: '📁', label: 'GAMES', onOpen: () => openIcon('games') },
         { icon: '📁', label: 'RECOVERED', onOpen: openRecovered },
+        { icon: '📡', label: 'SRVHOST.EXE', onOpen: openSrvhost },
         { icon: '📄', label: 'README.TXT', onOpen: () => openIcon('readme') },
         { icon: '🌐', label: 'WEBSITE.V1', onOpen: () => openIcon('v1') },
       ]} />
-    ), 400, 240) },
+    ), 440, 260) },
+    { icon: '📡', label: 'SRVHOST.EXE', act: openSrvhost },
+    { icon: '🌐', label: 'WORLDS', act: openWorlds },
     { icon: '⌨', label: 'TERMINAL', act: () => openIcon('terminal') },
-    { icon: '💣', label: 'MINESWEEPER', act: openMinesweeper },
     { icon: '📄', label: 'README.TXT', act: () => openIcon('readme') },
+    { icon: '💣', label: 'MINESWEEPER', act: openMinesweeper },
     { icon: '📁', label: 'PROGRAMS', act: () => openIcon('games') },
     { icon: '🗒', label: 'RECOVERED', act: openRecovered },
-    { icon: '🌐', label: 'WEBSITE.V1', act: () => openIcon('v1') },
   ]
 
   function openIcon(kind: string) {
     switch (kind) {
       case 'terminal':
-        open('terminal', 'MS-DOS Prompt — EMDUR/OS', <Terminal bootCount={bootCount} onRun={openProgram} onSecret={findSecret} />, 520, 340)
+        open('terminal', 'MS-DOS Prompt — EMDUR/OS', (
+          <Terminal bootCount={bootCount} onRun={openProgram} onSecret={findSecret}
+            onWorld={loadWorld} onSrv={openSrvhost} />
+        ), 520, 340)
         break
       case 'readme':
         open('readme', 'README.TXT — Notepad', <Notepad lines={README_TXT} />, 440, 340)
@@ -732,54 +923,74 @@ export default function World5Machine() {
 
   function shutDown() {
     setStartOpen(false)
+    setConfirmOff(false)
     shutdownChime()
     setPhase('shutdown')
   }
 
   return (
-    <div data-world="5" style={{ position: 'fixed', inset: 0, background: '#1a1614', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+    <div data-world="5" style={{ position: 'fixed', inset: 0, background: '#000', overflow: 'hidden' }}>
       <style>{`
         @keyframes m5-blink { 50% { opacity: 0 } }
         .m5-blink { animation: m5-blink 0.9s step-end infinite }
-        .m5-icon:hover .m5-icon-lbl { background: #000080; }
       `}</style>
       <HomeButton />
 
-      {/* the physical monitor */}
-      <div style={{
-        position: 'relative',
-        width: 'min(1060px, calc(100vw - 28px))',
-        height: 'min(760px, calc(100vh - 28px))',
-        background: 'linear-gradient(165deg, #d8d0bc, #b8b09c, #a8a08c)',
-        borderRadius: 14,
-        padding: '18px 18px 34px',
-        boxShadow: '0 30px 80px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.35)',
-      }}>
-        {/* screen */}
-        <div style={{
-          position: 'relative', width: '100%', height: '100%',
-          background: phase === 'desktop' ? TEAL : '#000',
-          borderRadius: 6, overflow: 'hidden',
-          boxShadow: 'inset 0 0 40px rgba(0,0,0,0.45), inset 0 0 0 2px #222',
-        }}>
+      {/* the screen IS the viewport — you're not looking at this machine, you're on it */}
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div
+          onClick={() => setSelIcon(null)}
+          style={{
+            position: 'relative', width: '100%', height: '100%',
+            background: phase === 'desktop' ? TEAL : '#000',
+            overflow: 'hidden',
+          }}>
           {phase === 'boot' && <BootScreen bootCount={bootCount} onDone={() => setPhase('desktop')} />}
           {phase === 'shutdown' && <ShutdownScreen onOut={() => navigateTo(1, { type: 'fold' })} />}
 
           {phase === 'desktop' && (
             <>
-              {/* desktop icons */}
-              <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', flexDirection: 'column', gap: 14, zIndex: 1 }}>
+              {/* wallpaper texture + reminder of what this box is doing */}
+              <div style={{
+                position: 'absolute', inset: 0, pointerEvents: 'none',
+                backgroundImage: 'radial-gradient(rgba(0,0,0,0.10) 1px, transparent 1px)',
+                backgroundSize: '6px 6px',
+              }} />
+              <div style={{
+                position: 'absolute', right: 14, bottom: 40, pointerEvents: 'none',
+                fontFamily: '"Courier New", monospace', fontSize: 11, textAlign: 'right',
+                color: 'rgba(255,255,255,0.28)', lineHeight: 1.7,
+              }}>
+                EMDUR/OS 4.86<br />serving tyleremdur.com · 88.7 MHz<br />do not turn off
+              </div>
+
+              {/* desktop icons — click selects, double-click opens */}
+              <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', flexDirection: 'column', gap: 13, zIndex: 1, maxHeight: 'calc(100% - 60px)', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 {DESKTOP_ICONS.map(ic => (
-                  <div key={ic.label} className="m5-icon" onClick={ic.act} style={{ width: 74, textAlign: 'center', cursor: 'pointer' }}>
+                  <div key={ic.label}
+                    onClick={e => { e.stopPropagation(); setSelIcon(ic.label) }}
+                    onDoubleClick={e => { e.stopPropagation(); setSelIcon(null); ic.act() }}
+                    style={{ width: 78, textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}>
                     <div style={{ fontSize: 26, filter: 'drop-shadow(1px 1px 1px rgba(0,0,0,0.5))' }}>{ic.icon}</div>
-                    <div className="m5-icon-lbl" style={{ fontFamily: 'Arial, sans-serif', fontSize: 9, color: '#fff', textShadow: '1px 1px 1px #000', padding: '1px 2px', marginTop: 2 }}>{ic.label}</div>
+                    <div style={{
+                      fontFamily: 'Arial, sans-serif', fontSize: 9, color: '#fff', textShadow: '1px 1px 1px #000',
+                      padding: '1px 3px', marginTop: 2, display: 'inline-block',
+                      background: selIcon === ic.label ? '#000080' : 'transparent',
+                      outline: selIcon === ic.label ? '1px dotted rgba(255,255,255,0.7)' : 'none',
+                    }}>{ic.label}</div>
                   </div>
                 ))}
               </div>
 
               {/* windows */}
               {windows.map(w => (
-                <MachineWindow key={w.id} win={w} onFocus={() => focus(w.id)} onClose={() => close(w.id)} />
+                <MachineWindow key={w.id} win={w}
+                  onFocus={() => focus(w.id)}
+                  onClose={() => close(w.id)}
+                  onMin={() => minimize(w.id)}
+                  onMax={() => toggleMax(w.id)}
+                  onMoved={(x, y) => moved(w.id, x, y)}
+                />
               ))}
 
               {/* start menu */}
@@ -790,6 +1001,8 @@ export default function World5Machine() {
                   fontFamily: 'Arial, sans-serif', fontSize: 11,
                 }}>
                   {[
+                    { label: '📡  Server Monitor', act: () => { openSrvhost(); setStartOpen(false) } },
+                    { label: '🌐  Worlds', act: () => { openWorlds(); setStartOpen(false) } },
                     { label: '⌨  MS-DOS Prompt', act: () => { openIcon('terminal'); setStartOpen(false) } },
                     { label: '💣  Minesweeper', act: () => { openMinesweeper(); setStartOpen(false) } },
                     { label: '🕹  Games', act: () => { openIcon('games'); setStartOpen(false) } },
@@ -803,7 +1016,7 @@ export default function World5Machine() {
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#000' }}
                     >{item.label}</div>
                   ))}
-                  <div onClick={shutDown}
+                  <div onClick={() => { setStartOpen(false); setConfirmOff(true) }}
                     style={{ padding: '7px 10px', cursor: 'pointer', color: '#000', fontWeight: 700 }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#000080'; e.currentTarget.style.color = '#fff' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#000' }}
@@ -823,13 +1036,21 @@ export default function World5Machine() {
                 }}>⊞ Start</button>
                 <div style={{ width: 2, height: 18, borderLeft: '1px solid #808080', borderRight: '1px solid #fff', margin: '0 2px' }} />
                 <div style={{ display: 'flex', gap: 3, overflow: 'hidden', flex: 1 }}>
-                  {windows.map(w => (
-                    <div key={w.id} onClick={() => focus(w.id)} style={{
-                      padding: '2px 8px', background: GRAY, border: '2px outset #fff',
-                      fontFamily: 'Arial, sans-serif', fontSize: 10, cursor: 'pointer',
-                      maxWidth: 130, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flexShrink: 0,
-                    }}>{w.title}</div>
-                  ))}
+                  {windows.map(w => {
+                    const topZ = Math.max(...windows.filter(x => !x.min).map(x => x.z), 0)
+                    const active = !w.min && w.z === topZ
+                    return (
+                      <div key={w.id}
+                        onClick={() => { if (w.min) { focus(w.id); setWindows(prev => prev.map(x => x.id === w.id ? { ...x, min: false } : x)) } else if (active) minimize(w.id); else focus(w.id) }}
+                        style={{
+                          padding: '2px 8px', background: active ? '#d8d8d8' : GRAY,
+                          border: active ? '2px inset #fff' : '2px outset #fff',
+                          fontFamily: 'Arial, sans-serif', fontSize: 10, cursor: 'pointer',
+                          fontWeight: active ? 700 : 400,
+                          maxWidth: 130, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', flexShrink: 0,
+                        }}>{w.title}</div>
+                    )
+                  })}
                 </div>
                 <div style={{ padding: '2px 8px', border: '1px inset #808080', fontFamily: 'Arial, sans-serif', fontSize: 10 }}>
                   boot #{bootCount}
@@ -839,29 +1060,51 @@ export default function World5Machine() {
                 </div>
               </div>
 
+              {/* shut down? the machine would like a word first */}
+              {confirmOff && (
+                <div style={{ position: 'absolute', inset: 0, zIndex: 9200, background: 'rgba(0,0,0,0.25)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 'min(400px, 92vw)', background: GRAY, border: '2px outset #fff', boxShadow: '3px 3px 0 rgba(0,0,0,0.5)' }}>
+                    <div style={{ background: 'linear-gradient(90deg, #000080, #1084d0)', color: '#fff',
+                      padding: '3px 8px', fontFamily: 'Arial, sans-serif', fontSize: 11, fontWeight: 700 }}>
+                      Shut Down EMDUR/OS
+                    </div>
+                    <div style={{ padding: '16px 16px 6px', display: 'flex', gap: 12, fontFamily: 'Arial, sans-serif', fontSize: 12, color: '#000', lineHeight: 1.6 }}>
+                      <div style={{ fontSize: 28 }}>⚠️</div>
+                      <div>
+                        SRVHOST.EXE is still serving <b>3 visitors</b>.<br />
+                        One of them appears to be you.<br /><br />
+                        If this machine shuts down, the site you are standing in goes with it.
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '10px 16px 14px' }}>
+                      <button onClick={() => { findSecret('machine-pulled-the-plug'); shutDown() }}
+                        style={{ padding: '4px 14px', background: GRAY, border: '2px outset #fff', fontFamily: 'Arial, sans-serif', fontSize: 11, cursor: 'pointer' }}>
+                        Shut down anyway
+                      </button>
+                      <button onClick={() => setConfirmOff(false)}
+                        style={{ padding: '4px 14px', background: GRAY, border: '2px outset #fff', fontFamily: 'Arial, sans-serif', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* idle screensaver */}
               {saver && <Screensaver onWake={() => { lastActiveRef.current = performance.now(); setSaver(false) }} />}
             </>
           )}
 
-          {/* CRT glass */}
+          {/* CRT glass — the one reminder that this screen is 30 years old */}
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9500,
             background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px)',
           }} />
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 9500,
-            background: 'radial-gradient(ellipse 100% 100% at center, transparent 78%, rgba(0,0,0,0.28) 100%)',
+            background: 'radial-gradient(ellipse 100% 100% at center, transparent 78%, rgba(0,0,0,0.32) 100%)',
           }} />
-        </div>
-
-        {/* bezel details */}
-        <div style={{ position: 'absolute', bottom: 9, left: 26, fontFamily: 'Arial, sans-serif', fontSize: 10, fontWeight: 700, color: '#6a6254', letterSpacing: 2 }}>
-          EMDUR <span style={{ fontWeight: 400 }}>486DX2</span>
-        </div>
-        <div style={{ position: 'absolute', bottom: 12, right: 30, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 7, color: '#6a6254' }}>POWER</div>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: phase === 'shutdown' ? '#553311' : '#3fae4a', boxShadow: phase === 'shutdown' ? 'none' : '0 0 6px rgba(63,174,74,0.8)' }} />
         </div>
       </div>
     </div>
