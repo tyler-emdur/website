@@ -12,7 +12,7 @@ import { SPACING, RAIL_X, getSlot, type Slot, type Shape } from './aisle-data'
 // the wronger it gets — lights thin out, the color drifts green, the stock
 // gives way to gaps, and something red glows up ahead that you never reach.
 
-const WINDOW_BEHIND = 3
+const WINDOW_BEHIND = 6
 const WINDOW_AHEAD = 24
 const MAX_SPEED = 6.5
 const ACCEL = 18
@@ -112,8 +112,11 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
     for (let idx = startIndex; idx <= endIndex; idx++) {
       const z = -idx * SPACING
       const zone = zoneAt(idx)
+      // déjà-vu bands: stretches where every slot stocks the exact same
+      // shelves, the same way, again and again
+      const dejavu = (idx >= 72 && idx <= 80) || (idx >= 132 && idx <= 144)
       for (const side of [-1, 1]) {
-        const rnd = srand(idx * 2 + (side + 1) / 2)
+        const rnd = srand(dejavu ? 4242 + (side + 1) / 2 : idx * 2 + (side + 1) / 2)
         const faceX = side * (AISLE_HALF + 0.1)
         const backX = side * (AISLE_HALF + 0.1 + SHELF_DEPTH)
 
@@ -278,20 +281,30 @@ function Fixture({ index }: { index: number }) {
   useFrame((state) => {
     const m = matRef.current
     if (!m) return
-    if (dead) { m.emissiveIntensity = 0.02; return }
-    let v = 1
-    if (flickery) {
-      const t = state.clock.elapsedTime * 14 + phase
-      v = Math.sin(t) * Math.sin(t * 3.7) > -0.2 ? 1 : 0.16
-      if (Math.sin(t * 0.31) > 0.9) v = 0.04                                 // long dead spells
-      if (Math.sin(t * 2.3 + phase) * Math.sin(t * 7.1) > 0.72) v = 1.7      // fluorescent surge
+    // fixtures you have already passed power down behind you — the store
+    // does not stay lit for people who are done with it
+    const camIdx = Math.max(0, -state.camera.position.z / SPACING)
+    const behind = index < camIdx - 2.5
+    let target: number
+    if (dead) target = 0.02
+    else {
+      let v = 1
+      if (flickery) {
+        const t = state.clock.elapsedTime * 14 + phase
+        v = Math.sin(t) * Math.sin(t * 3.7) > -0.2 ? 1 : 0.16
+        if (Math.sin(t * 0.31) > 0.9) v = 0.04                                 // long dead spells
+        if (Math.sin(t * 2.3 + phase) * Math.sin(t * 7.1) > 0.72) v = 1.7      // fluorescent surge
+      }
+      target = v * (1.4 - zone.decay * 0.4)
     }
-    m.emissiveIntensity = v * (1.4 - zone.decay * 0.4)
+    if (behind) target = 0.04
+    // slow lerp so lights visibly die off rather than snap
+    m.emissiveIntensity += (target - m.emissiveIntensity) * (behind ? 0.06 : 0.5)
   })
   // fluorescent drifts green as the aisle decays
   const tube = zone.decay > 0.4 ? '#d8f0d0' : '#f2f6f8'
   return (
-    <group position={[0, CEIL_Y, -index * SPACING]}>
+    <group position={[0, CEIL_Y - zone.dark * 0.45, -index * SPACING]}>
       <mesh>
         <boxGeometry args={[1.7, 0.07, 0.42]} />
         <meshStandardMaterial ref={matRef} color="#20242a" emissive={tube} emissiveIntensity={1.2} />
@@ -418,7 +431,11 @@ function Floor() {
 function Ceiling() {
   const ref = useRef<Mesh>(null)
   useFrame(({ camera }) => {
-    if (ref.current) ref.current.position.z = camera.position.z
+    if (!ref.current) return
+    ref.current.position.z = camera.position.z
+    // the ceiling comes down to meet you, slowly, the deeper you walk
+    const idx = Math.max(0, -camera.position.z / SPACING)
+    ref.current.position.y = CEIL_Y + 0.12 - zoneAt(idx).dark * 0.45
   })
   return (
     <mesh ref={ref} rotation={[Math.PI / 2, 0, 0]} position={[0, CEIL_Y + 0.12, 0]}>
@@ -579,24 +596,41 @@ function Rig({ onDistance }: { onDistance: (d: number) => void }) {
   const velocityRef = useRef(0)
   const keysRef = useRef<Record<string, boolean>>({})
   const bobRef = useRef(0)
+  const lookRef = useRef({ x: 0, y: 0 })  // pointer, -1..1
+  const yawRef = useRef(0)
+  const pitchRef = useRef(0)
+  const backRef = useRef(false)           // holding shift: look behind you
 
   useEffect(() => {
     camera.rotation.set(0, 0, 0)
+    camera.rotation.order = 'YXZ'
   }, [camera])
 
   useEffect(() => {
-    const down = (e: KeyboardEvent) => { keysRef.current[e.key.toLowerCase()] = true }
-    const up = (e: KeyboardEvent) => { keysRef.current[e.key.toLowerCase()] = false }
+    const down = (e: KeyboardEvent) => {
+      keysRef.current[e.key.toLowerCase()] = true
+      if (e.key === 'Shift') backRef.current = true
+    }
+    const up = (e: KeyboardEvent) => {
+      keysRef.current[e.key.toLowerCase()] = false
+      if (e.key === 'Shift') backRef.current = false
+    }
     const wheel = (e: WheelEvent) => {
       velocityRef.current = MathUtils.clamp(velocityRef.current + e.deltaY * 0.012, -MAX_SPEED, MAX_SPEED)
+    }
+    const move = (e: PointerEvent) => {
+      lookRef.current.x = (e.clientX / window.innerWidth) * 2 - 1
+      lookRef.current.y = (e.clientY / window.innerHeight) * 2 - 1
     }
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
     window.addEventListener('wheel', wheel, { passive: true })
+    window.addEventListener('pointermove', move)
     return () => {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
       window.removeEventListener('wheel', wheel)
+      window.removeEventListener('pointermove', move)
     }
   }, [])
 
@@ -626,8 +660,16 @@ function Rig({ onDistance }: { onDistance: (d: number) => void }) {
     camera.position.z = -distanceRef.current
     camera.position.y = 1.55 + Math.sin(bobRef.current * 2) * bobAmt
     camera.position.x = Math.sin(bobRef.current) * bobAmt * 0.5
-    camera.rotation.x = 0
-    camera.rotation.y = 0
+
+    // head: drifts toward the cursor; shift turns you all the way around,
+    // slowly, like you're not sure you want to see
+    const targetYaw = backRef.current ? Math.PI + lookRef.current.x * 0.22 : -lookRef.current.x * 0.22
+    const targetPitch = -lookRef.current.y * 0.12
+    const turnSpeed = backRef.current ? 2.2 : 4.5
+    yawRef.current += (targetYaw - yawRef.current) * Math.min(1, delta * turnSpeed)
+    pitchRef.current += (targetPitch - pitchRef.current) * Math.min(1, delta * 5)
+    camera.rotation.y = yawRef.current
+    camera.rotation.x = pitchRef.current
     camera.rotation.z = -Math.sin(bobRef.current) * bobAmt * 0.4
 
     onDistance(distanceRef.current)

@@ -108,8 +108,10 @@ function darkAt(idx: number) {
 const PA_LINES: { at: number; text: string }[] = [
   { at: 20, text: 'attention shoppers: the store closes in ten minutes. it has been closing for some time now.' },
   { at: 55, text: 'cleanup on aisle 14. cleanup on aisle 14. take your time.' },
+  { at: 74, text: 'notice: some aisle contents may repeat. this is normal. this is normal.' },
   { at: 90, text: 'attention shoppers: restocking does not reach this far. items past this point are sold as-is.' },
   { at: 125, text: 'if you can still hear this announcement, you are past the part of the store we have maps for.' },
+  { at: 142, text: 'please do not look behind you. there is nothing there. that is the problem.' },
   { at: 160, text: 'the exit sign ahead is real. the exit is not. thank you for shopping with us.' },
   { at: 220, text: 'the front of the store is exactly where you left it. this has always been true.' },
   { at: 300, text: 'attention. attention. never mind.' },
@@ -280,7 +282,10 @@ export default function World14Aisle() {
           textShadow: '0 1px 3px rgba(0,0,0,0.9)',
         }}>
           W / S · ↑ / ↓ · scroll &nbsp;—&nbsp; walk the aisle<br />
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>E — put an item in your basket</span>
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>
+            move the mouse to look · E — take an item<br />
+            hold SHIFT to look behind you
+          </span>
         </div>
       )}
 
