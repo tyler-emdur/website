@@ -4,10 +4,11 @@ import { projects } from '@/lib/data/projects'
 import type { RadioStation } from '@/app/api/radio/route'
 import type { RadioStatus } from './live-radio'
 
-// The drive. A 2D-canvas night highway out of the garage. The road curves and
-// rolls, and the country changes as the odometer turns: the edge of town, open
-// highway, a canyon, a storm on the high plain. Mile-marker signs are the years
-// of your projects. The live radio keeps playing on the dash.
+// The drive. A 2D-canvas night highway out of the garage, rendered with a real
+// perspective camera: you sit in the right lane at eye height, low beams reach
+// about eighty meters, and everything past them falls into darkness. The road
+// curves, crests and dips, and the country changes as the odometer turns.
+// Mile-marker signs are the years of your projects. The live radio rides along.
 
 interface NightDriveProps {
   freq: number
@@ -36,7 +37,6 @@ const SIGNS: Sign[] = [
 ]
 
 // ── the country: phases of the drive, keyed to distance ─────────────────────
-// Each phase describes the world outside the windshield. Phases crossfade.
 interface Phase {
   name: string
   town: number      // streetlights + building silhouettes
@@ -53,7 +53,7 @@ const PHASES: Phase[] = [
   { name: 'HIGH PLAIN · STORM AHEAD', town: 0, canyon: 0, storm: 1, tower: 0, ridgeAmp: 0.5 },
   { name: 'THE LONG DESCENT',  town: 0, canyon: 0, storm: 0.3, tower: 1, ridgeAmp: 1.3 },
 ]
-const PHASE_LEN = 5200          // world-distance length of each phase
+const PHASE_LEN = 5200          // world-distance length of each phase (legacy scenery units)
 const PHASE_FADE = 900          // crossfade window at each boundary
 
 function phaseMix(dist: number): { a: Phase; b: Phase; t: number; label: string } {
@@ -67,6 +67,19 @@ function phaseMix(dist: number): { a: Phase; b: Phase; t: number; label: string 
   return { a, b, t, label: t > 0.5 ? b.name : a.name }
 }
 const mix = (a: number, b: number, t: number) => a + (b - a) * t
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
+const hash = (n: number) => {
+  const s = Math.sin(n * 127.1 + 311.7) * 43758.5453
+  return s - Math.floor(s)
+}
+
+// ── road geometry constants (meters) ─────────────────────────────────────────
+const MPH = 0.44704            // mph → m/s
+const CAM_H = 1.15             // eye height above the road
+const LANE = 1.85              // camera sits centered in the right lane
+const ROAD_HALF = 3.55         // paint-to-paint half width (two-lane rural highway)
+const SHOULDER = 1.6           // gravel beyond the edge line
+const Z_FAR = 420
 
 export default function NightDrive({ freq, station, status, onSeek, onExit, onLongDrive }: NightDriveProps) {
   const tuned = status === 'live' || status === 'tuning'
@@ -78,6 +91,10 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
   const [phaseLabel, setPhaseLabel] = useState(PHASES[0].name)
   const speedRef = useRef(64)
   const passedRef = useRef(0)
+  // Latest-ref so an unstable callback prop can't tear down the render loop —
+  // re-running the main effect resets the entire drive to mile zero.
+  const onLongDriveRef = useRef(onLongDrive)
+  useEffect(() => { onLongDriveRef.current = onLongDrive }, [onLongDrive])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -96,8 +113,9 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
     if (!cv) return
     const cx = cv.getContext('2d')!
     let raf = 0
-    let dist = 0            // world distance travelled
-    let signZ = 1300        // distance to next sign — spawns at the horizon
+    let distM = 0           // meters travelled
+    let bobPhase = 0        // suspension oscillator
+    let signZ = 85          // meters to the next sign
     let currentSign = 0
     let last = performance.now()
     let lastPhaseName = PHASES[0].name
@@ -109,9 +127,9 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       tw: (i * 977) % 100 / 100,
     }))
 
-    // oncoming car: a pair of headlights in the opposite lane
-    const oncoming = { z: -1, timer: 5 }        // z in (0..1], 1 = horizon
-    // car ahead: taillights you slowly gain on
+    // oncoming car: headlights in the opposite lane (meters ahead)
+    const oncoming = { z: -1, timer: 5 }
+    // car ahead: taillights in your lane you slowly gain on
     const ahead = { z: -1, timer: 14 }
     // lightning state
     const bolt = { flash: 0, timer: 4 }
@@ -125,7 +143,9 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       last = now
       const W = cv.width, H = cv.height
       const speed = speedRef.current
-      dist += speed * dt * 8
+      const mps = speed * MPH
+      distM += mps * dt
+      const dist = distM * 18   // legacy scenery scale (phases, parallax, town)
 
       const { a: pa, b: pb, t: pt, label } = phaseMix(dist)
       if (label !== lastPhaseName) { lastPhaseName = label; setPhaseLabel(label) }
@@ -135,13 +155,37 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       const tower = mix(pa.tower, pb.tower, pt)
       const ridgeAmp = mix(pa.ridgeAmp, pb.ridgeAmp, pt)
 
-      // ── road geometry: curvature + hills ──────────────────────────────────
-      // curvature: where the vanishing point sits laterally; drifts with distance
-      const curve = Math.sin(dist / 2600) * 0.55 + Math.sin(dist / 990 + 2.1) * 0.3
-      // hills: horizon breathes up and down
-      const hill = Math.sin(dist / 3400 + 1.2) * 0.045 + Math.sin(dist / 1300) * 0.02
-      const horizon = H * (0.46 + hill)
+      // ── camera ─────────────────────────────────────────────────────────────
+      // curvature: signed, slowly wandering. Positive bends right.
+      const curve = Math.sin(distM / 210) * 0.55 + Math.sin(distM / 87 + 2.1) * 0.35
+      // vertical: crests and sags. Positive = road falls away (you see less of it).
+      const hillV = Math.sin(distM / 300 + 1.2) * 0.7 + Math.sin(distM / 122) * 0.3
+      // horizon breathes a little with terrain
+      const horizon = H * 0.46 + Math.sin(distM / 260) * H * 0.012
       const cxm = W / 2
+      const f = H * 1.15  // focal length in px
+
+      // suspension: small vertical bob + high-frequency road buzz, scaled by speed
+      bobPhase += dt * (1.4 + speed / 45)
+      const bobY =
+        Math.sin(bobPhase * 2.1) * 1.3 +
+        Math.sin(bobPhase * 3.7 + 1.3) * 0.8 +
+        Math.sin(bobPhase * 9.1) * 0.5 * (speed / 64)
+      const camLat = LANE + Math.sin(now / 2600) * 0.07 - curve * 0.12  // drift in lane, lean into curves
+      const camH = CAM_H + Math.sin(bobPhase * 1.3) * 0.008
+
+      // world → screen. lat in meters (0 = road centerline), z in meters ahead.
+      const proj = (z: number, lat: number) => {
+        const zz = Math.max(z, 0.8)
+        const bend = curve * zz * zz * 0.0011          // horizontal curvature: lateral offset grows z²
+        const y = horizon + (f * camH) / zz + (f * hillV * zz) / 3500 + bobY
+        const x = cxm + (f * (lat + bend - camLat)) / zz
+        return { x, y, s: f / zz }                     // s = px per meter at this depth
+      }
+
+      // headlights: low beams reach ~85 m; a whisper of moonlight past that
+      const lit = (z: number) => clamp01(1.18 - z / 85)
+      const amb = 0.05
 
       // lightning fires from the storm bank
       if (storm > 0.25) {
@@ -155,7 +199,7 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       const sky = cx.createLinearGradient(0, 0, 0, horizon)
       sky.addColorStop(0, flash > 0.02 ? `rgb(${8 + flash * 40},${9 + flash * 42},${20 + flash * 60})` : '#04050c')
       sky.addColorStop(0.7, '#0a0c1a')
-      sky.addColorStop(1, town > 0.3 ? '#1c1424' : '#141326')  // town throws light pollution up
+      sky.addColorStop(1, town > 0.3 ? '#1c1424' : '#141326')
       cx.fillStyle = sky
       cx.fillRect(0, 0, W, horizon)
 
@@ -178,12 +222,11 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       })
       cx.globalAlpha = 1
 
-      // storm bank on the horizon: heavy cloud mass, lit from inside by lightning
+      // storm bank on the horizon
       if (storm > 0.02) {
         const bankH = H * 0.24 * storm
-        // billowing top edge, two lobed layers
-        const cloudLayer = (yOff: number, alpha: number, lit: number) => {
-          cx.fillStyle = `rgba(${18 + flash * lit},${18 + flash * lit},${30 + flash * lit * 1.3},${alpha * storm})`
+        const cloudLayer = (yOff: number, alpha: number, litAmt: number) => {
+          cx.fillStyle = `rgba(${18 + flash * litAmt},${18 + flash * litAmt},${30 + flash * litAmt * 1.3},${alpha * storm})`
           cx.beginPath()
           cx.moveTo(0, horizon)
           for (let x = 0; x <= W; x += 12) {
@@ -197,7 +240,6 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
         }
         cloudLayer(bankH * 0.35, 0.55, 120)
         cloudLayer(0, 0.85, 70)
-        // the bolt itself, occasionally visible
         if (flash > 0.55) {
           cx.strokeStyle = `rgba(235,240,255,${flash})`
           cx.lineWidth = 1.5
@@ -233,7 +275,7 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
 
       // distant radio tower with blinking red light
       if (tower > 0.05) {
-        const tx = ((dist / 14) % (W * 1.6)) // slow parallax drift
+        const tx = ((dist / 14) % (W * 1.6))
         const towerX = W * 1.1 - tx
         if (towerX > -20 && towerX < W + 20) {
           const th = H * 0.11
@@ -268,7 +310,6 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
           const bh = (H * 0.05 + ((bseed * 13) % 50)) * town
           cx.fillStyle = `rgba(10,11,18,${0.9 * town})`
           cx.fillRect(x, horizon - bh, bw, bh)
-          // windows — a few warm squares, some lit
           cx.fillStyle = `rgba(255,190,110,${0.5 * town})`
           for (let wy = 0; wy < 3; wy++) for (let wx = 0; wx < 3; wx++) {
             if (((bseed + wx * 7 + wy * 13) % 5) < 2) {
@@ -279,284 +320,327 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       }
 
       // ── ground ─────────────────────────────────────────────────────────────
-      cx.fillStyle = '#07080c'
+      cx.fillStyle = '#05060a'
+      cx.fillRect(0, horizon, W, H - horizon)
+      // headlight spill onto the near ground, before the road is drawn
+      const spill = cx.createRadialGradient(cxm, H * 1.06, 30, cxm, H * 0.98, W * 0.5)
+      spill.addColorStop(0, 'rgba(120,110,85,0.10)')
+      spill.addColorStop(1, 'transparent')
+      cx.fillStyle = spill
       cx.fillRect(0, horizon, W, H - horizon)
 
-      // perspective projector: z in [0=car .. 1=horizon]; the road bends by `curve`
-      const roadHalfBottom = W * 0.42
-      const roadHalfTop = W * 0.012
-      const proj = (z: number, lateral: number) => {
-        const p = 1 - Math.pow(1 - z, 2.2) // ease so near-field moves fast
-        const y = H - (H - horizon) * p
-        const half = roadHalfBottom + (roadHalfTop - roadHalfBottom) * p
-        const bend = curve * p * p * W * 0.18   // curvature pulls the far road sideways
-        return { x: cxm + bend + lateral * half, y, scale: 1 - p }
+      // ── the road, sliced by depth ──────────────────────────────────────────
+      // Geometric slice distribution: dense near the car where everything moves
+      // fast, sparse in the dark. Slices stop at a crest — the road genuinely
+      // disappears over the hill.
+      const zBottom = (f * camH) / (H + 40 - horizon)
+      const SLICES = 90
+      const ratio = Math.pow(Z_FAR / zBottom, 1 / SLICES)
+      let zCut = Z_FAR
+      let prev = { z: zBottom, L: proj(zBottom, -ROAD_HALF - SHOULDER), R: proj(zBottom, ROAD_HALF + SHOULDER), eL: proj(zBottom, -ROAD_HALF), eR: proj(zBottom, ROAD_HALF) }
+      let prevY = prev.eL.y
+      for (let i = 1; i <= SLICES; i++) {
+        const z = zBottom * Math.pow(ratio, i)
+        const eL = proj(z, -ROAD_HALF), eR = proj(z, ROAD_HALF)
+        if (eL.y >= prevY - 0.25) { zCut = prev.z; break }  // crest: road vanishes
+        const L = proj(z, -ROAD_HALF - SHOULDER), R = proj(z, ROAD_HALF + SHOULDER)
+        const li = lit((z + prev.z) / 2)
+        // asphalt: worn gray under the beams, gone black past them. A faint
+        // per-band jitter streams past — the texture of the surface itself.
+        const band = Math.floor((distM + z) / 2.2)
+        const jit = (hash(band) - 0.5) * 0.10
+        const v = amb * 14 + li * (34 + jit * 90)
+        cx.fillStyle = `rgb(${v + 2 | 0},${v + 3 | 0},${v + 6 | 0})`
+        cx.beginPath()
+        cx.moveTo(prev.eL.x, prev.eL.y); cx.lineTo(prev.eR.x, prev.eR.y)
+        cx.lineTo(eR.x, eR.y); cx.lineTo(eL.x, eL.y)
+        cx.closePath(); cx.fill()
+        // gravel shoulders, a touch warmer and dimmer
+        const g = amb * 10 + li * 20
+        cx.fillStyle = `rgb(${g + 6 | 0},${g + 4 | 0},${g | 0})`
+        cx.beginPath()
+        cx.moveTo(prev.L.x, prev.L.y); cx.lineTo(prev.eL.x, prev.eL.y)
+        cx.lineTo(eL.x, eL.y); cx.lineTo(L.x, L.y)
+        cx.closePath(); cx.fill()
+        cx.beginPath()
+        cx.moveTo(prev.eR.x, prev.eR.y); cx.lineTo(prev.R.x, prev.R.y)
+        cx.lineTo(R.x, R.y); cx.lineTo(eR.x, eR.y)
+        cx.closePath(); cx.fill()
+        // tire tracks: four darker wear bands where wheels have polished the lane
+        if (li > 0.02) {
+          cx.fillStyle = `rgba(0,0,0,${0.16 * li})`
+          ;[-2.65, -0.95, 0.95, 2.65].forEach(latT => {
+            const a = proj(prev.z, latT - 0.18), b = proj(prev.z, latT + 0.18)
+            const c = proj(z, latT + 0.18), d = proj(z, latT - 0.18)
+            cx.beginPath()
+            cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.lineTo(c.x, c.y); cx.lineTo(d.x, d.y)
+            cx.closePath(); cx.fill()
+          })
+        }
+        prev = { z, L, R, eL, eR }
+        prevY = eL.y
       }
 
-      // road surface: drawn as strips so it follows the curve
-      cx.fillStyle = '#101116'
-      cx.beginPath()
-      const STRIPS = 24
-      for (let s = 0; s <= STRIPS; s++) {
-        const p = proj(s / STRIPS, -0.98)
-        if (s === 0) cx.moveTo(p.x, p.y); else cx.lineTo(p.x, p.y)
+      // paint quad helper: a stripe of paint from z0→z1 at lateral `lat`, width in m
+      const paintQuad = (z0: number, z1: number, lat: number, wM: number, color: (li: number) => string) => {
+        if (z0 >= zCut) return
+        const zz1 = Math.min(z1, zCut)
+        const a = proj(z0, lat - wM / 2), b = proj(z0, lat + wM / 2)
+        const c = proj(zz1, lat + wM / 2), d = proj(zz1, lat - wM / 2)
+        cx.fillStyle = color(lit((z0 + zz1) / 2))
+        cx.beginPath()
+        cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.lineTo(c.x, c.y); cx.lineTo(d.x, d.y)
+        cx.closePath(); cx.fill()
       }
-      for (let s = STRIPS; s >= 0; s--) {
-        const p = proj(s / STRIPS, 0.98)
-        cx.lineTo(p.x, p.y)
-      }
-      cx.closePath()
-      cx.fill()
 
-      // canyon walls: rock masses rising from both shoulders, tallest nearest you.
-      // Drawn as one polygon per side: down the shoulder toward the horizon, then
-      // back along a jagged rim whose height falls off with distance.
+      // edge lines: solid white, retroreflective — they hold brightness deep
+      // into the beam throw and are the last thing to fade
+      const SEG = 5 // meters per paint segment
+      for (let z = zBottom; z < Math.min(180, zCut); z += SEG) {
+        const paint = (li: number) => `rgba(225,228,215,${0.05 + Math.pow(li, 0.6) * 0.55})`
+        paintQuad(z, z + SEG, -ROAD_HALF + 0.15, 0.12, paint)
+        paintQuad(z, z + SEG, ROAD_HALF - 0.15, 0.12, paint)
+      }
+
+      // center line: dashed yellow, 3 m dash / 9 m gap, anchored to the world
+      const CYCLE = 12
+      const firstDash = Math.floor((distM + zBottom) / CYCLE) * CYCLE - distM
+      for (let zd = firstDash; zd < Math.min(200, zCut); zd += CYCLE) {
+        const z0 = Math.max(zd, zBottom), z1 = zd + 3
+        if (z1 <= z0) continue
+        paintQuad(z0, z1, 0, 0.13, li => `rgba(235,205,110,${0.05 + Math.pow(li, 0.6) * 0.6})`)
+      }
+
+      // canyon walls: rock masses rising from both shoulders
       if (canyon > 0.03) {
         ;[-1, 1].forEach(side => {
-          const lat = side * 1.12
+          const latW = side * (ROAD_HALF + SHOULDER + 2.5)
           cx.fillStyle = `rgba(10,11,16,${0.97 * canyon})`
           cx.beginPath()
-          const near = proj(0, lat)
+          const near = proj(zBottom, latW)
           cx.moveTo(side < 0 ? -4 : W + 4, H + 4)
           cx.lineTo(near.x, H + 4)
-          // shoulder line, near → far
-          const FAR = 0.96
-          for (let s = 0; s <= 14; s++) {
-            const p = proj((s / 14) * FAR, lat)
+          const FAR = Math.min(260, zCut)
+          const N = 16
+          for (let s = 0; s <= N; s++) {
+            const z = zBottom + (FAR - zBottom) * (s / N)
+            const p = proj(z, latW)
             cx.lineTo(p.x, p.y)
           }
-          // rim line, far → near; wall height scales with proximity
-          for (let s = 14; s >= 0; s--) {
-            const z = (s / 14) * FAR
-            const p = proj(z, lat)
-            const rough = (Math.sin(z * 17 + dist / 300 + side * 3) + Math.sin(z * 41 + side * 9) * 0.4) * 0.12
-            const wallH = (H - horizon) * canyon * (1.35 + rough) * Math.pow(1 - z, 1.6) + 10 * canyon
-            cx.lineTo(p.x, p.y - wallH)
+          for (let s = N; s >= 0; s--) {
+            const z = zBottom + (FAR - zBottom) * (s / N)
+            const p = proj(z, latW)
+            const rough = (Math.sin(z * 0.9 + distM * 0.06 + side * 3) + Math.sin(z * 2.3 + side * 9) * 0.4) * 0.18
+            const wallM = (12 + rough * 20) * canyon
+            cx.lineTo(p.x, p.y - p.s * wallM)
           }
-          cx.lineTo(side < 0 ? -4 : W + 4, near.y - (H - horizon) * canyon * 1.5)
+          cx.lineTo(side < 0 ? -4 : W + 4, Math.max(0, near.y - near.s * 16 * canyon))
           cx.closePath()
           cx.fill()
+          // headlights brush the near rock face
+          const brush = proj(14, latW)
+          const bg = cx.createRadialGradient(brush.x, brush.y, 0, brush.x, brush.y, brush.s * 9)
+          bg.addColorStop(0, `rgba(120,105,80,${0.08 * canyon})`)
+          bg.addColorStop(1, 'transparent')
+          cx.fillStyle = bg
+          cx.beginPath(); cx.arc(brush.x, brush.y, brush.s * 9, 0, Math.PI * 2); cx.fill()
         })
       }
 
-      // edge lines follow the curve
-      ;[-0.92, 0.92].forEach(lat => {
-        cx.strokeStyle = 'rgba(220,220,190,0.28)'
-        cx.lineWidth = 2
-        cx.beginPath()
-        for (let s = 0; s <= 20; s++) {
-          const p = proj((s / 20) * 0.995, lat)
-          if (s === 0) cx.moveTo(p.x, p.y); else cx.lineTo(p.x, p.y)
-        }
-        cx.stroke()
-      })
-
-      // center dashes — road paint streams from the horizon toward the car
-      const DASH_SPACING = 110
-      const offset = (dist % DASH_SPACING) / DASH_SPACING
-      for (let i = 0; i < 14; i++) {
-        const zNear = (i + 1 - offset) / 14
-        const zFar = zNear + 0.024
-        if (zFar >= 1) continue
-        const a = proj(zNear, 0), b = proj(zFar, 0)
-        const wNear = Math.max(1.5, 7 * a.scale)
-        cx.strokeStyle = `rgba(230,210,120,${0.15 + a.scale * 0.6})`
-        cx.lineWidth = wNear
-        cx.beginPath()
-        cx.moveTo(a.x, a.y)
-        cx.lineTo(b.x, b.y)
-        cx.stroke()
-      }
-
-      // reflector posts
-      const POST_SPACING = 260
-      const postOffset = (dist % POST_SPACING) / POST_SPACING
-      for (let i = 0; i < 8; i++) {
-        const z = (i + 1 - postOffset) / 8
-        if (z >= 0.98) continue
-        ;[-1.05, 1.05].forEach(lat => {
-          const p = proj(z, lat)
-          const h = Math.max(2, 26 * p.scale)
-          cx.fillStyle = `rgba(180,180,190,${0.12 + p.scale * 0.3})`
-          cx.fillRect(p.x - 1, p.y - h, 2, h)
-          cx.fillStyle = `rgba(255,120,80,${0.2 + p.scale * 0.7})`
-          cx.fillRect(p.x - 1.5, p.y - h, 3, 3)
+      // reflector posts: every 45 m on both shoulders. Retroreflective heads
+      // flare hardest in the middle distance, where high beams catch them.
+      const POST_GAP = 45
+      const firstPost = Math.floor((distM + zBottom) / POST_GAP) * POST_GAP - distM + POST_GAP
+      for (let zp = firstPost; zp < Math.min(320, zCut); zp += POST_GAP) {
+        ;[-1, 1].forEach(side => {
+          const p = proj(zp, side * (ROAD_HALF + 0.9))
+          const hPx = p.s * 1.0
+          if (hPx < 1.5) return
+          const li = lit(zp)
+          cx.fillStyle = `rgba(150,150,155,${0.06 + li * 0.3})`
+          cx.fillRect(p.x - Math.max(0.6, p.s * 0.045), p.y - hPx, Math.max(1.2, p.s * 0.09), hPx)
+          // reflector: white right side, red/amber left side (as in the US)
+          const flare = clamp01(1.25 - Math.abs(zp - 55) / 70)
+          const r = Math.max(0.8, p.s * 0.09)
+          cx.fillStyle = side > 0 ? `rgba(255,255,240,${0.25 + flare * 0.75})` : `rgba(255,150,60,${0.2 + flare * 0.6})`
+          cx.beginPath(); cx.arc(p.x, p.y - hPx, r, 0, Math.PI * 2); cx.fill()
+          if (flare > 0.4) {
+            cx.fillStyle = side > 0 ? `rgba(255,255,240,${flare * 0.12})` : `rgba(255,150,60,${flare * 0.08})`
+            cx.beginPath(); cx.arc(p.x, p.y - hPx, r * 4, 0, Math.PI * 2); cx.fill()
+          }
         })
       }
 
-      // streetlights in the town phase: sodium cones over the road
+      // streetlights in the town phase: sodium pools every 50 m
       if (town > 0.05) {
-        const SL_SPACING = 520
-        const slOffset = (dist % SL_SPACING) / SL_SPACING
-        for (let i = 0; i < 5; i++) {
-          const z = (i + 1 - slOffset) / 5
-          if (z >= 0.97) continue
-          const p = proj(z, -1.25)
-          const s = p.scale
-          const poleH = 120 * s
-          if (poleH < 3) continue
-          cx.strokeStyle = `rgba(70,72,80,${(0.25 + s * 0.4) * town})`
-          cx.lineWidth = Math.max(1, 3 * s)
+        const SL_GAP = 50
+        const firstSL = Math.floor((distM + zBottom) / SL_GAP) * SL_GAP - distM + SL_GAP
+        for (let zs = firstSL; zs < Math.min(300, zCut); zs += SL_GAP) {
+          const p = proj(zs, -(ROAD_HALF + SHOULDER + 1.2))
+          const poleH = p.s * 9
+          if (poleH < 4) continue
+          cx.strokeStyle = `rgba(70,72,80,${(0.2 + clamp01(60 / zs) * 0.4) * town})`
+          cx.lineWidth = Math.max(1, p.s * 0.12)
           cx.beginPath()
           cx.moveTo(p.x, p.y)
           cx.lineTo(p.x, p.y - poleH)
-          cx.lineTo(p.x + 34 * s, p.y - poleH)
+          cx.lineTo(p.x + p.s * 3.2, p.y - poleH)
           cx.stroke()
-          // sodium lamp + cone of light
-          const lx = p.x + 34 * s, ly = p.y - poleH
+          const lx = p.x + p.s * 3.2, ly = p.y - poleH
           cx.fillStyle = `rgba(255,178,80,${0.85 * town})`
-          cx.beginPath(); cx.arc(lx, ly, Math.max(1.2, 3.4 * s), 0, Math.PI * 2); cx.fill()
-          const cone = cx.createRadialGradient(lx, ly, 0, lx, ly + poleH * 0.7, poleH)
-          cone.addColorStop(0, `rgba(255,170,70,${0.13 * town})`)
-          cone.addColorStop(1, 'transparent')
-          cx.fillStyle = cone
-          cx.beginPath()
-          cx.moveTo(lx, ly)
-          cx.lineTo(lx - poleH * 0.55, p.y + 8)
-          cx.lineTo(lx + poleH * 0.55, p.y + 8)
-          cx.closePath()
-          cx.fill()
+          cx.beginPath(); cx.arc(lx, ly, Math.max(1.2, p.s * 0.28), 0, Math.PI * 2); cx.fill()
+          // pool of sodium light on the pavement below
+          const pool = proj(zs, -1.2)
+          const pg = cx.createRadialGradient(lx, pool.y, 0, lx, pool.y, p.s * 7)
+          pg.addColorStop(0, `rgba(255,170,70,${0.10 * town})`)
+          pg.addColorStop(1, 'transparent')
+          cx.fillStyle = pg
+          cx.beginPath(); cx.ellipse(lx, pool.y, p.s * 7, p.s * 2.6, 0, 0, Math.PI * 2); cx.fill()
         }
       }
 
       // ── traffic ────────────────────────────────────────────────────────────
-      // oncoming: headlights growing out of the horizon in the left lane
+      // oncoming: a glare on the horizon that resolves into two headlights
+      let glare = 0
       if (oncoming.z < 0) {
         oncoming.timer -= dt
-        if (oncoming.timer <= 0) { oncoming.z = 0.985; oncoming.timer = 6 + Math.random() * 14 }
+        if (oncoming.timer <= 0) { oncoming.z = 340; oncoming.timer = 7 + Math.random() * 14 }
       } else {
-        oncoming.z -= dt * (0.16 + speed / 700)   // closing speed
-        if (oncoming.z <= 0.005) { oncoming.z = -1 }
-        else {
-          const p = proj(oncoming.z, -0.45)
-          const s = p.scale
-          const sep = Math.max(1.5, 26 * s)
-          const r = Math.max(0.8, 5.5 * s)
-          // glow first
-          const g = cx.createRadialGradient(p.x, p.y - 8 * s, 0, p.x, p.y - 8 * s, r * 9)
-          g.addColorStop(0, `rgba(255,244,207,${0.5 * (0.3 + s)})`)
+        oncoming.z -= dt * (mps + 26)   // closing speed: theirs + yours
+        if (oncoming.z <= 2) { oncoming.z = -1 }
+        else if (oncoming.z < zCut + 30) {
+          const p = proj(oncoming.z, -LANE)
+          const ly = p.y - p.s * 0.65   // headlight height
+          const sep = p.s * 1.35
+          const r = Math.max(0.9, p.s * 0.22)
+          glare = clamp01(1 - oncoming.z / 45)
+          const g = cx.createRadialGradient(p.x, ly, 0, p.x, ly, r * 10 + 6)
+          g.addColorStop(0, `rgba(255,244,207,${0.35 + glare * 0.4})`)
           g.addColorStop(1, 'transparent')
           cx.fillStyle = g
-          cx.beginPath(); cx.arc(p.x, p.y - 8 * s, r * 9, 0, Math.PI * 2); cx.fill()
-          cx.fillStyle = 'rgba(255,248,225,0.95)'
-          cx.beginPath(); cx.arc(p.x - sep / 2, p.y - 8 * s, r, 0, Math.PI * 2); cx.fill()
-          cx.beginPath(); cx.arc(p.x + sep / 2, p.y - 8 * s, r, 0, Math.PI * 2); cx.fill()
-        }
-      }
-
-      // car ahead: red taillights you slowly gain on, then pass
-      if (ahead.z < 0) {
-        ahead.timer -= dt
-        if (ahead.timer <= 0) { ahead.z = 0.93; ahead.timer = 18 + Math.random() * 20 }
-      } else {
-        ahead.z -= dt * ((speed - 58) / 900)      // you only gain if you're fast
-        if (ahead.z <= 0.01 || ahead.z > 0.985) { ahead.z = -1 }
-        else {
-          const p = proj(ahead.z, 0.4)
-          const s = p.scale
-          const sep = Math.max(1.5, 22 * s)
-          const r = Math.max(0.7, 3.6 * s)
-          cx.fillStyle = `rgba(50,10,10,${0.5 + s * 0.4})`
-          cx.fillRect(p.x - sep, p.y - 22 * s, sep * 2, 14 * s)
-          const tg = cx.createRadialGradient(p.x, p.y - 14 * s, 0, p.x, p.y - 14 * s, r * 7)
-          tg.addColorStop(0, `rgba(255,40,26,${0.35})`)
-          tg.addColorStop(1, 'transparent')
-          cx.fillStyle = tg
-          cx.beginPath(); cx.arc(p.x, p.y - 14 * s, r * 7, 0, Math.PI * 2); cx.fill()
-          cx.fillStyle = 'rgba(255,52,36,0.95)'
-          cx.beginPath(); cx.arc(p.x - sep / 2, p.y - 14 * s, r, 0, Math.PI * 2); cx.fill()
-          cx.beginPath(); cx.arc(p.x + sep / 2, p.y - 14 * s, r, 0, Math.PI * 2); cx.fill()
-        }
-      }
-
-      // approaching sign
-      signZ -= speed * dt * 8
-      if (signZ <= -60) {
-        signZ = 1400 + Math.random() * 700
-        currentSign = (currentSign + 1) % SIGNS.length
-        passedRef.current++
-        setSignIdx(currentSign)
-        if (passedRef.current === SIGNS.length) onLongDrive()
-      }
-      if (signZ < 1400 && signZ > 0) {
-        const z = Math.max(0, Math.min(0.985, signZ / 1400))
-        const p = proj(z, 1.55)
-        const s = Math.max(0.05, p.scale)
-        const sw = 200 * s, sh = 100 * s
-        if (sw > 3) {
-          const sign = SIGNS[currentSign]
-          // post
-          cx.fillStyle = `rgba(120,120,125,${0.3 + s * 0.4})`
-          cx.fillRect(p.x - 2 * s, p.y - sh - 60 * s, 4 * s, 60 * s + sh)
-          // panel
-          cx.fillStyle = `rgba(14,62,38,${0.5 + s * 0.5})`
-          cx.strokeStyle = `rgba(220,225,220,${0.3 + s * 0.5})`
-          cx.lineWidth = Math.max(0.5, 2 * s)
-          cx.fillRect(p.x - sw / 2, p.y - sh - 60 * s, sw, sh)
-          cx.strokeRect(p.x - sw / 2, p.y - sh - 60 * s, sw, sh)
-          if (sw > 40) {
-            cx.fillStyle = `rgba(235,240,235,${0.4 + s * 0.6})`
-            cx.textAlign = 'center'
-            cx.font = `bold ${Math.max(6, 26 * s)}px "Arial Narrow", Arial, sans-serif`
-            cx.fillText(sign.label, p.x, p.y - sh - 60 * s + sh * 0.42)
-            cx.font = `${Math.max(5, 16 * s)}px "Arial Narrow", Arial, sans-serif`
-            cx.fillText(sign.sub, p.x, p.y - sh - 60 * s + sh * 0.78)
+          cx.beginPath(); cx.arc(p.x, ly, r * 10 + 6, 0, Math.PI * 2); cx.fill()
+          if (sep > 2.2) {
+            cx.fillStyle = 'rgba(255,248,225,0.95)'
+            cx.beginPath(); cx.arc(p.x - sep / 2, ly, r, 0, Math.PI * 2); cx.fill()
+            cx.beginPath(); cx.arc(p.x + sep / 2, ly, r, 0, Math.PI * 2); cx.fill()
+          } else {
+            cx.fillStyle = 'rgba(255,248,225,0.9)'
+            cx.beginPath(); cx.arc(p.x, ly, r * 1.2, 0, Math.PI * 2); cx.fill()
           }
         }
       }
 
-      // headlight glow on the road
-      const glow = cx.createRadialGradient(cxm, H * 1.05, 40, cxm, H * 0.9, W * 0.55)
-      glow.addColorStop(0, 'rgba(255,235,180,0.14)')
-      glow.addColorStop(0.5, 'rgba(255,225,160,0.05)')
-      glow.addColorStop(1, 'transparent')
-      cx.fillStyle = glow
-      cx.fillRect(0, horizon, W, H - horizon)
+      // car ahead: taillights in your lane you slowly gain on
+      if (ahead.z < 0) {
+        ahead.timer -= dt
+        if (ahead.timer <= 0) { ahead.z = 130; ahead.timer = 18 + Math.random() * 20 }
+      } else {
+        ahead.z -= dt * ((speed - 58) * MPH * 2.2)
+        if (ahead.z <= 6 || ahead.z > 320) { ahead.z = -1 }
+        else if (ahead.z < zCut + 20) {
+          const p = proj(ahead.z, LANE)
+          const ty = p.y - p.s * 0.85
+          const sep = p.s * 1.3
+          const r = Math.max(0.7, p.s * 0.14)
+          const li = lit(ahead.z)
+          if (li > 0.05) {  // your beams pick out the car body
+            cx.fillStyle = `rgba(30,28,32,${li * 0.8})`
+            cx.fillRect(p.x - p.s * 0.85, p.y - p.s * 1.45, p.s * 1.7, p.s * 1.45)
+          }
+          const tg = cx.createRadialGradient(p.x, ty, 0, p.x, ty, r * 7)
+          tg.addColorStop(0, 'rgba(255,40,26,0.35)')
+          tg.addColorStop(1, 'transparent')
+          cx.fillStyle = tg
+          cx.beginPath(); cx.arc(p.x, ty, r * 7, 0, Math.PI * 2); cx.fill()
+          cx.fillStyle = 'rgba(255,52,36,0.95)'
+          cx.beginPath(); cx.arc(p.x - sep / 2, ty, r, 0, Math.PI * 2); cx.fill()
+          cx.beginPath(); cx.arc(p.x + sep / 2, ty, r, 0, Math.PI * 2); cx.fill()
+        }
+      }
 
-      // twin low-beam cones thrown forward from the nose of the car
-      ;[-0.34, 0.34].forEach(lat => {
-        const nearP = proj(0.01, lat)
-        const farP = proj(0.5, lat * 0.35)
+      // approaching sign: green panel on the right shoulder, retroreflective
+      signZ -= mps * dt
+      if (signZ <= -4) {
+        signZ = 240 + Math.random() * 120
+        currentSign = (currentSign + 1) % SIGNS.length
+        passedRef.current++
+        setSignIdx(currentSign)
+        if (passedRef.current === SIGNS.length) onLongDriveRef.current()
+      }
+      if (signZ > 2 && signZ < Math.min(300, zCut + 40)) {
+        const p = proj(signZ, ROAD_HALF + SHOULDER + 1.6)
+        const sw = p.s * 3.4, sh = p.s * 1.7
+        if (sw > 4) {
+          const sign = SIGNS[currentSign]
+          const glow = 0.15 + Math.pow(lit(signZ * 0.55), 0.7) * 0.85  // sheeting bounces light back early
+          const py = p.y - p.s * 2.1
+          cx.fillStyle = `rgba(110,112,118,${0.15 + glow * 0.3})`
+          cx.fillRect(p.x - Math.max(0.8, p.s * 0.06), py, Math.max(1.6, p.s * 0.12), p.y - py)
+          cx.fillStyle = `rgba(${14 + glow * 20},${62 + glow * 60},${38 + glow * 30},${0.4 + glow * 0.6})`
+          cx.strokeStyle = `rgba(220,225,220,${glow * 0.8})`
+          cx.lineWidth = Math.max(0.5, p.s * 0.05)
+          cx.fillRect(p.x - sw / 2, py - sh, sw, sh)
+          cx.strokeRect(p.x - sw / 2, py - sh, sw, sh)
+          if (sw > 34) {
+            cx.fillStyle = `rgba(235,240,235,${0.25 + glow * 0.75})`
+            cx.textAlign = 'center'
+            cx.font = `bold ${Math.max(6, p.s * 0.62)}px "Arial Narrow", Arial, sans-serif`
+            cx.fillText(sign.label, p.x, py - sh * 0.52)
+            cx.font = `${Math.max(5, p.s * 0.38)}px "Arial Narrow", Arial, sans-serif`
+            cx.fillText(sign.sub, p.x, py - sh * 0.17)
+          }
+        }
+      }
+
+      // ── your own light ─────────────────────────────────────────────────────
+      // twin low-beam wedges laid on the pavement, slightly right-biased the
+      // way US beams are cut
+      ;[-0.7, 0.85].forEach(latB => {
+        const nearP = proj(zBottom + 1, latB)
+        const farP = proj(46, latB + 0.5)
         const beam = cx.createLinearGradient(nearP.x, H, farP.x, farP.y)
-        beam.addColorStop(0, 'rgba(255,240,200,0.075)')
+        beam.addColorStop(0, 'rgba(255,240,200,0.085)')
         beam.addColorStop(1, 'transparent')
         cx.fillStyle = beam
         cx.beginPath()
-        cx.moveTo(nearP.x - W * 0.09, H + 2)
-        cx.lineTo(farP.x - W * 0.02, farP.y)
-        cx.lineTo(farP.x + W * 0.02, farP.y)
-        cx.lineTo(nearP.x + W * 0.09, H + 2)
+        cx.moveTo(nearP.x - W * 0.1, H + 2)
+        cx.lineTo(farP.x - W * 0.015, farP.y)
+        cx.lineTo(farP.x + W * 0.015, farP.y)
+        cx.lineTo(nearP.x + W * 0.1, H + 2)
         cx.closePath()
         cx.fill()
       })
 
-      // lightning also washes the road for a frame or two
+      // oncoming glare veils the whole windshield when they're close
+      if (glare > 0.03) {
+        cx.fillStyle = `rgba(255,246,220,${glare * 0.07})`
+        cx.fillRect(0, 0, W, H)
+      }
+
+      // lightning washes the road for a frame or two
       if (flash > 0.05) {
         cx.fillStyle = `rgba(210,220,255,${flash * 0.06})`
         cx.fillRect(0, 0, W, H)
       }
 
       // ── windshield: you are inside the car ────────────────────────────────
-      // A-pillars — dark slants at both edges
       cx.fillStyle = 'rgba(3,3,5,0.88)'
       cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(W * 0.045, 0); cx.lineTo(0, H * 0.6); cx.closePath(); cx.fill()
       cx.beginPath(); cx.moveTo(W, 0); cx.lineTo(W - W * 0.045, 0); cx.lineTo(W, H * 0.6); cx.closePath(); cx.fill()
-      // roofline
       const roof = cx.createLinearGradient(0, 0, 0, H * 0.07)
       roof.addColorStop(0, 'rgba(3,3,5,0.95)')
       roof.addColorStop(1, 'transparent')
       cx.fillStyle = roof
       cx.fillRect(0, 0, W, H * 0.07)
-      // faint dash reflection breathing on the glass
       const refl = cx.createLinearGradient(0, H * 0.62, 0, H)
       refl.addColorStop(0, 'transparent')
       refl.addColorStop(1, `rgba(255,180,90,${0.025 + Math.sin(now / 2400) * 0.008})`)
       cx.fillStyle = refl
       cx.fillRect(0, H * 0.62, W, H * 0.38)
 
-      // ── the hood: the nose of the car, always in front of you ─────────────
-      const hoodTop = H * 0.855
-      const apexX = cxm - curve * W * 0.03   // the nose leans into the curve
+      // ── the hood: bobs with the suspension, leans into the curve ──────────
+      const hoodTop = H * 0.855 + bobY * 0.55
+      const apexX = cxm - curve * W * 0.03
       const hg = cx.createLinearGradient(0, hoodTop, 0, H)
       hg.addColorStop(0, '#12151b')
       hg.addColorStop(0.4, '#0a0c10')
@@ -570,33 +654,31 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       cx.lineTo(W + 2, H + 2)
       cx.closePath()
       cx.fill()
-      // hood edge catches the streetlight / sky
-      cx.strokeStyle = `rgba(140,160,200,${0.10 + flash * 0.3 + town * 0.06})`
+      cx.strokeStyle = `rgba(140,160,200,${0.10 + flash * 0.3 + town * 0.06 + glare * 0.25})`
       cx.lineWidth = 1.2
       cx.beginPath()
       cx.moveTo(0, H * 0.97)
       cx.quadraticCurveTo(apexX - W * 0.3, hoodTop + H * 0.012, apexX, hoodTop)
       cx.quadraticCurveTo(apexX + W * 0.3, hoodTop + H * 0.012, W, H * 0.97)
       cx.stroke()
-      // center crease + soft specular pool
       cx.strokeStyle = 'rgba(150,170,210,0.05)'
       cx.beginPath(); cx.moveTo(apexX, hoodTop + 2); cx.lineTo(apexX, H); cx.stroke()
       const spec = cx.createRadialGradient(apexX, H * 0.93, 4, apexX, H * 0.95, W * 0.26)
-      spec.addColorStop(0, `rgba(120,140,190,${0.07 + flash * 0.2})`)
+      spec.addColorStop(0, `rgba(120,140,190,${0.07 + flash * 0.2 + glare * 0.15})`)
       spec.addColorStop(1, 'transparent')
       cx.fillStyle = spec
       cx.fillRect(0, hoodTop, W, H - hoodTop)
 
-      // steering wheel counter-steers with the road
-      if (wheelRef.current) wheelRef.current.style.transform = `rotate(${(curve * 22).toFixed(2)}deg)`
+      // steering wheel follows the road
+      if (wheelRef.current) wheelRef.current.style.transform = `rotate(${(curve * 30).toFixed(2)}deg)`
 
-      setOdometer(Math.floor(dist / 160))
+      setOdometer(Math.floor(distM / 290))
       setSpeedView(Math.round(speed))
       raf = requestAnimationFrame(frame)
     }
     raf = requestAnimationFrame(frame)
     return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize) }
-  }, [onLongDrive])
+  }, [])
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#04050c', animation: 'garage-fade 1.2s ease' }}>
