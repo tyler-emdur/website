@@ -35,7 +35,7 @@ const getStatus = unstable_cache(async (): Promise<Record<string, ChannelStatus>
     }),
   )
   return Object.fromEntries(entries)
-}, ['broadcast-status-v3'], { revalidate: 120 })
+}, ['broadcast-status-v4'], { revalidate: 120 })
 
 export async function GET() {
   try {

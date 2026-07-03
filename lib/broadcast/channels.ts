@@ -24,6 +24,10 @@ export const CHANNELS: BroadcastChannel[] = [
     hlsUrl: 'https://cdn-2.pishow.tv/live/12/master.m3u8', // Doordarshan — DD News, Hindi
   },
   {
+    id: 'havana', ch: '05', city: 'HAVANA', kind: 'hls', reception: 'unstable',
+    hlsUrl: 'https://tv.picta.cu/cubavision/cubavision_0.m3u8', // Cubavisión — Cuban state TV, signs off overnight
+  },
+  {
     id: 'ulaanbaatar', ch: '08', city: 'ULAANBAATAR', kind: 'hls', reception: 'grainy',
     hlsUrl: 'https://live.mnb.mn/hls/mnb.stream.m3u8', // Mongolian National Broadcaster, TV1
   },
@@ -37,11 +41,19 @@ export const CHANNELS: BroadcastChannel[] = [
   },
   {
     id: 'reykjavik', ch: '23', city: 'REYKJAVIK', kind: 'hls', reception: 'clean',
-    hlsUrl: 'https://s172.ipcamlive.com/streams/aczb16hheu30gfpso/stream.m3u8', // Port of Reykjavík, Miðbakki Harbour
+    hlsUrl: 'https://ruv-web-live.akamaized.net/streymi/ruverl/ruverl.m3u8', // RÚV — Icelandic national television
+  },
+  {
+    id: 'dushanbe', ch: '27', city: 'DUSHANBE', kind: 'hls', reception: 'grainy',
+    hlsUrl: 'https://live.teleradiocom.tj/7/3m.m3u8', // Dushanbe HD — Tajik capital-city channel
   },
   {
     id: 'somewhere', ch: '31', city: 'SAXON HARBOR', kind: 'hls', reception: 'grainy',
     hlsUrl: 'https://s158.ipcamlive.com/streams/9ex3vw9pvsggjtlmz/stream.m3u8', // a marina on Lake Superior nobody's heard of
+  },
+  {
+    id: 'vientiane', ch: '44', city: 'VIENTIANE', kind: 'hls', reception: 'chaotic',
+    hlsUrl: 'https://livefta.malimarcdn.com/ftaedge00/laonet.sdp/playlist.m3u8', // Lao Net TV — variety shows, karaoke, no context
   },
   {
     id: 'unknown', ch: '88', city: 'UNKNOWN', kind: 'custom', reception: 'chaotic',
