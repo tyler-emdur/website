@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { BOULDER_LAT, BOULDER_LNG, GEO_RADIUS_MI, GEO_RADIUS_WORLD, project, haversineMi } from '@/lib/geo'
 
 const RESAMPLE_SPACING = 1.5      // world units between resampled dots
@@ -137,11 +138,13 @@ async function fetchAllActivities(token: string): Promise<RawActivity[]> {
   return all
 }
 
-export async function GET() {
-  try {
+// Route-level cache: without this every visitor pays for the OAuth token
+// refresh + up to 6 sequential Strava pages before the world can render.
+// Cached, the whole payload comes back in one hot read.
+const getStravaPayload = unstable_cache(async () => {
     const token = await getToken()
     if (!token) {
-      return NextResponse.json({ configured: false, activities: [], stats: null }, { status: 200 })
+      return { configured: false as const, activities: [], stats: null }
     }
 
     const raw = await fetchAllActivities(token)
@@ -193,8 +196,8 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({
-      configured: true,
+    return {
+      configured: true as const,
       activities,
       stats: {
         count: activities.length,
@@ -203,7 +206,12 @@ export async function GET() {
         totalMovingTimeHrs: Math.round(totalMovingTimeS / 3600),
         mostRecent,
       },
-    })
+    }
+}, ['strava-payload-v1'], { revalidate: 21600 }) // 6h, matches the upstream fetch cache
+
+export async function GET() {
+  try {
+    return NextResponse.json(await getStravaPayload())
   } catch (e) {
     return NextResponse.json({ configured: false, error: String(e), activities: [], stats: null }, { status: 200 })
   }

@@ -40,7 +40,8 @@ export default function World2Explorer() {
     let cancelled = false
     Promise.all([
       fetch('/api/strava').then(r => r.json()) as Promise<StravaResponse>,
-      fetch('/api/terrain').then(r => r.json()) as Promise<TerrainResponse>,
+      // terrain is baked at build time (scripts/bake-terrain.mjs) — static, CDN-cached
+      fetch('/terrain.json').then(r => r.json()) as Promise<TerrainResponse>,
     ])
       .then(([strava, terrain]) => {
         if (cancelled) return
