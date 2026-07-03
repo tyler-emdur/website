@@ -69,6 +69,8 @@ function MiniPanel({ label, children, style, headerStyle, noPad }: {
   )
 }
 
+// Each world's thumbnail is a tiny looping animation of the thing itself —
+// a strip of live previews, like a wall of small TVs.
 function WorldThumbnail({ world, onClick }: { world: WorldItem; onClick: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -77,27 +79,163 @@ function WorldThumbnail({ world, onClick }: { world: WorldItem; onClick: () => v
     if (!cv) return
     const cx = cv.getContext('2d')
     if (!cx) return
-    cx.fillStyle = world.bg
-    cx.fillRect(0, 0, 80, 60)
-    cx.fillStyle = world.ac
-    for (let i = 0; i < 16; i++) {
-      cx.globalAlpha = Math.random() * 0.65 + 0.2
-      cx.fillRect(Math.floor(Math.random() * 76) + 2, Math.floor(Math.random() * 56) + 2, 2, 2)
+    let raf = 0
+    let t = 0
+    const W = 80, H = 60
+    const ac = world.ac
+
+    const draw = () => {
+      t += 0.016
+      cx.globalAlpha = 1
+      cx.fillStyle = world.bg
+      cx.fillRect(0, 0, W, H)
+
+      switch (world.id) {
+        case 0: { // surface: drifting starfield
+          for (let i = 0; i < 16; i++) {
+            const x = ((i * 37 + 80) - t * (6 + (i % 3) * 5)) % W
+            const y = (i * 23 + 7) % H
+            cx.globalAlpha = 0.3 + 0.6 * Math.abs(Math.sin(t * 2 + i))
+            cx.fillStyle = i % 4 === 0 ? '#ffffff' : ac
+            cx.fillRect((x + W) % W, y, i % 5 === 0 ? 2 : 1, i % 5 === 0 ? 2 : 1)
+          }
+          break
+        }
+        case 1: { // universe: bodies in orbit
+          cx.globalAlpha = 0.9
+          cx.fillStyle = '#ffffff'
+          cx.beginPath(); cx.arc(40, 30, 2.5, 0, Math.PI * 2); cx.fill()
+          ;[9, 15, 22].forEach((r, k) => {
+            cx.globalAlpha = 0.25
+            cx.strokeStyle = ac
+            cx.beginPath(); cx.ellipse(40, 30, r, r * 0.62, 0, 0, Math.PI * 2); cx.stroke()
+            const a = t * (1.2 - k * 0.3) + k * 2.1
+            cx.globalAlpha = 0.95
+            cx.fillStyle = ac
+            cx.beginPath(); cx.arc(40 + Math.cos(a) * r, 30 + Math.sin(a) * r * 0.62, 1.6, 0, Math.PI * 2); cx.fill()
+          })
+          break
+        }
+        case 2: { // explorer: ridgeline + a run tracing across it
+          cx.globalAlpha = 0.5
+          cx.strokeStyle = ac
+          cx.beginPath()
+          for (let x = 0; x <= W; x += 4) {
+            const y = 38 - Math.sin(x / 9) * 6 - Math.sin(x / 4 + 2) * 3
+            x === 0 ? cx.moveTo(x, y) : cx.lineTo(x, y)
+          }
+          cx.stroke()
+          const px = (t * 18) % (W + 20) - 10
+          cx.globalAlpha = 1
+          cx.fillStyle = '#FC4C02'
+          for (let k = 0; k < 8; k++) {
+            const x = px - k * 3
+            if (x < 0 || x > W) continue
+            cx.globalAlpha = 1 - k / 9
+            cx.fillRect(x, 44 + Math.sin(x / 7) * 5, 2, 2)
+          }
+          break
+        }
+        case 3: { // broadcast: TV static, sometimes the channel number
+          for (let i = 0; i < 220; i++) {
+            const v = Math.random()
+            cx.globalAlpha = v * 0.5
+            cx.fillStyle = '#ffffff'
+            cx.fillRect(Math.random() * W, Math.random() * H, 1.5, 1.5)
+          }
+          const sl = (t * 26) % (H + 10)
+          cx.globalAlpha = 0.22
+          cx.fillStyle = '#ffffff'
+          cx.fillRect(0, sl, W, 2)
+          if (Math.sin(t * 0.7) > 0.86) {
+            cx.globalAlpha = 0.9
+            cx.fillStyle = ac
+            cx.font = 'bold 16px monospace'
+            cx.textAlign = 'center'
+            cx.fillText('CH 88', 40, 34)
+          }
+          break
+        }
+        case 5: { // machine: terminal typing itself
+          cx.globalAlpha = 1
+          cx.fillStyle = ac
+          const lines = 5
+          for (let i = 0; i < lines; i++) {
+            const prog = Math.max(0, Math.min(1, (t * 0.5 - i * 0.55) % (lines * 0.55 + 1.4)))
+            cx.globalAlpha = 0.75
+            cx.fillRect(6, 8 + i * 9, prog * (46 + (i * 17) % 20), 3)
+          }
+          if (Math.sin(t * 6) > 0) {
+            cx.globalAlpha = 1
+            cx.fillRect(6, 8 + lines * 9, 5, 6)
+          }
+          break
+        }
+        case 6: { // garage: the night road, dashes coming at you
+          cx.globalAlpha = 0.55
+          cx.strokeStyle = 'rgba(220,220,190,0.8)'
+          cx.beginPath()
+          cx.moveTo(40 - 3, 22); cx.lineTo(6, H)
+          cx.moveTo(40 + 3, 22); cx.lineTo(74, H)
+          cx.stroke()
+          for (let k = 0; k < 4; k++) {
+            const p = ((t * 0.5 + k / 4) % 1)
+            const y = 22 + p * p * (H - 22)
+            const w = 1 + p * 3
+            cx.globalAlpha = 0.2 + p * 0.8
+            cx.fillStyle = ac
+            cx.fillRect(40 - w / 2, y, w, 2 + p * 5)
+          }
+          cx.globalAlpha = 0.8
+          cx.fillStyle = '#ff3b30'
+          if (Math.sin(t * 2.4) > 0.2) cx.fillRect(62, 14, 2, 2)
+          break
+        }
+        case 7: { // endpoint: a signal pulsing out
+          for (let k = 0; k < 3; k++) {
+            const r = ((t * 14 + k * 11) % 32)
+            cx.globalAlpha = Math.max(0, 0.8 - r / 32)
+            cx.strokeStyle = ac
+            cx.beginPath(); cx.arc(40, 30, r, 0, Math.PI * 2); cx.stroke()
+          }
+          cx.globalAlpha = 1
+          cx.fillStyle = ac
+          cx.beginPath(); cx.arc(40, 30, 2, 0, Math.PI * 2); cx.fill()
+          break
+        }
+        case 9: { // answering machine: a message playing back
+          cx.fillStyle = ac
+          for (let i = 0; i < 13; i++) {
+            const h = 4 + Math.abs(Math.sin(t * 3.2 + i * 1.7)) * Math.abs(Math.sin(t * 0.9 + i)) * 20
+            cx.globalAlpha = 0.85
+            cx.fillRect(8 + i * 5, 30 - h / 2, 3, h)
+          }
+          cx.globalAlpha = Math.sin(t * 4) > 0 ? 1 : 0.15
+          cx.beginPath(); cx.arc(70, 8, 2.5, 0, Math.PI * 2); cx.fill()
+          break
+        }
+        case 14: { // aisle: the corridor, receding, lights failing
+          const flick = Math.sin(t * 19) * Math.sin(t * 7.3) < -0.88 ? 0.3 : 1
+          for (let k = 5; k >= 0; k--) {
+            const s = k / 5
+            const x = 8 + s * 26, y = 5 + s * 19
+            cx.globalAlpha = (0.14 + (1 - s) * 0.32) * flick
+            cx.strokeStyle = k === 0 ? ac : '#c9c4b6'
+            cx.strokeRect(x, y, W - x * 2, H - y * 2)
+          }
+          cx.globalAlpha = 0.9 * flick
+          cx.fillStyle = '#ff2a1a'
+          cx.font = '6px monospace'
+          cx.textAlign = 'center'
+          cx.fillText('EXIT', 40, 30)
+          break
+        }
+      }
+      cx.globalAlpha = 1
+      raf = requestAnimationFrame(draw)
     }
-    cx.globalAlpha = 1
-    const grad = cx.createRadialGradient(40, 30, 0, 40, 30, 16)
-    grad.addColorStop(0, world.ac + 'cc')
-    grad.addColorStop(1, 'transparent')
-    cx.beginPath()
-    cx.arc(40, 30, 16, 0, Math.PI * 2)
-    cx.fillStyle = grad
-    cx.fill()
-    cx.strokeStyle = 'rgba(255,255,255,0.18)'
-    cx.lineWidth = 1
-    cx.beginPath()
-    cx.moveTo(40, 5); cx.lineTo(40, 55)
-    cx.moveTo(5, 30); cx.lineTo(75, 30)
-    cx.stroke()
+    draw()
+    return () => cancelAnimationFrame(raf)
   }, [world])
 
   return (
@@ -873,7 +1011,7 @@ export default function World0Surface() {
         {/* RIGHT */}
         <div style={{ width: 210, flexShrink: 0, overflow: 'hidden', background: '#000033' }}>
 
-          <MiniPanel label="INDEX" headerStyle={{ background: 'linear-gradient(90deg, #aa0088 0%, #770055 100%)', borderBottom: '1px solid #c900aa' }}>
+          <MiniPanel label="INDEX">
             <div style={{ margin: '-6px -8px', padding: 4 }}>
               <button className="w0-ibtn" onClick={go} style={{ width: '100%' }}>WORLDS</button>
               <button className="w0-ibtn" onClick={goProjects} style={{ width: '100%' }}>PROJECTS</button>
