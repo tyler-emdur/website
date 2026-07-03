@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import { projects } from '@/lib/data/projects'
 import HomeButton from './HomeButton'
 import { useWorldStore } from '@/lib/world-store'
 import { LiveRadio, nearestStation, type RadioStatus } from './garage/live-radio'
@@ -98,36 +97,14 @@ function TuningDial({
   )
 }
 
-// ── instrument cluster (idle gauges, the 12:47 clock) ────────────────────────
-function Gauge({ label, value, sweep, unit, color = 'rgba(120,255,170,0.85)' }: {
-  label: string; value: string; sweep: number; unit?: string; color?: string
-}) {
-  const a = -130 + sweep * 260
-  return (
-    <div style={{ position: 'relative', width: 66, height: 66, textAlign: 'center' }}>
-      <svg width={66} height={66} style={{ position: 'absolute', inset: 0 }}>
-        <circle cx={33} cy={33} r={29} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={2} />
-        <path d="M 33 33 L 33 10" stroke={color} strokeWidth={1.6} transform={`rotate(${a} 33 33)`} opacity={0.9} />
-        <circle cx={33} cy={33} r={2.4} fill={color} />
-      </svg>
-      <div style={{ position: 'absolute', bottom: 6, left: 0, right: 0, fontFamily: '"Space Mono", monospace' }}>
-        <div style={{ fontSize: 11, color, lineHeight: 1 }}>{value}</div>
-        <div style={{ fontSize: 6, letterSpacing: '0.15em', color: 'rgba(255,255,255,0.3)', marginTop: 1 }}>{unit ?? label}</div>
-      </div>
-    </div>
-  )
-}
-
 const STATUS_LABEL: Record<RadioStatus, string> = {
   off: 'OFF', static: 'STATIC', tuning: 'TUNING…', live: 'ON AIR',
 }
 
 export default function World6Garage() {
   const findSecret = useWorldStore(s => s.findSecret)
-  const secretsFound = useWorldStore(s => s.secretsFound)
 
   const [headlightsOn, setHeadlightsOn] = useState(false)
-  const [gloveOpen, setGloveOpen] = useState(false)
   const [freq, setFreq] = useState(96.1)
   const [stations, setStations] = useState<RadioStation[]>([])
   const [loadingStations, setLoadingStations] = useState(true)
@@ -135,7 +112,6 @@ export default function World6Garage() {
   const [liveStation, setLiveStation] = useState<RadioStation | null>(null)
   const [volume, setVolume] = useState(0.75)
   const [muted, setMuted] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
   const [showIntro, setShowIntro] = useState(true)
   const [driving, setDriving] = useState(false)
   const [igniting, setIgniting] = useState(false)
@@ -177,7 +153,6 @@ export default function World6Garage() {
 
   useEffect(() => () => { radioRef.current?.stop() }, [])
   useEffect(() => { const t = setTimeout(() => setShowIntro(false), 6000); return () => clearTimeout(t) }, [])
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t) }, [toast])
 
   // radio follows the dial
   useEffect(() => { radioRef.current?.tune(freq) }, [freq, stations])
@@ -222,12 +197,6 @@ export default function World6Garage() {
       findSecret('garage-took-the-drive')
     }, 1600)
   }, [driving, igniting, ensureRadio, findSecret])
-
-  function handleFindCassette(id: string, label: string) {
-    if (secretsFound.includes(id)) return
-    findSecret(id)
-    setToast(label)
-  }
 
   const stationObj = liveStation ?? (near.station && near.strength > 0.2 ? near.station : null)
   const stationName = stationObj?.name ?? null
@@ -279,28 +248,20 @@ export default function World6Garage() {
         )}
       </div>
 
-      {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 24, zIndex: 60, fontFamily: '"Space Mono", monospace',
-          fontSize: 10, letterSpacing: '0.12em', color: '#F472B6', background: 'rgba(0,0,0,0.6)',
-          border: '1px solid rgba(244,114,182,0.4)', padding: '10px 14px', animation: 'garage-fade 0.3s ease' }}>
-          ◆ found a tape — {toast}
-        </div>
-      )}
-
       <HomeButton />
 
       {/* ── THE DASHBOARD ────────────────────────────────────────────────── */}
       {!driving && (
         <div style={{
           position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 40,
-          height: 'clamp(230px, 40vh, 300px)',
+          height: 'clamp(200px, 34vh, 250px)',
           background: 'linear-gradient(180deg, rgba(10,10,12,0) 0%, rgba(12,11,10,0.82) 16%, #0c0b0a 46%, #060505 100%)',
           display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
           gap: 'clamp(10px, 2.4vw, 34px)', padding: '0 clamp(12px,3vw,40px) clamp(14px,3vh,26px)',
           fontFamily: '"Space Mono", monospace',
         }}>
-          {/* left: steering wheel + gauges */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexShrink: 0 }}>
+          {/* left: steering wheel + clock */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexShrink: 0 }}>
             {/* wheel */}
             <div style={{ position: 'relative', width: 128, height: 78, overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
@@ -312,17 +273,10 @@ export default function World6Garage() {
                 <span style={{ fontSize: 8, color: 'rgba(255,223,140,0.5)', letterSpacing: '0.1em' }}>EMDUR</span>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <Gauge label="MPH" value="0" sweep={0} unit="MPH" />
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, paddingBottom: 4 }}>
-                <div style={{ fontFamily: '"Space Mono", monospace', fontSize: 15, color: 'rgba(120,255,170,0.85)',
-                  textShadow: '0 0 8px rgba(120,255,170,0.4)' }}>12:47</div>
-                <div style={{ fontSize: 6, letterSpacing: '0.2em', color: 'rgba(255,255,255,0.3)' }}>AM · CLOCK</div>
-                <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                  <span style={{ fontSize: 6, color: 'rgba(255,90,60,0.7)' }}>▮ FUEL E</span>
-                  <span style={{ fontSize: 6, color: 'rgba(120,180,255,0.7)' }}>TEMP C</span>
-                </div>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, paddingBottom: 6 }}>
+              <div style={{ fontFamily: '"Space Mono", monospace', fontSize: 15, color: 'rgba(120,255,170,0.85)',
+                textShadow: '0 0 8px rgba(120,255,170,0.4)' }}>12:47</div>
+              <div style={{ fontSize: 6, letterSpacing: '0.2em', color: 'rgba(255,255,255,0.3)' }}>AM · CLOCK</div>
             </div>
           </div>
 
@@ -389,22 +343,9 @@ export default function World6Garage() {
               </div>
             </div>
 
-            {/* presets */}
-            <div style={{ display: 'flex', gap: 5, marginTop: 8, flexWrap: 'wrap' }}>
-              {stations.slice(0, 6).map((s, i) => (
-                <button key={s.id} onClick={() => { ensureRadio(); tuneTo(s.freq) }} title={s.name}
-                  style={{
-                    ...presetBtn,
-                    borderColor: Math.abs(s.freq - freq) < 0.2 ? 'rgba(255,179,71,0.7)' : presetBtn.border as string,
-                    color: Math.abs(s.freq - freq) < 0.2 ? '#ffb347' : presetBtn.color,
-                  }}>
-                  {i + 1} {countryFlag(s.country)}
-                </button>
-              ))}
-            </div>
           </div>
 
-          {/* right: ignition + glovebox + headlights */}
+          {/* right: ignition + headlights */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0, paddingBottom: 4 }}>
             <button onClick={turnKey} disabled={igniting} style={{
               ...dashCtl, borderColor: 'rgba(255,223,140,0.4)',
@@ -419,64 +360,6 @@ export default function World6Garage() {
               borderColor: headlightsOn ? 'rgba(255,240,190,0.5)' : 'rgba(255,255,255,0.15)' }}>
               ☀ HEADLIGHTS {headlightsOn ? 'ON' : 'OFF'}
             </button>
-            <button onClick={() => { setGloveOpen(true); findSecret('garage-opened-glovebox') }} style={dashCtl}>
-              🗄 GLOVEBOX · WORK
-            </button>
-            {/* cassettes tucked in the console */}
-            <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
-              {CASSETTES.map(c => {
-                const found = secretsFound.includes(c.id)
-                return (
-                  <div key={c.id} onClick={() => handleFindCassette(c.id, c.label)} title="a cassette tape"
-                    style={{
-                      width: 26, height: 17, borderRadius: 2, cursor: found ? 'default' : 'pointer',
-                      background: found ? 'linear-gradient(180deg,#F472B6,#a02f6e)' : 'linear-gradient(180deg,#3a2f1e,#221a10)',
-                      border: '1px solid rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                    <div style={{ width: 14, height: 6, borderRadius: 1, background: 'rgba(0,0,0,0.4)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-                      <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.4)' }} />
-                      <div style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.4)' }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* glovebox → projects */}
-      {gloveOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(2,3,5,0.72)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'garage-fade 0.3s ease' }}
-          onClick={() => setGloveOpen(false)}>
-          <div onClick={e => e.stopPropagation()} style={{
-            width: 'min(560px, 92vw)', maxHeight: '84vh', overflowY: 'auto',
-            background: 'linear-gradient(180deg, #14110c, #0a0806)', border: '1px solid rgba(255,223,140,0.25)',
-            fontFamily: '"Space Mono", monospace', boxShadow: '0 30px 80px rgba(0,0,0,0.8)',
-          }}>
-            <div style={{ position: 'sticky', top: 0, background: '#14110c', padding: '14px 18px',
-              borderBottom: '1px solid rgba(255,223,140,0.2)', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 11, letterSpacing: '0.2em', color: 'rgba(255,223,140,0.9)' }}>GLOVEBOX — REGISTRATION &amp; WORK</div>
-              <div onClick={() => setGloveOpen(false)} style={{ cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}>×</div>
-            </div>
-            <div style={{ padding: '4px 18px 20px' }}>
-              {projects.map(p => (
-                <div key={p.id} style={{ padding: '13px 0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <div style={{ fontSize: 13, color: '#fff', fontWeight: 700 }}>{p.title}</div>
-                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)' }}>{p.year}</div>
-                  </div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, marginTop: 4 }}>{p.description}</div>
-                  <div style={{ fontSize: 8, color: 'rgba(255,223,140,0.6)', marginTop: 6 }}>{p.tech.join(' · ')}</div>
-                  <div style={{ marginTop: 6, display: 'flex', gap: 12 }}>
-                    {p.links.github && <a href={p.links.github} target="_blank" rel="noopener noreferrer" style={{ fontSize: 9, color: '#ffb347' }}>github →</a>}
-                    {p.links.live && <a href={p.links.live} target="_blank" rel="noopener noreferrer" style={{ fontSize: 9, color: '#ffb347' }}>live →</a>}
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       )}
@@ -501,19 +384,9 @@ const radioBtn: React.CSSProperties = {
   background: 'rgba(255,179,71,0.06)', border: '1px solid rgba(255,179,71,0.25)', borderRadius: 3,
   color: 'rgba(255,179,71,0.85)', cursor: 'pointer', whiteSpace: 'nowrap',
 }
-const presetBtn: React.CSSProperties = {
-  fontFamily: '"Space Mono", monospace', fontSize: 9, padding: '3px 7px',
-  background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 3,
-  color: 'rgba(255,255,255,0.55)', cursor: 'pointer',
-}
 const dashCtl: React.CSSProperties = {
   fontFamily: '"Space Mono", monospace', fontSize: 9, letterSpacing: '0.1em', padding: '9px 12px',
   background: 'rgba(20,18,14,0.9)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4,
   color: 'rgba(255,255,255,0.7)', cursor: 'pointer', textAlign: 'left', whiteSpace: 'nowrap',
 }
 
-const CASSETTES: Array<{ id: string; label: string }> = [
-  { id: 'garage-cassette-shelf', label: 'MIX — SENIOR YEAR, I-70 WEST' },
-  { id: 'garage-cassette-undercar', label: "SIDE B — DIDN'T FINISH RECORDING" },
-  { id: 'garage-cassette-toolbox', label: 'PRACTICE TAPE — FIRST DEMO, 2016' },
-]

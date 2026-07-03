@@ -71,8 +71,10 @@ const mix = (a: number, b: number, t: number) => a + (b - a) * t
 export default function NightDrive({ freq, station, status, onSeek, onExit, onLongDrive }: NightDriveProps) {
   const tuned = status === 'live' || status === 'tuning'
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const wheelRef = useRef<HTMLDivElement>(null)
   const [signIdx, setSignIdx] = useState(0)
   const [odometer, setOdometer] = useState(0)
+  const [speedView, setSpeedView] = useState(64)
   const [phaseLabel, setPhaseLabel] = useState(PHASES[0].name)
   const speedRef = useRef(64)
   const passedRef = useRef(0)
@@ -95,7 +97,7 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
     const cx = cv.getContext('2d')!
     let raf = 0
     let dist = 0            // world distance travelled
-    let signZ = 900         // distance to next sign
+    let signZ = 1300        // distance to next sign — spawns at the horizon
     let currentSign = 0
     let last = performance.now()
     let lastPhaseName = PHASES[0].name
@@ -349,11 +351,11 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
         cx.stroke()
       })
 
-      // center dashes
+      // center dashes — road paint streams from the horizon toward the car
       const DASH_SPACING = 110
       const offset = (dist % DASH_SPACING) / DASH_SPACING
       for (let i = 0; i < 14; i++) {
-        const zNear = (i + offset) / 14
+        const zNear = (i + 1 - offset) / 14
         const zFar = zNear + 0.024
         if (zFar >= 1) continue
         const a = proj(zNear, 0), b = proj(zFar, 0)
@@ -370,7 +372,7 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       const POST_SPACING = 260
       const postOffset = (dist % POST_SPACING) / POST_SPACING
       for (let i = 0; i < 8; i++) {
-        const z = (i + postOffset) / 8
+        const z = (i + 1 - postOffset) / 8
         if (z >= 0.98) continue
         ;[-1.05, 1.05].forEach(lat => {
           const p = proj(z, lat)
@@ -387,7 +389,7 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
         const SL_SPACING = 520
         const slOffset = (dist % SL_SPACING) / SL_SPACING
         for (let i = 0; i < 5; i++) {
-          const z = (i + slOffset) / 5
+          const z = (i + 1 - slOffset) / 5
           if (z >= 0.97) continue
           const p = proj(z, -1.25)
           const s = p.scale
@@ -476,8 +478,8 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
         setSignIdx(currentSign)
         if (passedRef.current === SIGNS.length) onLongDrive()
       }
-      if (signZ < 1400) {
-        const z = Math.max(0, Math.min(0.985, 1 - signZ / 1400))
+      if (signZ < 1400 && signZ > 0) {
+        const z = Math.max(0, Math.min(0.985, signZ / 1400))
         const p = proj(z, 1.55)
         const s = Math.max(0.05, p.scale)
         const sw = 200 * s, sh = 100 * s
@@ -511,6 +513,23 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       cx.fillStyle = glow
       cx.fillRect(0, horizon, W, H - horizon)
 
+      // twin low-beam cones thrown forward from the nose of the car
+      ;[-0.34, 0.34].forEach(lat => {
+        const nearP = proj(0.01, lat)
+        const farP = proj(0.5, lat * 0.35)
+        const beam = cx.createLinearGradient(nearP.x, H, farP.x, farP.y)
+        beam.addColorStop(0, 'rgba(255,240,200,0.075)')
+        beam.addColorStop(1, 'transparent')
+        cx.fillStyle = beam
+        cx.beginPath()
+        cx.moveTo(nearP.x - W * 0.09, H + 2)
+        cx.lineTo(farP.x - W * 0.02, farP.y)
+        cx.lineTo(farP.x + W * 0.02, farP.y)
+        cx.lineTo(nearP.x + W * 0.09, H + 2)
+        cx.closePath()
+        cx.fill()
+      })
+
       // lightning also washes the road for a frame or two
       if (flash > 0.05) {
         cx.fillStyle = `rgba(210,220,255,${flash * 0.06})`
@@ -535,7 +554,44 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       cx.fillStyle = refl
       cx.fillRect(0, H * 0.62, W, H * 0.38)
 
+      // ── the hood: the nose of the car, always in front of you ─────────────
+      const hoodTop = H * 0.855
+      const apexX = cxm - curve * W * 0.03   // the nose leans into the curve
+      const hg = cx.createLinearGradient(0, hoodTop, 0, H)
+      hg.addColorStop(0, '#12151b')
+      hg.addColorStop(0.4, '#0a0c10')
+      hg.addColorStop(1, '#05060a')
+      cx.fillStyle = hg
+      cx.beginPath()
+      cx.moveTo(-2, H + 2)
+      cx.lineTo(-2, H * 0.97)
+      cx.quadraticCurveTo(apexX - W * 0.3, hoodTop + H * 0.012, apexX, hoodTop)
+      cx.quadraticCurveTo(apexX + W * 0.3, hoodTop + H * 0.012, W + 2, H * 0.97)
+      cx.lineTo(W + 2, H + 2)
+      cx.closePath()
+      cx.fill()
+      // hood edge catches the streetlight / sky
+      cx.strokeStyle = `rgba(140,160,200,${0.10 + flash * 0.3 + town * 0.06})`
+      cx.lineWidth = 1.2
+      cx.beginPath()
+      cx.moveTo(0, H * 0.97)
+      cx.quadraticCurveTo(apexX - W * 0.3, hoodTop + H * 0.012, apexX, hoodTop)
+      cx.quadraticCurveTo(apexX + W * 0.3, hoodTop + H * 0.012, W, H * 0.97)
+      cx.stroke()
+      // center crease + soft specular pool
+      cx.strokeStyle = 'rgba(150,170,210,0.05)'
+      cx.beginPath(); cx.moveTo(apexX, hoodTop + 2); cx.lineTo(apexX, H); cx.stroke()
+      const spec = cx.createRadialGradient(apexX, H * 0.93, 4, apexX, H * 0.95, W * 0.26)
+      spec.addColorStop(0, `rgba(120,140,190,${0.07 + flash * 0.2})`)
+      spec.addColorStop(1, 'transparent')
+      cx.fillStyle = spec
+      cx.fillRect(0, hoodTop, W, H - hoodTop)
+
+      // steering wheel counter-steers with the road
+      if (wheelRef.current) wheelRef.current.style.transform = `rotate(${(curve * 22).toFixed(2)}deg)`
+
       setOdometer(Math.floor(dist / 160))
+      setSpeedView(Math.round(speed))
       raf = requestAnimationFrame(frame)
     }
     raf = requestAnimationFrame(frame)
@@ -546,35 +602,83 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
     <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#04050c', animation: 'garage-fade 1.2s ease' }}>
       <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
 
-      {/* dashboard */}
+      {/* cockpit — the same dash you sat behind in the garage, still with you */}
       <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: 92,
-        background: 'linear-gradient(180deg, rgba(8,7,6,0) 0%, rgba(10,9,8,0.94) 34%, #0b0a09 100%)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 40,
-        paddingBottom: 18, fontFamily: '"Space Mono", monospace',
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: 128,
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        gap: 'clamp(16px, 4vw, 56px)', paddingBottom: 14,
+        fontFamily: '"Space Mono", monospace', pointerEvents: 'none',
       }}>
-        {/* speed */}
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 22, color: 'rgba(120,255,170,0.8)', textShadow: '0 0 12px rgba(120,255,170,0.4)' }}>
-            {Math.round(speedRef.current)}
+        {/* steering wheel, counter-steering with the road */}
+        <div style={{ position: 'relative', width: 168, height: 96, overflow: 'hidden', flexShrink: 0 }}>
+          <div ref={wheelRef} style={{
+            position: 'absolute', top: 10, left: '50%', width: 190, height: 190, marginLeft: -95,
+            borderRadius: '50%', border: '14px solid #17181c',
+            boxShadow: 'inset 0 0 26px rgba(0,0,0,0.9), 0 -2px 12px rgba(0,0,0,0.65)',
+          }}>
+            {/* spokes + hub */}
+            <div style={{ position: 'absolute', top: '50%', left: -6, right: -6, height: 12, marginTop: -6,
+              background: 'linear-gradient(180deg, #1b1c21, #101114)', borderRadius: 6 }} />
+            <div style={{ position: 'absolute', top: '50%', left: '50%', width: 52, height: 34,
+              transform: 'translate(-50%, -38%)', borderRadius: 8, background: '#17181c',
+              display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 8, color: 'rgba(255,223,140,0.5)', letterSpacing: '0.1em' }}>EMDUR</span>
+            </div>
           </div>
-          <div style={{ fontSize: 7, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.3)' }}>MPH · ↑↓</div>
         </div>
 
-        {/* radio readout — the live station keeps playing on the drive */}
-        <div style={{ textAlign: 'center', minWidth: 260, maxWidth: 320 }}>
-          <div style={{ fontSize: 11, color: station ? 'rgba(255,179,71,0.95)' : 'rgba(255,255,255,0.35)', letterSpacing: '0.14em', textShadow: station ? '0 0 10px rgba(255,179,71,0.4)' : 'none' }}>
-            {freq.toFixed(1)} FM {station ? `· ${flag(station.country)} ${station.name}` : '· static'}
+        {/* instrument cluster: live speed + odometer */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexShrink: 0, paddingBottom: 2 }}>
+          <div style={{ position: 'relative', width: 72, height: 72, textAlign: 'center' }}>
+            <svg width={72} height={72} style={{ position: 'absolute', inset: 0 }}>
+              <circle cx={36} cy={36} r={32} fill="rgba(5,8,6,0.85)" stroke="rgba(255,255,255,0.1)" strokeWidth={2} />
+              {Array.from({ length: 9 }).map((_, i) => {
+                const a = (-130 + i * 32.5) * Math.PI / 180
+                return <line key={i} x1={36 + Math.sin(a) * 26} y1={36 - Math.cos(a) * 26}
+                  x2={36 + Math.sin(a) * 30} y2={36 - Math.cos(a) * 30}
+                  stroke="rgba(120,255,170,0.35)" strokeWidth={1} />
+              })}
+              <path d="M 36 36 L 36 9" stroke="rgba(120,255,170,0.9)" strokeWidth={1.8}
+                transform={`rotate(${-130 + Math.max(0, Math.min(1, (speedView - 30) / 65)) * 260} 36 36)`} />
+              <circle cx={36} cy={36} r={2.6} fill="rgba(120,255,170,0.9)" />
+            </svg>
+            <div style={{ position: 'absolute', bottom: 8, left: 0, right: 0 }}>
+              <div style={{ fontSize: 13, color: 'rgba(120,255,170,0.9)', lineHeight: 1, textShadow: '0 0 8px rgba(120,255,170,0.4)' }}>{speedView}</div>
+              <div style={{ fontSize: 6, letterSpacing: '0.2em', color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>MPH · ↑↓</div>
+            </div>
           </div>
-          <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)', marginTop: 3, minHeight: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {station ? `${status === 'live' ? 'ON AIR' : 'tuning…'} — seek with ← →` : 'between stations — seek with ← →'}
+          <div style={{ textAlign: 'center', paddingBottom: 8 }}>
+            <div style={{ fontSize: 13, color: 'rgba(255,235,205,0.65)', background: 'rgba(5,5,4,0.7)', padding: '3px 8px', borderRadius: 3, border: '1px solid rgba(255,235,205,0.12)', letterSpacing: '0.1em' }}>
+              {String(odometer).padStart(5, '0')}
+            </div>
+            <div style={{ fontSize: 6, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>MILES</div>
           </div>
         </div>
 
-        {/* odometer + exit */}
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 14, color: 'rgba(255,235,205,0.6)' }}>{String(odometer).padStart(5, '0')}</div>
-          <div style={{ fontSize: 7, letterSpacing: '0.2em', color: 'rgba(255,255,255,0.3)' }}>MILES</div>
+        {/* radio head unit — the live station rides along */}
+        <div style={{
+          minWidth: 250, maxWidth: 330, padding: '9px 13px 10px', marginBottom: 2,
+          background: 'linear-gradient(180deg, rgba(26,23,18,0.95), rgba(14,12,9,0.95))',
+          border: '1px solid rgba(255,179,71,0.2)', borderRadius: 7,
+          boxShadow: '0 8px 26px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,220,150,0.06)',
+          pointerEvents: 'auto',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontSize: 17, color: '#7dffb0', textShadow: '0 0 10px rgba(120,255,170,0.5)' }}>{freq.toFixed(1)}</span>
+            <span style={{ fontSize: 8, color: 'rgba(120,255,170,0.5)' }}>FM</span>
+            <span style={{
+              fontSize: 7, letterSpacing: '0.14em', padding: '1px 6px', borderRadius: 2,
+              color: status === 'live' ? '#0a0a0a' : 'rgba(255,179,71,0.85)',
+              background: status === 'live' ? '#7dffb0' : 'rgba(255,179,71,0.12)',
+            }}>{tuned ? (status === 'live' ? 'ON AIR' : 'TUNING…') : 'STATIC'}</span>
+          </div>
+          <div style={{ fontSize: 9, color: 'rgba(255,236,205,0.75)', marginTop: 4, minHeight: 12,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }}>
+            {station ? `${flag(station.country)} ${station.name}` : '— between stations —'}
+          </div>
+          <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.1em' }}>
+            ← → seek stations
+          </div>
         </div>
       </div>
 
