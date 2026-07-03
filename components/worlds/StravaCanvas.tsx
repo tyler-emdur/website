@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useRef, useEffect } from 'react'
+import { Suspense, useMemo, useRef, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Text } from '@react-three/drei'
 import { BufferGeometry, Float32BufferAttribute, PlaneGeometry, Points, ShaderMaterial, AdditiveBlending, Color, Vector3 } from 'three'
@@ -218,7 +218,11 @@ function Scene({ activities, terrain }: { activities: RouteActivity[]; terrain: 
       <fog attach="fog" args={['#050506', GEO_RADIUS_WORLD * 2.2, GEO_RADIUS_WORLD * 5]} />
       <TerrainMesh terrain={terrain} minElev={minElev} />
       <RouteCloud activities={activities} terrain={terrain} minElev={minElev} lift={routeLift} maxHeight={routeMaxHeight} />
-      <SkyText radius={GEO_RADIUS_WORLD} />
+      {/* drei's <Text> suspends while its font loads — isolate it so a slow
+          font fetch can't hold the terrain and routes off-screen */}
+      <Suspense fallback={null}>
+        <SkyText radius={GEO_RADIUS_WORLD} />
+      </Suspense>
       <OrbitControls
         ref={controlsRef}
         target={[0, 0, 0]}
