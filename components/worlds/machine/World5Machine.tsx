@@ -5,8 +5,8 @@ import HomeButton from '../HomeButton'
 import { projects } from '@/lib/data/projects'
 import { PROGRAMS } from './programs'
 import {
-  EXPERIMENTS, README_TXT, RECOVERED_SECTORS, WEBSITE_V1_LINKS, WORLD_FILES,
-  garbleLine, getBootCount, recordBoot,
+  EXPERIMENTS, README_TXT, RECOVERED_SECTORS, RECYCLED, WEBSITE_V1_LINKS, WORLD_FILES,
+  garbleLine, getBootCount, recordBoot, type RecycledItem,
 } from './machine-data'
 
 const TEAL = '#00807e'
@@ -239,8 +239,9 @@ function Terminal({ bootCount, onRun, onSecret, onWorld, onSrv }: {
     setOut(prev => [...prev, ...lines.map(text => ({ id: ++termSeq, text, color }))])
 
   const DIRS: Record<string, string[]> = {
-    'C:\\': ['WORLDS         <DIR>', 'PROJECTS       <DIR>', 'EXPERIMENTS    <DIR>', 'GAMES          <DIR>', 'RECOVERED      <DIR>', 'WEBSITE.V1     <DIR>', 'SRVHOST.EXE', 'README.TXT', 'COMMITS.LOG'],
+    'C:\\': ['WORLDS         <DIR>', 'PROJECTS       <DIR>', 'EXPERIMENTS    <DIR>', 'GAMES          <DIR>', 'RECOVERED      <DIR>', 'RECYCLED       <DIR>', 'WEBSITE.V1     <DIR>', 'SRVHOST.EXE', 'README.TXT', 'COMMITS.LOG'],
     'C:\\WORLDS': WORLD_FILES.map(w => `${w.file.padEnd(14)}${w.size.padStart(7)}  ${w.note}`),
+    'C:\\RECYCLED': RECYCLED.map(r => `${r.file.padEnd(34)}    0  ${r.deleted}`),
     'C:\\PROJECTS': projects.map(p => `${p.id.toUpperCase().slice(0, 12)}.EXE`),
     'C:\\EXPERIMENTS': EXPERIMENTS.map(e => e.title.toUpperCase().replace(/[^A-Z0-9.]/g, '_').slice(0, 20) + '.LOG'),
     'C:\\GAMES': ['MINESWEEPER.EXE', ...PROGRAMS.map(p => p.title.toUpperCase())],
@@ -295,6 +296,8 @@ function Terminal({ bootCount, onRun, onSecret, onWorld, onSrv }: {
         }
         const exp = EXPERIMENTS.find(e => arg.includes(e.title.toUpperCase().replace(/[^A-Z0-9.]/g, '_').slice(0, 8)))
         if (exp) { print([`${exp.title} — ${exp.status.toUpperCase()}`, '', exp.note], '#c8e6c9'); break }
+        const rec = RECYCLED.find(r => { const b = r.file.toUpperCase(); return arg === b || arg === b.split('.')[0] })
+        if (rec) { print(rec.body, '#c8e6c9'); break }
         if (arg.includes('INDEX')) { print(['<html> — it renders. Open WEBSITE.V1 on the desktop to see it.'], '#c8e6c9'); break }
         print([`File not found: ${arg || '?'}`], '#f66')
         break
@@ -321,6 +324,18 @@ function Terminal({ bootCount, onRun, onSecret, onWorld, onSrv }: {
       }
       case 'COMMITS':
         print(commits ? ['live from github/tyler-emdur/website:', '', ...commits] : ['network sector unreadable.'], '#c8e6c9')
+        break
+      // not in HELP — for whoever thinks to try it
+      case 'UNDELETE':
+        print([
+          'UNDELETE C:\\RECYCLED\\*.*',
+          '',
+          ...RECYCLED.map(r => `  ${r.file.padEnd(34)} recovery declined — file was never fully gone`),
+          '',
+          'Nothing to undelete. Nothing ever left.',
+          "Open the Recycle Bin on the desktop if you don't believe the terminal.",
+        ], '#f6c66a')
+        onSecret('machine-undelete')
         break
       case 'FORMAT':
         print([
@@ -385,6 +400,104 @@ function FolderGrid({ items }: { items: { icon: string; label: string; sub?: str
           {it.sub && <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 8, color: '#666', marginTop: 1 }}>{it.sub}</div>}
         </div>
       ))}
+    </div>
+  )
+}
+
+// ── Recycle Bin ───────────────────────────────────────────────────────────────
+// The files Tyler deleted that the disk won't let go of. Double-click to read
+// one; try to empty it and the disk holds on — some things stay on the disk.
+function RecycleBin({ onOpen, onRefused }: { onOpen: (item: RecycledItem) => void; onRefused: () => void }) {
+  const [sel, setSel] = useState<string | null>(null)
+  const [dlg, setDlg] = useState<'confirm' | 'emptying' | 'blocked' | null>(null)
+  const [emptyingFile, setEmptyingFile] = useState('')
+
+  const runEmpty = useCallback(async () => {
+    setDlg('emptying')
+    for (const it of RECYCLED) {
+      setEmptyingFile(it.file)
+      await new Promise(r => setTimeout(r, 260))
+    }
+    await new Promise(r => setTimeout(r, 240))
+    setDlg('blocked')
+    onRefused()
+  }, [onRefused])
+
+  return (
+    <div style={{ background: '#fff', height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      {/* toolbar */}
+      <div style={{ background: GRAY, borderBottom: '1px solid #808080', padding: '4px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={{ fontFamily: 'Arial, sans-serif', fontSize: 10, color: '#000' }}>{RECYCLED.length} item(s)</span>
+        <button
+          onClick={() => setDlg('confirm')}
+          style={{ padding: '2px 8px', background: GRAY, border: '2px outset #fff', fontFamily: 'Arial, sans-serif', fontSize: 10, cursor: 'pointer', color: '#000' }}
+        >🗑 Empty Recycle Bin</button>
+      </div>
+      {/* file grid */}
+      <div onClick={() => setSel(null)} style={{ flex: 1, overflowY: 'auto', padding: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, 100px)', gap: 8, alignContent: 'start' }}>
+        {RECYCLED.map(it => (
+          <div key={it.file}
+            onClick={e => { e.stopPropagation(); setSel(it.file) }}
+            onDoubleClick={e => { e.stopPropagation(); onOpen(it) }}
+            style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}>
+            <div style={{ fontSize: 26 }}>{it.icon}</div>
+            <div style={{
+              fontFamily: 'Arial, sans-serif', fontSize: 9, wordBreak: 'break-word', lineHeight: 1.3, marginTop: 2,
+              display: 'inline-block', padding: '1px 3px',
+              background: sel === it.file ? '#000080' : 'transparent',
+              color: sel === it.file ? '#fff' : '#000',
+              outline: sel === it.file ? '1px dotted #ff0' : 'none',
+            }}>{it.file}</div>
+            <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 8, color: '#888', marginTop: 1 }}>{it.deleted}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* dialogs */}
+      {dlg && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
+          <div style={{ width: 'min(320px, 90%)', background: GRAY, border: '2px outset #fff', boxShadow: '3px 3px 0 rgba(0,0,0,0.4)', fontFamily: 'Arial, sans-serif' }}>
+            <div style={{ background: 'linear-gradient(90deg, #000080, #1084d0)', color: '#fff', padding: '3px 8px', fontSize: 11, fontWeight: 700 }}>
+              {dlg === 'blocked' ? 'Cannot Empty Recycle Bin' : 'Confirm File Delete'}
+            </div>
+            {dlg === 'confirm' && (
+              <>
+                <div style={{ padding: '16px 16px 6px', display: 'flex', gap: 12, fontSize: 12, color: '#000', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 26 }}>🗑</div>
+                  <div>Are you sure you want to delete these {RECYCLED.length} items?</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '10px 14px 14px' }}>
+                  <button onClick={runEmpty} style={{ padding: '3px 14px', background: GRAY, border: '2px outset #fff', fontSize: 11, cursor: 'pointer' }}>Yes</button>
+                  <button onClick={() => setDlg(null)} style={{ padding: '3px 14px', background: GRAY, border: '2px outset #fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>No</button>
+                </div>
+              </>
+            )}
+            {dlg === 'emptying' && (
+              <div style={{ padding: '18px 16px', fontSize: 11, color: '#000', fontFamily: '"Courier New", monospace' }}>
+                Deleting <b>{emptyingFile}</b>…
+                <div style={{ marginTop: 10, height: 14, border: '1px inset #808080', background: '#fff', padding: 1 }}>
+                  <div style={{ height: '100%', width: `${((RECYCLED.findIndex(r => r.file === emptyingFile) + 1) / RECYCLED.length) * 100}%`, background: 'repeating-linear-gradient(90deg,#000080 0 8px,#1084d0 8px 12px)' }} />
+                </div>
+              </div>
+            )}
+            {dlg === 'blocked' && (
+              <>
+                <div style={{ padding: '16px 16px 6px', display: 'flex', gap: 12, fontSize: 12, color: '#000', lineHeight: 1.55 }}>
+                  <div style={{ fontSize: 26 }}>⚠️</div>
+                  <div>
+                    The disk is still holding these files.<br /><br />
+                    They were deleted a long time ago. They are still here.<br />
+                    Some things stay on the disk.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 14px 14px' }}>
+                  <button onClick={() => setDlg(null)} style={{ padding: '3px 18px', background: GRAY, border: '2px outset #fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -850,6 +963,15 @@ export default function World5Machine() {
     ), 400, 220)
   }, [open, bootCount])
 
+  const openRecycleBin = useCallback(() => {
+    open('recyclebin', 'Recycle Bin', (
+      <RecycleBin
+        onOpen={(it) => open(`recycled:${it.file}`, it.file, <Notepad lines={it.body} />, 440, 300)}
+        onRefused={() => findSecret('machine-bin-wont-empty')}
+      />
+    ), 480, 320)
+  }, [open, findSecret])
+
   useEffect(() => {
     if (healedCount >= RECOVERED_SECTORS.length && phase === 'desktop') findSecret('machine-all-sectors')
   }, [healedCount, phase, findSecret])
@@ -863,6 +985,7 @@ export default function World5Machine() {
         { icon: '📁', label: 'GAMES', onOpen: () => openIcon('games') },
         { icon: '📁', label: 'RECOVERED', onOpen: openRecovered },
         { icon: '📡', label: 'SRVHOST.EXE', onOpen: openSrvhost },
+        { icon: '🗑', label: 'Recycle Bin', onOpen: openRecycleBin },
         { icon: '📄', label: 'README.TXT', onOpen: () => openIcon('readme') },
         { icon: '🌐', label: 'WEBSITE.V1', onOpen: () => openIcon('v1') },
       ]} />
@@ -874,6 +997,7 @@ export default function World5Machine() {
     { icon: '💣', label: 'MINESWEEPER', act: openMinesweeper },
     { icon: '📁', label: 'PROGRAMS', act: () => openIcon('games') },
     { icon: '🗒', label: 'RECOVERED', act: openRecovered },
+    { icon: '🗑', label: 'Recycle Bin', act: openRecycleBin },
   ]
 
   function openIcon(kind: string) {
@@ -1008,6 +1132,7 @@ export default function World5Machine() {
                     { label: '🕹  Games', act: () => { openIcon('games'); setStartOpen(false) } },
                     { label: '⚙  Projects', act: () => { openIcon('projects'); setStartOpen(false) } },
                     { label: '🧪  Experiments', act: () => { openIcon('experiments'); setStartOpen(false) } },
+                    { label: '🗑  Recycle Bin', act: () => { openRecycleBin(); setStartOpen(false) } },
                     { label: '📄  Read Me', act: () => { openIcon('readme'); setStartOpen(false) } },
                   ].map(item => (
                     <div key={item.label} onClick={item.act}
