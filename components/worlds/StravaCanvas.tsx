@@ -1,6 +1,6 @@
 'use client'
 import { Suspense, useMemo, useRef, useEffect } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Text } from '@react-three/drei'
 import { BufferGeometry, Float32BufferAttribute, PlaneGeometry, Points, ShaderMaterial, AdditiveBlending, Color, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
@@ -10,6 +10,9 @@ export interface RouteActivity {
   id: string
   type: 'Run' | 'Ride' | 'Other'
   points: [number, number][]
+  // present in the /api/strava payload; used to pick the most-recent run for the ghost trace
+  date?: string
+  name?: string
 }
 
 export interface TerrainData {
@@ -155,6 +158,116 @@ function RouteCloud({ activities, terrain, minElev, lift, maxHeight }: { activit
   )
 }
 
+// A single soft light that endlessly retraces one route — the most recent run — along the same
+// lofted trail the dots sit on. The map is a memory of a place; this makes the memory move. No
+// label, no explanation: just a runner still out there, lap after lap. Freezes to a still point
+// under prefers-reduced-motion. GPU cost is trivial (a head + a ~34-vertex fading tail).
+function GhostRunner({ activity, terrain, minElev, lift, maxHeight }: { activity: RouteActivity; terrain: TerrainData; minElev: number; lift: number; maxHeight: number }) {
+  const TAIL = 34
+  const SAMPLES_PER_SEC = 9   // a patient jog, not a racer
+  const headGeoRef = useRef<Points>(null)
+  const tailGeoRef = useRef<Points>(null)
+  const progress = useRef(0)
+
+  const reduced = useMemo(
+    () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+    []
+  )
+
+  // Loft the chosen route onto the terrain once, matching how RouteCloud places its dots.
+  const route = useMemo(() => {
+    const pts = activity.points
+    const arr = new Float32Array(pts.length * 3)
+    for (let i = 0; i < pts.length; i++) {
+      const [x, z] = pts[i]
+      const h = Math.min(sampleTerrainHeight(terrain, minElev, x, z), maxHeight)
+      arr[i * 3] = x
+      arr[i * 3 + 1] = h + lift + 1.5 // sit a hair above the dot trail so the light reads clearly
+      arr[i * 3 + 2] = z
+    }
+    return arr
+  }, [activity, terrain, minElev, lift, maxHeight])
+
+  const count = activity.points.length
+
+  const headGeo = useMemo(() => {
+    const g = new BufferGeometry()
+    g.setAttribute('position', new Float32BufferAttribute(new Float32Array(3), 3))
+    return g
+  }, [])
+
+  const tailGeo = useMemo(() => {
+    const g = new BufferGeometry()
+    g.setAttribute('position', new Float32BufferAttribute(new Float32Array(TAIL * 3), 3))
+    // Bake the fade into vertex colors: with additive blending, dimmer color = more transparent.
+    const colors = new Float32Array(TAIL * 3)
+    const c = new Color('#FC4C02')
+    for (let k = 0; k < TAIL; k++) {
+      const inten = Math.pow(1 - k / TAIL, 1.8)
+      colors[k * 3] = c.r * inten
+      colors[k * 3 + 1] = c.g * inten
+      colors[k * 3 + 2] = c.b * inten
+    }
+    g.setAttribute('color', new Float32BufferAttribute(colors, 3))
+    return g
+  }, [])
+
+  useEffect(() => () => { headGeo.dispose(); tailGeo.dispose() }, [headGeo, tailGeo])
+
+  // Wrapped, linearly-interpolated sample at a float index — so the loop seams smoothly.
+  const sampleAt = useMemo(() => {
+    return (f: number, out: [number, number, number]) => {
+      const N = count
+      const ff = ((f % N) + N) % N
+      const i0 = Math.floor(ff)
+      const i1 = (i0 + 1) % N
+      const t = ff - i0
+      out[0] = route[i0 * 3] + (route[i1 * 3] - route[i0 * 3]) * t
+      out[1] = route[i0 * 3 + 1] + (route[i1 * 3 + 1] - route[i0 * 3 + 1]) * t
+      out[2] = route[i0 * 3 + 2] + (route[i1 * 3 + 2] - route[i0 * 3 + 2]) * t
+    }
+  }, [route, count])
+
+  const writeAt = useMemo(() => {
+    const tmp: [number, number, number] = [0, 0, 0]
+    return (f: number) => {
+      if (!headGeoRef.current || !tailGeoRef.current) return
+      const hp = headGeoRef.current.geometry.attributes.position as Float32BufferAttribute
+      sampleAt(f, tmp)
+      hp.setXYZ(0, tmp[0], tmp[1], tmp[2])
+      hp.needsUpdate = true
+      const tp = tailGeoRef.current.geometry.attributes.position as Float32BufferAttribute
+      for (let k = 0; k < TAIL; k++) {
+        sampleAt(f - k, tmp)
+        tp.setXYZ(k, tmp[0], tmp[1], tmp[2])
+      }
+      tp.needsUpdate = true
+    }
+  }, [sampleAt])
+
+  // Seed the initial pose (and the only pose, under reduced motion).
+  useEffect(() => { writeAt(0) }, [writeAt])
+
+  useFrame((_, dt) => {
+    if (reduced) return
+    progress.current += Math.min(dt, 0.05) * SAMPLES_PER_SEC
+    writeAt(progress.current)
+  })
+
+  if (count < 8) return null
+
+  return (
+    <group renderOrder={2}>
+      <points ref={tailGeoRef} geometry={tailGeo}>
+        <pointsMaterial size={3.2} vertexColors transparent opacity={0.9} sizeAttenuation={false} blending={AdditiveBlending} depthWrite={false} depthTest={false} />
+      </points>
+      <points ref={headGeoRef} geometry={headGeo}>
+        <pointsMaterial size={7} color="#ffdcb4" transparent opacity={1} sizeAttenuation={false} blending={AdditiveBlending} depthWrite={false} depthTest={false} />
+      </points>
+    </group>
+  )
+}
+
 // Fakes an extruded 3D block out of flat SDF text (cheap, GPU-safe) by stacking many copies
 // a hair's-width apart in Z with a front-to-back color gradient — a solid-looking block from any
 // angle without the heavy CPU-side geometry a true extruded font (Text3D) generates per glyph.
@@ -212,12 +325,27 @@ function Scene({ activities, terrain }: { activities: RouteActivity[]; terrain: 
   const routeLift = Math.max(4, reliefRange * 0.12)
   const routeMaxHeight = reliefRange * 0.5 // dots never loft past mid-height, even on a sharp local peak
 
+  // The ghost retraces the most recent run with enough shape to be worth watching. Sort by the
+  // per-activity date carried in the payload; fall back to the longest route if dates are absent.
+  const ghost = useMemo(() => {
+    const usable = activities.filter(a => a.points.length >= 8)
+    if (usable.length === 0) return null
+    const dated = usable.filter(a => a.date)
+    if (dated.length > 0) {
+      return dated.reduce((best, a) => (a.date! > best.date! ? a : best))
+    }
+    return usable.reduce((best, a) => (a.points.length > best.points.length ? a : best))
+  }, [activities])
+
   return (
     <>
       <color attach="background" args={['#050506']} />
       <fog attach="fog" args={['#050506', GEO_RADIUS_WORLD * 2.2, GEO_RADIUS_WORLD * 5]} />
       <TerrainMesh terrain={terrain} minElev={minElev} />
       <RouteCloud activities={activities} terrain={terrain} minElev={minElev} lift={routeLift} maxHeight={routeMaxHeight} />
+      {ghost && (
+        <GhostRunner activity={ghost} terrain={terrain} minElev={minElev} lift={routeLift} maxHeight={routeMaxHeight} />
+      )}
       {/* drei's <Text> suspends while its font loads — isolate it so a slow
           font fetch can't hold the terrain and routes off-screen */}
       <Suspense fallback={null}>

@@ -572,6 +572,43 @@ Features that must never be removed:
 
 # Session History
 
+## 2026-07-12 — World 2 (Explorer): a ghost still runs the last route
+
+Objective: Give the Boulder GPS trace a heartbeat — a single soft light that endlessly
+retraces the most recent run along the lofted point-cloud trail.
+
+Why: World 2's purpose is "a living memory of place," but it was a static point cloud.
+The HUD already whispers `LAST: <run> · <date>`; now something out on the map is actually
+running it. Rewards lingering, deepens atmosphere, adds no UI and no explanation (mystery
+intact). Chose World 2 deliberately — the parallel autonomous branches keep colliding on
+Worlds 9/1/5 and none had touched this one.
+
+Risks: Low. One isolated component (GhostRunner in StravaCanvas), cannot affect navigation.
+Guarded against distraction (calm 9 samples/sec pace, short additive trail), accessibility
+(freezes to a still point under prefers-reduced-motion), and wrong-run selection (sorts by
+the per-activity date already in the /api/strava payload; falls back to longest route).
+
+Files Modified: components/worlds/StravaCanvas.tsx
+
+Worlds Touched: World 2 (Explorer) only.
+
+Changes Made:
+- New GhostRunner: lofts one route onto the terrain like the dots, animates a hot head +
+  ~34-vertex fading tail along it with wrapped linear interpolation, loops seamlessly.
+- Scene selects the most-recent usable run (>=8 pts) by date, falls back to the longest.
+- Extended RouteActivity with optional date/name (already present in the payload at runtime).
+
+Build: `next build` passes clean (types + lint), no new deps.
+
+Website Scores (delta): Immersion +, Atmosphere +, Exploration +, Mystery preserved.
+
+Recommended Focus For Tomorrow: World 2 could earn a faint start/finish marker where the
+ghost begins its lap; or leave it — worlds 3/6/14 have more surface area to deepen.
+
+Risk Level: Low
+
+---
+
 ## YYYY-MM-DD
 
 Objective:
