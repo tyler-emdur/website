@@ -255,6 +255,66 @@ function WorldThumbnail({ world, onClick }: { world: WorldItem; onClick: () => v
   )
 }
 
+// The one artifact every page like this used to have: a mechanical hit counter
+// ticking at the bottom of the page. This one doesn't lie — it counts *your*
+// visits from this browser and remembers the day you first wandered in. Come
+// back and it knows you.
+function HitCounter() {
+  const [visits, setVisits] = useState<number | null>(null)
+  const [since, setSince] = useState<string>('')
+  const ran = useRef(false)
+
+  useEffect(() => {
+    if (ran.current) return
+    ran.current = true
+    try {
+      const prev = parseInt(localStorage.getItem('w0_visits') || '0', 10) || 0
+      const next = prev + 1
+      localStorage.setItem('w0_visits', String(next))
+      let first = localStorage.getItem('w0_first_visit')
+      if (!first) {
+        first = new Date().toISOString()
+        localStorage.setItem('w0_first_visit', first)
+      }
+      setSince(new Date(first).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))
+      setVisits(next)
+    } catch {
+      setVisits(1)
+    }
+  }, [])
+
+  const digits = String(visits ?? 0).padStart(6, '0').split('')
+  const returning = (visits ?? 0) > 1
+
+  return (
+    <div style={{ textAlign: 'center', padding: '2px 0 4px' }}>
+      <div style={{
+        fontFamily: '"Press Start 2P", monospace', fontSize: 7, letterSpacing: 1,
+        color: returning ? '#00ffaa' : '#ffcc33', marginBottom: 6, lineHeight: 1.6,
+        textShadow: returning ? '0 0 5px rgba(0,255,170,0.5)' : '0 0 5px rgba(255,204,51,0.4)',
+      }}>
+        {returning ? 'WELCOME BACK' : 'YOU ARE VISITOR'}
+      </div>
+      <div style={{ display: 'inline-flex', gap: 2, background: '#000', padding: 3, border: '2px inset #333366' }}>
+        {digits.map((d, i) => (
+          <span key={i} style={{
+            display: 'inline-block', width: 15, height: 22, lineHeight: '22px',
+            fontFamily: 'VT323, "Courier New", monospace', fontSize: 20, fontWeight: 700,
+            color: '#00ff33', textShadow: '0 0 5px rgba(0,255,51,0.7)', textAlign: 'center',
+            background: 'linear-gradient(180deg,#020a02,#001200 50%,#020a02)',
+            border: '1px solid #0a2a0a',
+            boxShadow: 'inset 0 3px 5px rgba(0,0,0,0.8), inset 0 -2px 3px rgba(0,60,0,0.4)',
+          }}>{visits === null ? '0' : d}</span>
+        ))}
+      </div>
+      <div style={{ fontSize: 8, color: '#555568', marginTop: 6, fontFamily: '"Courier New", monospace' }}>
+        {since ? <>member since {since}</> : 'counting…'}
+        <span style={{ color: '#333355', display: 'block', marginTop: 2 }}>(this terminal)</span>
+      </div>
+    </div>
+  )
+}
+
 const NAV = [
   { icon: 'rocket', label: 'Enter Universe', action: 'enter' as const },
   { icon: 'icon-download', label: 'Source Code', href: 'https://github.com/tyler-emdur/website' },
@@ -1032,6 +1092,10 @@ export default function World0Surface() {
                 <span style={{ fontSize: 9, color: '#555568' }}>connecting...</span>
               )}
             </div>
+          </MiniPanel>
+
+          <MiniPanel label="> VISITOR COUNT">
+            <HitCounter />
           </MiniPanel>
 
           <MiniPanel label="> WHO'S WATCHING" style={{ border: '2px dashed #006633' }} headerStyle={{ background: 'linear-gradient(90deg, #003322 0%, #001111 100%)', borderBottom: '1px solid #006633' }} noPad>
