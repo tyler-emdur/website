@@ -572,6 +572,80 @@ Features that must never be removed:
 
 # Session History
 
+## 2026-07-16 — The World That Isn't (World 1 · Universe)
+
+Objective:
+Turn the site's central "there is no world 4" mystery from a latent navigation
+bug into a handcrafted, discoverable payoff in the Universe hub.
+
+Why:
+CORRIDOR-A (`explore-corridor` in lib/universe-store.ts) is the ONLY object that
+points at `worldId: 4`. There is no world 4 — it's a load-bearing lore beat,
+echoed by Channel 88 in Broadcast, the Answering Machine voicemail, and even a
+CartographyLayer label ("EMPTY ORBIT REFERENCE: NULL-4"). But the hub itself
+never delivered on it: clicking ENTER on the corridor ran `navigateTo(4, …)`,
+which set `document.title = WORLD_TITLES[4]` (→ the literal string "undefined"),
+fell back to the Surface component, and permanently poisoned the visited-worlds
+tally in localStorage (Channel 88 would read e.g. "10/9 WORLDS SEEN"). The
+Universe was also the least-recently-touched world (untouched since 2026-06-30).
+Now, committing to the traverse hands off to a brief descent that tries to
+resolve WORLD 04, fails ([ SIGNAL NOT FOUND ]), settles on a spare line —
+"there is no world 4. / you already knew that." — and releases you back to the
+corridor mouth exactly where you were. It awards a rare secret,
+`universe-there-is-no-world-4`, which feeds Channel 88's recovered-secrets count.
+
+Risks:
+- Overlay must always release → guaranteed by an elapsed-time rAF loop reaching
+  T_DONE, plus a setTimeout failsafe, plus click/Esc skip after the reveal.
+- Must not affect real worlds → special-cased strictly to `worldId === 4`.
+- Kept spare (monochrome, minimal text, echoes existing HUD idiom) so it reads
+  handcrafted, not AI slop.
+
+Files Modified:
+- lib/universe-store.ts — added `nullDescent` state + `beginNullDescent`/`endNullDescent`.
+- components/hud/HUD.tsx — ObjectPanel.handleEnter special-cases worldId 4:
+  awards the secret and begins the descent instead of navigating.
+- components/universe/UniverseRoot.tsx — mount <NullDescent />.
+- components/universe/effects/NullDescent.tsx — NEW. The descent overlay.
+
+Worlds Touched:
+- World 1 (Universe) only. (One medium improvement.)
+
+Changes Made / Features Added:
+- The "World 4" non-event: an earned, atmospheric dead-end that honors the
+  running mystery without explaining it, and rewards a curious click on a
+  wormhole labelled "traverse with caution / exit vector unknown".
+
+Bugs Fixed:
+- Entering CORRIDOR-A no longer dumps you on the Surface with an "undefined"
+  browser-tab title, and no longer adds phantom world 4 to the visited list.
+
+Notable engineering detail:
+- The sequence is driven by a requestAnimationFrame elapsed-time loop, NOT
+  chained setTimeouts: the live WebGL render loop starves background timers into
+  catch-up bursts (verified: two setTimeouts firing 1ms apart after a ~4s
+  stall). Reading elapsed each frame is self-correcting. The overlay also sits
+  at z-index 2147483000 to clear drei's <Html> CartographyLayer labels, which
+  portal to a ~16.7M z-index and otherwise bleed over the descent.
+
+Verification:
+- `next build` clean (lint + types). Playwright (headless Chromium): universe +
+  surface load with zero non-network console errors; all four descent phases
+  render correctly on desktop (1280×800) and mobile (390×844); labels are
+  covered; the overlay always releases with data-world staying 1 and the title
+  staying "Tyler Emdur" (bug fix confirmed).
+
+Website Scores (subjective):
+- Immersion: +  Originality: +  Polish: +  Performance: = (bundle +0.1kB)
+- Cohesion: + (hub now pays off the lore Broadcast/Answering already reference)
+- Exploration: +  Mystery: + (preserved, not explained)
+
+Recommended Focus For Tomorrow:
+- World 9 (Answering Machine) is now the least-recently-touched world.
+- Consider a matching subtle acknowledgement when all secrets are recovered.
+
+Risk Level: Low
+
 ## YYYY-MM-DD
 
 Objective:

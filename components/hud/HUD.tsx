@@ -133,7 +133,9 @@ function redact(text?: string, isUnstable = false) {
 function ObjectPanel() {
   const router = useRouter()
   const { selectedId, selectObject, mode } = useUniverseStore()
+  const beginNullDescent = useUniverseStore(s => s.beginNullDescent)
   const navigateTo = useWorldStore(s => s.navigateTo)
+  const findSecret = useWorldStore(s => s.findSecret)
   const [transitioning, setTransitioning] = useState(false)
 
   const allObjects = getAllObjects()
@@ -141,6 +143,15 @@ function ObjectPanel() {
 
   const handleEnter = useCallback(() => {
     if (!obj) return
+    // CORRIDOR-A points at world 4. There is no world 4. Don't navigate into a
+    // world that was never built (that route lands on the Surface with an
+    // undefined title and poisons the visited-worlds tally) — hand off to the
+    // descent, which tries to resolve it, fails, and lets you back out.
+    if (obj.worldId === 4) {
+      findSecret('universe-there-is-no-world-4')
+      beginNullDescent()
+      return
+    }
     if (obj.worldId != null) {
       setTransitioning(true)
       setTimeout(() => navigateTo(obj.worldId as WorldId, { type: (obj.worldPortal ?? 'fold') as PortalType }), 400)
@@ -149,7 +160,7 @@ function ObjectPanel() {
     if (!obj.href) return
     setTransitioning(true)
     setTimeout(() => router.push(obj.href!), 600)
-  }, [obj, router, navigateTo])
+  }, [obj, router, navigateTo, beginNullDescent, findSecret])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

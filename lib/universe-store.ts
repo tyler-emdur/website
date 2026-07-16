@@ -162,6 +162,7 @@ interface UniverseStore {
   discoveredIds: string[]
   visitStartTime: number
   recentDiscovery: UniverseObject | null
+  nullDescent: boolean
 
   flyTo: (pos: [number, number, number], lookAt?: [number, number, number]) => void
   selectObject: (obj: UniverseObject | null) => void
@@ -170,6 +171,10 @@ interface UniverseStore {
   clearDiscovery: () => void
   isVisible: (obj: UniverseObject) => boolean
   isDiscovered: (id: string) => boolean
+  // CORRIDOR-A points at world 4, which does not exist. Committing to the
+  // traverse hands off to the descent overlay instead of navigating anywhere.
+  beginNullDescent: () => void
+  endNullDescent: () => void
 }
 
 function loadDiscovered(): string[] {
@@ -190,6 +195,7 @@ export const useUniverseStore = create<UniverseStore>((set, get) => ({
   discoveredIds: loadDiscovered(),
   visitStartTime: Date.now(),
   recentDiscovery: null,
+  nullDescent: false,
 
   flyTo: (pos, lookAt) => set({ cameraTarget: pos, lookTarget: lookAt ?? pos }),
 
@@ -232,6 +238,9 @@ export const useUniverseStore = create<UniverseStore>((set, get) => ({
   },
 
   isDiscovered: (id) => get().discoveredIds.includes(id),
+
+  beginNullDescent: () => set({ nullDescent: true, selectedId: null, mode: 'exploring' }),
+  endNullDescent: () => set({ nullDescent: false }),
 }))
 
 export function getAllObjects(): UniverseObject[] {
