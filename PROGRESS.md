@@ -685,6 +685,42 @@ Risk Level: Low
 
 ---
 
+## 2026-07-15 — World 0 (Surface): the front door keeps count
+
+Objective:
+Give the GeoCities-era front door the one artifact it was missing — a hit counter — done honestly.
+
+Why:
+Surface is a loving pastiche of the early web (ticker, NETSCAPE NOW!, BEST AT 800x600,
+sparkle cursor, live traffic feed) but had no visitor counter — the single most iconic
+90s-web relic. Its absence was a real gap. Rather than fake traffic numbers (forbidden by
+this project), the counter is truthful: it counts *your* visits from this browser via
+localStorage, remembers the day you first arrived ("member since"), and switches its caption
+from "YOU ARE VISITOR" to "WELCOME BACK" on return — a small reward for coming back.
+
+Worlds Touched:
+- World 0 (Surface)
+
+Changes Made:
+- New `HitCounter` component in World0Surface.tsx: green LCD odometer digits in a classic
+  inset black box, honest localStorage-backed count + first-seen date.
+- Added a "> VISITOR COUNT" MiniPanel in the right column (between weather and WHO'S WATCHING).
+- Resynced package-lock.json (was out of sync with package.json — missing @emnapi/* entries —
+  which breaks Vercel's `npm ci`; preview builds need it).
+
+Risks: Low. Self-contained, client-only render guarded against hydration mismatch, localStorage
+wrapped in try/catch, placed in the roomiest column so the fixed-height layout is undisturbed.
+
+Verified: production build passes; screenshotted desktop (000001 → reload → 000002 "WELCOME
+BACK") and mobile (390px) — counter legible, layout intact, no regressions.
+
+Notes for future sessions: World 9 (Answering Machine) and World 1 (Universe) have been
+edited on many unmerged branches (~7 and ~3 respectively) — that's the "repeating same edits"
+problem. Prefer under-served worlds; Surface, Endpoint (7), and the Machine's non-recycle-bin
+areas have more headroom.
+
+---
+
 ## YYYY-MM-DD
 
 Objective:
