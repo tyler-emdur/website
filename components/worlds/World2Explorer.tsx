@@ -27,6 +27,21 @@ interface TerrainResponse {
   elevations: number[]
 }
 
+interface CoverageSummary {
+  totalMiles: number
+  coveredMiles: number
+  pct: number
+  segmentCount: number
+  coveredSegmentCount: number
+}
+
+interface StreetCoverageResponse {
+  generatedAt: string
+  streets: CoverageSummary
+  paths: CoverageSummary
+  combined: CoverageSummary
+}
+
 export default function World2Explorer() {
   const [state, setState] = useState<{
     loading: boolean
@@ -34,7 +49,8 @@ export default function World2Explorer() {
     activities: RouteActivity[]
     stats: Stats | null
     terrain: TerrainData | null
-  }>({ loading: true, configured: true, activities: [], stats: null, terrain: null })
+    coverage: StreetCoverageResponse | null
+  }>({ loading: true, configured: true, activities: [], stats: null, terrain: null, coverage: null })
 
   useEffect(() => {
     let cancelled = false
@@ -42,8 +58,11 @@ export default function World2Explorer() {
       fetch('/api/strava').then(r => r.json()) as Promise<StravaResponse>,
       // terrain is baked at build time (scripts/bake-terrain.mjs) — static, CDN-cached
       fetch('/terrain.json').then(r => r.json()) as Promise<TerrainResponse>,
+      // street coverage is baked periodically (scripts/street-coverage/*) — static, CDN-cached.
+      // Optional: older deploys or a not-yet-baked file simply omit the stat.
+      fetch('/street-coverage.json').then(r => (r.ok ? r.json() : null)).catch(() => null) as Promise<StreetCoverageResponse | null>,
     ])
-      .then(([strava, terrain]) => {
+      .then(([strava, terrain, coverage]) => {
         if (cancelled) return
         setState({
           loading: false,
@@ -53,6 +72,7 @@ export default function World2Explorer() {
           terrain: terrain.elevations.length > 0
             ? { resolution: terrain.resolution, radius: terrain.radius, elevations: terrain.elevations }
             : null,
+          coverage,
         })
       })
       .catch(() => {
@@ -77,6 +97,14 @@ export default function World2Explorer() {
           <div>DISTANCE <span style={{ color: '#FC4C02' }}>{state.stats.totalDistanceMi.toLocaleString()} mi</span></div>
           <div>ELEVATION <span style={{ color: '#FC4C02' }}>{state.stats.totalElevationFt.toLocaleString()} ft</span></div>
           <div>MOVING TIME <span style={{ color: '#FC4C02' }}>{state.stats.totalMovingTimeHrs.toLocaleString()} hrs</span></div>
+          {state.coverage && (
+            <div style={{ marginTop: 6 }}>
+              STREETS RUN <span style={{ color: '#FC4C02' }}>{state.coverage.combined.pct}%</span>
+              <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
+                {state.coverage.combined.coveredMiles.toLocaleString()} / {state.coverage.combined.totalMiles.toLocaleString()} mi · Boulder streets + paths
+              </div>
+            </div>
+          )}
           {state.stats.mostRecent && (
             <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.4)' }}>
               LAST: {state.stats.mostRecent.name} · {state.stats.mostRecent.date}

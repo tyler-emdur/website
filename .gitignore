@@ -8,3 +8,7 @@ node_modules
 *.tsbuildinfo
 next-env.d.ts
 .tape/
+
+# raw personal GPS traces + intermediate street-coverage data — only the
+# aggregated public/street-coverage.json output is meant to be public
+data/street-coverage/

@@ -829,6 +829,48 @@ Risk Level: Low (single HTML overlay, no 3D/nav changes; build-verified)
 
 ---
 
+## 2026-07-17 — World 2 (Explorer): how much of Boulder have you actually run
+
+Objective:
+Tyler is running every street in Boulder and wanted the site to track real
+progress toward it — streets and urban paths count, OSMP recreation trails
+don't. Accuracy was the explicit bar, not a rough estimate.
+
+Why:
+This is a personal goal, not atmosphere set dressing, so it gets built like a
+real data pipeline rather than eyeballed. World 2 already has a genuine Strava
+integration (OAuth, real GPS traces, real terrain) — this extends that same
+honesty to a number that means something to him specifically.
+
+Changes Made:
+- scripts/street-coverage/1-fetch-osm-streets.mjs: pulls Boulder's actual city
+  boundary + full street/path network from OpenStreetMap (Overpass), then
+  cross-references Boulder County's own authoritative "Boulder Area Trails"
+  GIS layer (SURTYPE=SoftSurface) to separate real OSMP recreation trails from
+  paved urban paths like Boulder Creek Path — spot-checked: Mount Sanitas
+  trails correctly excluded, Boulder Creek Path correctly included. 14,202
+  eligible streets+paths, 862.7 miles total.
+- scripts/street-coverage/2-fetch-strava-traces.mjs: pulls full-resolution GPS
+  streams (not the lossy summary_polyline the map view uses) for every run
+  near Boulder, self-throttled against Strava's rate limits, cached per-run so
+  re-runs only fetch new activities.
+- scripts/street-coverage/3-compute-coverage.mjs: grid-indexed spatial match
+  (20m threshold) between ~1.2M GPS points and the street network, bakes the
+  result to public/street-coverage.json — same static-bake pattern as
+  terrain.json/bake-terrain.mjs, not a live per-request computation.
+- components/worlds/World2Explorer.tsx: added a "STREETS RUN" stat to the
+  existing panel.
+- Raw GPS traces and intermediate data are gitignored (data/street-coverage/)
+  — only the aggregated public output is committed. Personal running data
+  shouldn't sit in git history.
+
+Result: 66.5% (573.5 / 862.7 mi) — streets 63.1%, paths 71.2%.
+
+Risk Level: Low (additive stat, static JSON fetch, no changes to existing
+Strava/terrain code paths; build-verified, confirmed live in browser)
+
+---
+
 ## YYYY-MM-DD
 
 Objective:

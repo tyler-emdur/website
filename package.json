@@ -27,6 +27,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@turf/turf": "^7.3.5",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
