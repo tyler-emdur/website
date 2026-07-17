@@ -806,6 +806,29 @@ Risk Level: Low (each piece build-verified individually before and after merge)
 
 ---
 
+## 2026-07-16 — World 1 (Universe): merging the ambient transmissions branches
+
+Objective:
+Finish consolidating the unmerged autonomous branches — hand-merge the 3
+competing versions of AmbientTransmissions.tsx (the drifting green telemetry
+line at the bottom of the Universe hub).
+
+Changes Made:
+- Base: the 3-tier AMBIENT/NIGHT/DEEP system (7/13) — night-only lines gated to
+  the visitor's local 00:00–04:59, and rare DEEP lines that only unlock after
+  ~150s of lingering, with per-band no-repeat memory.
+- Spliced in from the 7/7 branch: the "index gap" lore lines (tagged tone:
+  'gap', rendered in faint red instead of the relay's usual green — a visual
+  callback to Broadcast's Channel 88 and the Answering Machine's "no world 4"
+  thread) into both AMBIENT and NIGHT, plus the character-decode reveal
+  animation so transmissions resolve out of scrambled glyphs instead of
+  appearing instantly.
+- Kept the mobile overflow fix (maxWidth + ellipsis) both branches had added.
+
+Risk Level: Low (single HTML overlay, no 3D/nav changes; build-verified)
+
+---
+
 ## YYYY-MM-DD
 
 Objective:
