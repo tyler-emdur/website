@@ -302,7 +302,7 @@ function ExtrudedTextLine({ text, y, size }: { text: string; y: number; size: nu
   )
 }
 
-function SkyText({ radius }: { radius: number }) {
+function SkyText({ radius, coveragePct }: { radius: number; coveragePct: number | null }) {
   const size = radius * 0.1
   const y = radius * 0.9
   const z = -radius * 0.2
@@ -311,11 +311,14 @@ function SkyText({ radius }: { radius: number }) {
     <group position={[0, y, z]}>
       <ExtrudedTextLine text="TYLER STRAVA" y={size * 0.65} size={size} />
       <ExtrudedTextLine text="RUN MAP" y={-size * 0.65} size={size} />
+      {coveragePct !== null && (
+        <ExtrudedTextLine text={`${coveragePct}% OF BOULDER RUN`} y={-size * 1.55} size={size * 0.4} />
+      )}
     </group>
   )
 }
 
-function Scene({ activities, terrain }: { activities: RouteActivity[]; terrain: TerrainData }) {
+function Scene({ activities, terrain, coveragePct }: { activities: RouteActivity[]; terrain: TerrainData; coveragePct: number | null }) {
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const minElev = useMemo(() => Math.min(...terrain.elevations), [terrain])
   // Scale the lift with the terrain's actual relief range (not a fixed constant) so it stays
@@ -349,7 +352,7 @@ function Scene({ activities, terrain }: { activities: RouteActivity[]; terrain: 
       {/* drei's <Text> suspends while its font loads — isolate it so a slow
           font fetch can't hold the terrain and routes off-screen */}
       <Suspense fallback={null}>
-        <SkyText radius={GEO_RADIUS_WORLD} />
+        <SkyText radius={GEO_RADIUS_WORLD} coveragePct={coveragePct} />
       </Suspense>
       <OrbitControls
         ref={controlsRef}
@@ -365,7 +368,7 @@ function Scene({ activities, terrain }: { activities: RouteActivity[]; terrain: 
   )
 }
 
-export default function StravaCanvas({ activities, terrain }: { activities: RouteActivity[]; terrain: TerrainData }) {
+export default function StravaCanvas({ activities, terrain, coveragePct = null }: { activities: RouteActivity[]; terrain: TerrainData; coveragePct?: number | null }) {
   const camDistance = (GEO_RADIUS_WORLD * 1.3) / Math.tan((FOV / 2) * (Math.PI / 180))
 
   return (
@@ -374,7 +377,7 @@ export default function StravaCanvas({ activities, terrain }: { activities: Rout
       dpr={[1, 1.5]}
       gl={{ antialias: true, alpha: false }}
     >
-      <Scene activities={activities} terrain={terrain} />
+      <Scene activities={activities} terrain={terrain} coveragePct={coveragePct} />
     </Canvas>
   )
 }

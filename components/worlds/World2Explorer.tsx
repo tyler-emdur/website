@@ -123,7 +123,7 @@ export default function World2Explorer() {
       )}
 
       {!state.loading && state.configured && state.terrain && (
-        <StravaCanvas activities={state.activities} terrain={state.terrain} />
+        <StravaCanvas activities={state.activities} terrain={state.terrain} coveragePct={state.coverage?.combined.pct ?? null} />
       )}
     </div>
   )
