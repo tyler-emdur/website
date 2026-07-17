@@ -21,6 +21,21 @@ export interface RadioStation {
   codec: string
   bitrate: number
   freq: number           // pinned dial position, MHz
+  lat: number            // country centroid, for the globe
+  lon: number
+}
+
+// Country centroids for the globe view — approximate, country-level (the
+// station data itself is only ever country-resolution, so city-precision
+// would be theater). Covers every code in COUNTRIES plus the FALLBACK set.
+const COUNTRY_COORDS: Record<string, [number, number]> = {
+  JP: [36.2, 138.3], FR: [46.6, 2.2], BR: [-14.2, -51.9], DE: [51.2, 10.4],
+  GB: [55.4, -3.4], US: [39.8, -98.6], IN: [20.6, 79.0], MX: [23.6, -102.5],
+  IT: [41.9, 12.6], ZA: [-30.6, 22.9], SE: [60.1, 18.6], KR: [35.9, 127.8],
+  NG: [9.1, 8.7], AU: [-25.3, 133.8], IS: [64.9, -19.0], JM: [18.1, -77.3],
+  TR: [38.9, 35.2], GR: [39.1, 21.8], RU: [61.5, 105.3], PT: [39.4, -8.2],
+  EG: [26.8, 30.8], AR: [-38.4, -63.6], TH: [15.9, 101.0], NL: [52.1, 5.3],
+  MA: [31.8, -7.1],
 }
 
 // Curated country spread — a genuine trip around the world, not just the anglosphere.
@@ -57,7 +72,7 @@ interface RawStation {
 // Famous, long-lived public streams as a floor: if radio-browser is unreachable
 // (or an org egress policy blocks it), the dial still has a real world tour on it.
 // All https so they survive on the deployed https site.
-const FALLBACK: Omit<RadioStation, 'freq'>[] = [
+const FALLBACK: Omit<RadioStation, 'freq' | 'lat' | 'lon'>[] = [
   { id: 'fb-somafm-gs', name: 'SomaFM Groove Salad', country: 'US', countryName: 'United States', tags: 'ambient,downtempo', url: 'https://ice1.somafm.com/groovesalad-128-mp3', codec: 'MP3', bitrate: 128 },
   { id: 'fb-fip', name: 'FIP', country: 'FR', countryName: 'France', tags: 'eclectic', url: 'https://icecast.radiofrance.fr/fip-midfi.mp3', codec: 'MP3', bitrate: 128 },
   { id: 'fb-radioparadise', name: 'Radio Paradise Main Mix', country: 'US', countryName: 'United States', tags: 'eclectic,rock', url: 'https://stream.radioparadise.com/mp3-128', codec: 'MP3', bitrate: 128 },
@@ -70,18 +85,29 @@ const FALLBACK: Omit<RadioStation, 'freq'>[] = [
   { id: 'fb-somafm-sf', name: 'SomaFM Secret Agent', country: 'US', countryName: 'United States', tags: 'lounge,spy', url: 'https://ice1.somafm.com/secretagent-128-mp3', codec: 'MP3', bitrate: 128 },
 ]
 
-function assignFrequencies<T>(list: T[]): (T & { freq: number })[] {
+function assignFrequencies<T extends { country: string }>(list: T[]): (T & { freq: number; lat: number; lon: number })[] {
   const lo = 87.7, hi = 107.9
   const n = Math.max(1, list.length)
-  return list.map((s, i) => ({
-    ...s,
-    // spread evenly, snap to the 0.1 grid a real dial uses
-    freq: Math.round((lo + (hi - lo) * (i / Math.max(1, n - 1))) * 10) / 10,
-  }))
+  // deterministic per-station jitter so two stations in the same country
+  // don't render as one dot on the globe, without needing city data
+  const seen: Record<string, number> = {}
+  return list.map((s, i) => {
+    const base = COUNTRY_COORDS[s.country] ?? [0, 0]
+    const dupIdx = seen[s.country] ?? 0
+    seen[s.country] = dupIdx + 1
+    const jitter = dupIdx * 2.4
+    return {
+      ...s,
+      // spread evenly, snap to the 0.1 grid a real dial uses
+      freq: Math.round((lo + (hi - lo) * (i / Math.max(1, n - 1))) * 10) / 10,
+      lat: base[0] + (dupIdx % 2 === 0 ? jitter : -jitter),
+      lon: base[1] + (dupIdx % 2 === 0 ? -jitter : jitter),
+    }
+  })
 }
 
 async function fetchFromMirror(base: string): Promise<RadioStation[]> {
-  const out: Omit<RadioStation, 'freq'>[] = []
+  const out: Omit<RadioStation, 'freq' | 'lat' | 'lon'>[] = []
   const seen = new Set<string>()
 
   await Promise.all(

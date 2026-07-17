@@ -1,17 +1,44 @@
 'use client'
-import { useRef } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { useEffect, useRef } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import type { Mesh, MeshStandardMaterial, SpotLight } from 'three'
+import type { Mesh, MeshStandardMaterial, PerspectiveCamera, SpotLight } from 'three'
+import RadioGlobe from './RadioGlobe'
+import type { RadioStation } from '@/app/api/radio/route'
 
 // The Garage, seen from the driver's seat. You are nosed in to a closed
 // corrugated door at 12:47 AM, engine off. The windshield frames the door; the
 // dashboard (radio, gauges, ignition) is drawn over this in the DOM. Flip the
 // headlights and two pools bloom on the door ahead of you.
+//
+// The radio globe (World 6's "tune by place" view) shares this same Canvas —
+// swapped in as an alternate scene rather than mounted as a second Canvas, so
+// the world only ever holds one live WebGL context.
 
 interface GarageSceneProps {
   headlightsOn: boolean
   engineOn: boolean
+  globeMode?: boolean
+  stations?: RadioStation[]
+  activeStationId?: string | null
+  onSelectStation?: (s: RadioStation) => void
+}
+
+// snaps the shared camera between the driver's-seat framing and the globe framing
+function CameraRig({ globe }: { globe: boolean }) {
+  const { camera } = useThree()
+  useEffect(() => {
+    const cam = camera as PerspectiveCamera
+    if (globe) {
+      cam.position.set(0, 0.4, 4.6)
+      cam.fov = 42
+    } else {
+      cam.position.set(0, 1.16, 1.0)
+      cam.fov = 66
+    }
+    cam.updateProjectionMatrix()
+  }, [globe, camera])
+  return null
 }
 
 // ── the closed garage door filling the view ahead ────────────────────────────
@@ -174,38 +201,62 @@ function SwingingBulb() {
   )
 }
 
-export default function GarageScene({ headlightsOn }: GarageSceneProps) {
+export default function GarageScene({
+  headlightsOn, globeMode = false, stations = [], activeStationId = null, onSelectStation,
+}: GarageSceneProps) {
   return (
     <Canvas
       camera={{ position: [0, 1.16, 1.0], fov: 66 }}
-      style={{ background: '#050608' }}
+      style={{ background: globeMode ? 'transparent' : '#050608' }}
       dpr={[0.9, 1.5]}
-      gl={{ antialias: true, alpha: false }}
+      gl={{ antialias: true, alpha: globeMode }}
       shadows={false}
     >
-      <fog attach="fog" args={['#080a0c', 7, 20]} />
-      <ambientLight intensity={0.92} color="#4c5a76" />
-      <hemisphereLight args={['#5a6c8c', '#141416', 0.85]} />
-      {/* faint warm dashboard glow from below */}
-      <pointLight position={[0, 0.8, 1.2]} intensity={3} distance={3.8} color="#ffb060" />
-      {/* cool moonlight fill on the door so it clearly reads as a garage door ahead */}
-      <pointLight position={[0, 2.8, -2.2]} intensity={9} distance={11} color="#31415f" />
-      <pointLight position={[0, 1.6, -3.6]} intensity={5} distance={7} color="#26344c" />
+      <CameraRig globe={globeMode} />
+      {globeMode ? (
+        <>
+          <RadioGlobe stations={stations} activeId={activeStationId} onSelect={s => onSelectStation?.(s)} />
+          <OrbitControls
+            key="globe"
+            enablePan={false}
+            enableZoom
+            minDistance={2.8}
+            maxDistance={7}
+            autoRotate
+            autoRotateSpeed={0.6}
+            enableDamping
+            dampingFactor={0.08}
+            rotateSpeed={0.5}
+          />
+        </>
+      ) : (
+        <>
+          <fog attach="fog" args={['#080a0c', 7, 20]} />
+          <ambientLight intensity={0.92} color="#4c5a76" />
+          <hemisphereLight args={['#5a6c8c', '#141416', 0.85]} />
+          {/* faint warm dashboard glow from below */}
+          <pointLight position={[0, 0.8, 1.2]} intensity={3} distance={3.8} color="#ffb060" />
+          {/* cool moonlight fill on the door so it clearly reads as a garage door ahead */}
+          <pointLight position={[0, 2.8, -2.2]} intensity={9} distance={11} color="#31415f" />
+          <pointLight position={[0, 1.6, -3.6]} intensity={5} distance={7} color="#26344c" />
 
-      <Garage headlightsOn={headlightsOn} />
+          <Garage headlightsOn={headlightsOn} />
 
-      <OrbitControls
-        target={[0, 1.05, -0.6]}
-        enablePan={false}
-        enableZoom={false}
-        minPolarAngle={1.15}
-        maxPolarAngle={1.62}
-        minAzimuthAngle={-0.5}
-        maxAzimuthAngle={0.5}
-        rotateSpeed={-0.32}
-        enableDamping
-        dampingFactor={0.08}
-      />
+          <OrbitControls
+            key="interior"
+            target={[0, 1.05, -0.6]}
+            enablePan={false}
+            enableZoom={false}
+            minPolarAngle={1.15}
+            maxPolarAngle={1.62}
+            minAzimuthAngle={-0.5}
+            maxAzimuthAngle={0.5}
+            rotateSpeed={-0.32}
+            enableDamping
+            dampingFactor={0.08}
+          />
+        </>
+      )}
     </Canvas>
   )
 }
