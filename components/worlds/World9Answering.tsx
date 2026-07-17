@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useWorldStore } from '@/lib/world-store'
+import { useWorldStore, type WorldId } from '@/lib/world-store'
 import HomeButton from './HomeButton'
 
 // ── The Answering Machine ─────────────────────────────────────────────────────
@@ -40,6 +40,95 @@ const SAVED_TAPES: Tape[] = [
 ]
 
 const GREETING = "hi, you've reached tyler. i'm out running, or in the garage, or forty files deep in something. leave a message after the tone. someone will hear it. probably me."
+
+// ── the machine keeps its own time ───────────────────────────────────────────
+// An answering machine that doesn't know what hour it is isn't really a machine
+// in a room. This one reads the *visitor's* local clock and lets it color the
+// edges — the greeting, the idle light, the sign-off. Reserved mostly for the
+// hours nobody's supposed to be awake, so it stays a thing you stumble into.
+type HourMood = 'deepnight' | 'earlymorning' | 'day' | 'evening' | 'latenight'
+
+function currentMood(): HourMood {
+  const h = new Date().getHours()
+  if (h < 5) return 'deepnight'
+  if (h < 8) return 'earlymorning'
+  if (h >= 21) return 'latenight'
+  if (h >= 17) return 'evening'
+  return 'day'
+}
+
+const IDLE_LINE: Record<HourMood, string> = {
+  deepnight: "the light is blinking. it's the middle of the night where you are.",
+  earlymorning: "the light is blinking. you're up early.",
+  day: 'the light is blinking.',
+  evening: 'the light is blinking.',
+  latenight: "the light is blinking. it's getting late.",
+}
+
+// appended to the outgoing message — empty during ordinary hours so the
+// greeting stays exactly as written; the machine only speaks up off-hours.
+const GREETING_TAIL: Record<HourMood, string> = {
+  deepnight: ' it is the middle of the night where you are. that is usually when the good messages come in.',
+  earlymorning: ' you are up early. or you never slept. no judgment either way.',
+  day: '',
+  evening: '',
+  latenight: ' it is late. the good kind of late.',
+}
+
+const END_LINE: Record<HourMood, string> = {
+  deepnight: 'no more messages. just you and the hiss now. the tape keeps going anyway.',
+  earlymorning: 'no more messages. the tape keeps going anyway.',
+  day: 'no more messages. the tape keeps going anyway.',
+  evening: 'no more messages. the tape keeps going anyway.',
+  latenight: 'no more messages. just you and the hiss now. the tape keeps going anyway.',
+}
+
+// ── the phantom ───────────────────────────────────────────────────────────────
+// A message that is not on the counter. It only surfaces if you let the tape
+// keep running after the last real message — the END card already warns you it
+// "keeps going anyway." It is a fragment from the world that was never there.
+// It deepens the world-4 mystery. It does not explain it.
+const PHANTOM_HEADER = 'MESSAGE ██ — NO CALLER · ██·██·████'
+// What the reader sees, with the line dropping out on the em-dashes.
+const PHANTOM_TEXT = "— sorry. i know it's late. i'm calling from the fourth— —you don't have to say anything. i know there isn't one. that's sort of the point. the light's still on over here. leave it blinking for me. ...okay. goodnight, whoever you are."
+// What the machine says aloud — the hiss markers stripped out.
+const PHANTOM_SPOKEN = "sorry. i know it's late. i'm calling from the fourth. you don't have to say anything. i know there isn't one. that's sort of the point. the light's still on over here. leave it blinking for me. okay. goodnight, whoever you are."
+
+// ── the tape that knows where you've been ────────────────────────────────────
+// A message with no caller. The machine noticed which worlds you wandered
+// through — it reads the trail back to you. It never explains how it knows.
+// Built client-side from your persistent `visited` state; never sent anywhere.
+const ECHO_LINES: Partial<Record<WorldId, string>> = {
+  1: 'you drifted through the dark between the worlds, and touched nothing.',
+  2: "you traced a stranger's runs across boulder until the light moved.",
+  3: 'you left a channel playing. it is still on somewhere, with no one watching.',
+  5: 'you woke the old machine. it has your fingerprints now.',
+  6: 'you sat in the car at 12:47 and never turned the key.',
+  7: 'you followed the signal all the way down to where it ends.',
+  14: "you walked into the aisle. it didn't end. they never do.",
+}
+
+function buildEchoTape(visited: WorldId[]): Tape | null {
+  const trail: WorldId[] = []
+  for (const w of visited) {
+    if (ECHO_LINES[w] != null && !trail.includes(w)) trail.push(w)
+  }
+  if (trail.length < 2) return null // only for people who actually wandered
+  const body = trail.map(w => ECHO_LINES[w]).join(' ')
+  const text =
+    "i'm not a caller. i'm the machine. i don't sleep, so i notice things. " +
+    body +
+    " i keep the tape running while you move from room to room. i keep everything. " +
+    "someday you'll leave a message of your own, and i'll play it for whoever comes next."
+  return { id: 'echo-trail', name: 'no caller id', at: '████', text }
+}
+
+// The one the counter never counts. It's only here for whoever notices the
+// light is blinking — and presses it. Nothing on screen says you can.
+const HIDDEN_TAPE = {
+  header: '⟁ MESSAGE — · NOT LOGGED · 3:03 AM',
+  text: "…i don't think i have the right number. i was trying to reach whoever built the rooms — the one that runs the hills, the one that broadcasts all night, the one that keeps a car warm in a garage that doesn't exist. tell him the little red light kept blinking, and somebody finally pressed it. tell him it was worth making. …okay. sorry to wake the machine.",
+}
 
 // ── audio ─────────────────────────────────────────────────────────────────────
 class TapeAudio {
@@ -88,12 +177,12 @@ class TapeAudio {
     this.hissGain = null
   }
 
-  beep(long = false) {
+  beep(long = false, freq = 980) {
     const ctx = this.ensure()
     const o = ctx.createOscillator()
     const g = ctx.createGain()
     o.type = 'sine'
-    o.frequency.value = 980
+    o.frequency.value = freq
     const d = long ? 0.75 : 0.32
     g.gain.setValueAtTime(0.0001, ctx.currentTime)
     g.gain.exponentialRampToValueAtTime(0.09, ctx.currentTime + 0.02)
@@ -168,6 +257,9 @@ export default function World9Answering() {
   const [recText, setRecText] = useState('')
   const [recNote, setRecNote] = useState<string | null>(null)
   const [voiceOn, setVoiceOn] = useState(true)
+  const [mood, setMood] = useState<HourMood>('day') // resolved on mount to avoid hydration mismatch
+  const [phantom, setPhantom] = useState(false) // the sixth message that isn't on the counter
+  const [hidden, setHidden] = useState(false) // the unlisted message is on the reel
   const voiceOnRef = useRef(true)
   const audioRef = useRef<TapeAudio | null>(null)
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
@@ -178,20 +270,23 @@ export default function World9Answering() {
 
   useEffect(() => {
     audioRef.current = new TapeAudio()
+    setMood(currentMood()) // the room learns what hour it is where you're standing
     return () => { timersRef.current.forEach(clearTimeout); audioRef.current?.dispose(); shutUp() }
   }, [])
 
-  // load visitor messages: server + local
+  // load visitor messages: server + local, then the tape that knows your trail
   useEffect(() => {
     const local = loadLocalTapes()
+    const echo = buildEchoTape(useWorldStore.getState().visited)
+    const withEcho = (base: Tape[]) => (echo ? [...base, echo] : base)
     fetch('/api/tape')
       .then(r => r.json())
       .then(d => {
         const server: Tape[] = Array.isArray(d?.messages) ? d.messages : []
         const seen = new Set(server.map(m => m.id))
-        setTapes([...SAVED_TAPES, ...server, ...local.filter(m => !seen.has(m.id))])
+        setTapes(withEcho([...SAVED_TAPES, ...server, ...local.filter(m => !seen.has(m.id))]))
       })
-      .catch(() => setTapes([...SAVED_TAPES, ...local]))
+      .catch(() => setTapes(withEcho([...SAVED_TAPES, ...local])))
   }, [])
 
   const wait = (ms: number) => new Promise<void>(res => {
@@ -219,7 +314,37 @@ export default function World9Answering() {
     setMode('idle')
     setDisplay(null)
     setTrackIdx(-1)
+    setPhantom(false)
+    setHidden(false)
   }, [])
+
+  // The blinking light. Nothing labels it. Press it and the machine coughs up
+  // one message it never counted — for whoever was curious enough to try.
+  const playHidden = useCallback(async () => {
+    const audio = audioRef.current!
+    const token = ++playTokenRef.current
+    audio.click()
+    audio.startHiss()
+    setHidden(true)
+    setTrackIdx(-1)
+    setMode('playing')
+    await wait(650)
+    if (playTokenRef.current !== token) return
+    audio.beep()
+    await wait(600)
+    if (playTokenRef.current !== token) return
+    if (voiceOnRef.current) speak(HIDDEN_TAPE.text)
+    const ok = await typeOut(HIDDEN_TAPE.header, HIDDEN_TAPE.text, token)
+    if (!ok) return
+    findSecret('tape-blinking-light')
+    await wait(1300)
+    if (playTokenRef.current !== token) return
+    audio.beep(true)
+    await typeOut('END OF MESSAGES', 'the counter never counted that one. check it. it never will.', token)
+    audio.stopHiss()
+    setHidden(false)
+    setMode('idle')
+  }, [typeOut, findSecret])
 
   const play = useCallback(async (startIdx = -1) => {
     const audio = audioRef.current!
@@ -230,8 +355,9 @@ export default function World9Answering() {
 
     if (startIdx === -1) {
       setTrackIdx(-1)
-      if (voiceOnRef.current) speak(GREETING)
-      const ok = await typeOut('OUTGOING MESSAGE', GREETING, token)
+      const greeting = GREETING + GREETING_TAIL[currentMood()]
+      if (voiceOnRef.current) speak(greeting)
+      const ok = await typeOut('OUTGOING MESSAGE', greeting, token)
       if (!ok) return
       await wait(600)
       if (playTokenRef.current !== token) return
@@ -253,14 +379,40 @@ export default function World9Answering() {
       const ok = await typeOut(header, t.text, token)
       if (!ok) return
       heardRef.current.add(t.id)
+      if (t.id === 'echo-trail') findSecret('tape-knows-your-trail')
       if (SAVED_TAPES.every(s => heardRef.current.has(s.id))) findSecret('tape-heard-saved')
       await wait(1400)
     }
     if (playTokenRef.current !== token) return
     audio.beep(true)
-    await typeOut('END OF MESSAGES', 'no more messages. the tape keeps going anyway.', token)
+    await typeOut('END OF MESSAGES', END_LINE[currentMood()], token)
+
+    // The tape keeps going anyway. If you listened to every real message and
+    // you don't reach for STOP, the machine plays back something that was never
+    // logged — a message from the fourth. Reward for patience; a fragment, not
+    // an answer.
+    const heardEverything = SAVED_TAPES.every(s => heardRef.current.has(s.id))
+    if (heardEverything) {
+      // a long, unsettling stretch of nothing but tape hiss — most people stop here
+      await wait(7000)
+      if (playTokenRef.current !== token) { return }
+      setPhantom(true)
+      setTrackIdx(-2) // sentinel: not a real track
+      audio.beep(true, 322) // detuned, wrong — the tone from the other side
+      await wait(1100)
+      if (playTokenRef.current !== token) { setPhantom(false); return }
+      if (voiceOnRef.current) speak(PHANTOM_SPOKEN)
+      const ok = await typeOut(PHANTOM_HEADER, PHANTOM_TEXT, token)
+      if (!ok) { setPhantom(false); return }
+      findSecret('tape-fourth')
+      await wait(2600)
+      setPhantom(false)
+    }
+
+    if (playTokenRef.current !== token) return
     audio.stopHiss()
     setMode('idle')
+    setTrackIdx(-1)
   }, [tapes, typeOut, findSecret])
 
   const startRecording = useCallback(async () => {
@@ -319,6 +471,7 @@ export default function World9Answering() {
       <style>{`
         @keyframes tape-blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0.15 } }
         @keyframes reel-spin { to { transform: rotate(360deg) } }
+        @keyframes phantom-flicker { 0%, 96%, 100% { opacity: 1 } 97% { opacity: 0.55 } 98.5% { opacity: 0.85 } }
         .tape-btn { transition: transform 0.06s, filter 0.15s; cursor: pointer; }
         .tape-btn:hover { filter: brightness(1.25); }
         .tape-btn:active { transform: translateY(1px); }
@@ -337,19 +490,19 @@ export default function World9Answering() {
         {/* display card above the machine — what the tape is "saying" */}
         <div style={{ minHeight: 150, marginBottom: 26, padding: '0 8px' }}>
           {display && (
-            <>
-              <div style={{ fontSize: 8, letterSpacing: '0.28em', color: 'rgba(255,190,110,0.5)', marginBottom: 12 }}>
+            <div style={{ animation: phantom ? 'phantom-flicker 3.2s linear infinite' : 'none' }}>
+              <div style={{ fontSize: 8, letterSpacing: '0.28em', color: phantom ? 'rgba(150,180,220,0.55)' : 'rgba(255,190,110,0.5)', marginBottom: 12 }}>
                 {display.header}
               </div>
-              <div style={{ fontSize: 14, lineHeight: 2, color: 'rgba(255,235,205,0.88)', textShadow: '0 0 18px rgba(255,190,110,0.15)' }}>
+              <div style={{ fontSize: 14, lineHeight: 2, color: phantom ? 'rgba(205,220,240,0.82)' : 'rgba(255,235,205,0.88)', textShadow: phantom ? '0 0 18px rgba(150,180,230,0.18)' : '0 0 18px rgba(255,190,110,0.15)' }}>
                 {display.text}
                 {!display.done && <span style={{ opacity: 0.6 }}>▌</span>}
               </div>
-            </>
+            </div>
           )}
           {mode === 'idle' && !display && (
             <div style={{ fontSize: 10, lineHeight: 2.2, color: 'rgba(255,235,205,0.28)', letterSpacing: '0.12em', textAlign: 'center', paddingTop: 40 }}>
-              the light is blinking.
+              {IDLE_LINE[mood]}
             </div>
           )}
           {mode === 'recording' && (
@@ -431,12 +584,22 @@ export default function World9Answering() {
               }}>
                 {String(msgCount).padStart(2, '0')}
               </div>
-              {/* blinking LED */}
-              <div style={{
-                width: 9, height: 9, borderRadius: '50%',
-                background: '#ff4433', boxShadow: '0 0 10px rgba(255,68,51,0.9)',
-                animation: playing ? 'none' : 'tape-blink 1.6s step-end infinite',
-              }} />
+              {/* blinking LED — nothing says it does anything. it does. */}
+              <button
+                className="tape-btn"
+                onClick={() => { if (mode === 'idle') playHidden() }}
+                aria-label="indicator light"
+                style={{
+                  background: 'none', border: 'none', padding: 7, margin: -7,
+                  lineHeight: 0, cursor: mode === 'idle' ? 'pointer' : 'default',
+                }}
+              >
+                <div style={{
+                  width: 9, height: 9, borderRadius: '50%',
+                  background: '#ff4433', boxShadow: '0 0 10px rgba(255,68,51,0.9)',
+                  animation: playing ? 'none' : 'tape-blink 1.6s step-end infinite',
+                }} />
+              </button>
             </div>
           </div>
 
@@ -456,8 +619,12 @@ export default function World9Answering() {
                 <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px dashed rgba(255,235,200,0.3)' }} />
               </div>
             ))}
-            <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontSize: 7, letterSpacing: '0.3em', color: 'rgba(255,235,200,0.18)' }}>
-              {playing ? (trackIdx === -1 ? 'GREETING' : `MSG ${trackIdx + 1}/${msgCount}`) : 'TAPE OK'}
+            <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', fontSize: 7, letterSpacing: '0.3em', color: phantom ? 'rgba(150,180,220,0.4)' : 'rgba(255,235,200,0.18)' }}>
+              {phantom
+                ? 'MSG ██/██'
+                : playing
+                  ? (hidden ? '· · ·' : trackIdx === -1 ? 'GREETING' : `MSG ${trackIdx + 1}/${msgCount}`)
+                  : 'TAPE OK'}
             </div>
           </div>
 
@@ -465,15 +632,19 @@ export default function World9Answering() {
           <div style={{
             background: '#050807', border: '1px solid rgba(120,255,170,0.16)', borderRadius: 3,
             padding: '5px 10px', marginBottom: 14, fontSize: 9, letterSpacing: '0.16em',
-            color: playing && trackIdx >= 0 ? 'rgba(120,255,170,0.85)' : 'rgba(120,255,170,0.25)',
-            textShadow: playing && trackIdx >= 0 ? '0 0 8px rgba(120,255,170,0.4)' : 'none',
+            color: phantom ? 'rgba(150,180,220,0.7)' : (playing && trackIdx >= 0) || hidden ? 'rgba(120,255,170,0.85)' : 'rgba(120,255,170,0.25)',
+            textShadow: phantom ? '0 0 8px rgba(150,180,230,0.45)' : (playing && trackIdx >= 0) || hidden ? '0 0 8px rgba(120,255,170,0.4)' : 'none',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
-            {playing && trackIdx >= 0 && tapes[trackIdx]
-              ? `INCOMING · ${tapes[trackIdx].name.toUpperCase()} · ${tapes[trackIdx].at.slice(0, 10)}`
-              : playing
-                ? 'INCOMING · — · —'
-                : 'CALLER ID · NO NEW CALLS'}
+            {phantom
+              ? 'INCOMING · ████ · CALL FROM 4'
+              : hidden && playing
+                ? 'INCOMING · —— UNKNOWN —— · 3:03 AM'
+                : playing && trackIdx >= 0 && tapes[trackIdx]
+                  ? `INCOMING · ${tapes[trackIdx].name.toUpperCase()} · ${tapes[trackIdx].at.slice(0, 10)}`
+                  : playing
+                    ? 'INCOMING · — · —'
+                    : 'CALLER ID · NO NEW CALLS'}
           </div>
 
           {/* buttons */}
