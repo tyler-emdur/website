@@ -95,6 +95,90 @@ export const RECOVERED_SECTORS = [
   },
 ]
 
+// The Recycle Bin: files Tyler deleted that the disk refused to let go of.
+// Emptying it does nothing — some things stay on the disk. (See FORMAT, README,
+// and the EXPERIMENTS folder: "deleted, not gone.") The centerpiece is
+// WORLD_04.WLD — 0 bytes, matching the gap the whole site keeps around it:
+// the counter skips 4, the doors skip 4, the answering machine insists there
+// has never been a world 4. And yet the socket is still on the disk.
+export interface RecycledItem {
+  file: string
+  icon: string
+  deleted: string   // fake, unresolved delete stamp
+  body: string[]
+}
+
+export const RECYCLED: RecycledItem[] = [
+  {
+    file: 'WORLD_04.WLD', icon: '🌐', deleted: 'deleted ????-??-??',
+    body: [
+      'CANNOT RESTORE — CANNOT DELETE',
+      '',
+      "There's no world 4. There's never been a world 4.",
+      'The counter skips it. The doors skip it. This disk skips it.',
+      '',
+      'And still: here it is. Zero bytes. Sitting in the bin since',
+      'before the bin. Restore does nothing. Empty does nothing.',
+      '',
+      'Some worlds you never build. You just leave the socket wired',
+      'and let people wonder what was supposed to plug in.',
+    ],
+  },
+  {
+    file: 'resume_2019.doc', icon: '📄', deleted: 'deleted, again',
+    body: [
+      'resume_2019.doc',
+      '',
+      'TYLER EMDUR — Boulder, CO — available upon request',
+      '',
+      'I keep dragging this to the bin. It keeps coming back on the',
+      'next boot. A list of jobs is a true thing about a person and',
+      'somehow the least interesting true thing.',
+      '',
+      'You are standing in the alternative. Close this. Go open a world.',
+    ],
+  },
+  {
+    file: 'cover_letter_FINAL_final_v4.doc', icon: '📄', deleted: 'deleted before sending',
+    body: [
+      'cover_letter_FINAL_final_v4.doc',
+      '',
+      'Dear Hiring Manager,',
+      '',
+      'I am writing to express my—',
+      '',
+      '[the rest of this file is blank.]',
+      '[it was always going to be blank.]',
+    ],
+  },
+  {
+    file: 'the_next_big_thing.ppt', icon: '📊', deleted: 'deleted at slide 3',
+    body: [
+      'the_next_big_thing.ppt — 14 slides',
+      '',
+      'Slide 1 ....... THE NEXT BIG THING',
+      'Slide 2 ....... (the problem)',
+      'Slide 3 ....... (the bigger problem)',
+      'Slides 4–13 ... [deleted]',
+      'Slide 14 ...... THANK YOU',
+      '',
+      'Slides 4 through 13 were the entire idea. They are gone.',
+      'This happens more often than anyone puts on a slide.',
+    ],
+  },
+  {
+    file: 'NOTES_TO_SELF.txt', icon: '🗒', deleted: 'deleted, ironically',
+    body: [
+      'note to self — undated',
+      '',
+      'stop starting new things.',
+      '',
+      '(deleted this note. immediately started three new things.',
+      ' one of them was the recycle bin you are reading it inside of.)',
+    ],
+  },
+]
+
 export function garbleLine(line: string, seed: number): string {
   const GLYPHS = '▓▒░█▄▀■□¦╬╫'
   let s = seed
