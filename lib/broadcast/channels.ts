@@ -32,11 +32,11 @@ export const CHANNELS: BroadcastChannel[] = [
     ],
   },
   {
-    id: 'havana', ch: '05', city: 'HAVANA', kind: 'hls', reception: 'unstable',
-    hlsUrl: 'https://tv.picta.cu/cubavision/cubavision_0.m3u8', // Cubavisión — Cuban state TV, signs off overnight
+    id: 'istanbul', ch: '05', city: 'ISTANBUL', kind: 'hls', reception: 'grainy',
+    hlsUrl: 'https://tv-trtworld.medya.trt.com.tr/master.m3u8', // TRT World — Turkish international broadcaster
     altHlsUrls: [
-      'https://tv.picta.cu/infantil/infantil_0.m3u8', // Canal Habana
-      'https://tv.picta.cu/telerebelde/telerebelde_1.m3u8', // Tele Rebelde — Cuban sports
+      'https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8', // DW English — Bonn
+      'https://static.france24.com/live/F24_EN_HI_HLS/live_web.m3u8', // France 24 English — Paris
     ],
   },
   {
@@ -79,7 +79,7 @@ export const CHANNELS: BroadcastChannel[] = [
   },
   {
     id: 'somewhere', ch: '31', city: 'SAXON HARBOR', kind: 'hls', reception: 'grainy',
-    hlsUrl: 'https://s158.ipcamlive.com/streams/9ex3vw9pvsggjtlmz/stream.m3u8', // a marina on Lake Superior nobody's heard of — no understudy; when it's dark, it's dark
+    hlsUrl: 'https://cdn-004.whatsupcams.com/hls/hr_pula01.m3u8', // a harbor on the Adriatic nobody's heard of — no understudy; when it's dark, it's dark
   },
   {
     id: 'vientiane', ch: '44', city: 'VIENTIANE', kind: 'hls', reception: 'chaotic',

@@ -118,7 +118,7 @@ function ProgramWindow({ progId }: { progId: string }) {
 const SRV_EPOCH = new Date('2024-11-09T23:47:00').getTime() // digger v1.0 deploy
 const SRV_CITIES = [
   'BOULDER, CO', 'PORTLAND, OR', 'BROOKLYN, NY', 'DELHI', 'REYKJAVIK',
-  'TAIPEI', 'ULAANBAATAR', 'HAVANA', 'DUSHANBE', 'SAXON HARBOR, WI',
+  'TAIPEI', 'ULAANBAATAR', 'ISTANBUL', 'DUSHANBE', 'SAXON HARBOR, WI',
 ]
 let srvSeq = 0
 function ServerMonitor({ bootCount }: { bootCount: number }) {
