@@ -1,6 +1,5 @@
 'use client'
 import { useRef, useEffect, useState } from 'react'
-import { projects } from '@/lib/data/projects'
 import type { RadioStation } from '@/app/api/radio/route'
 import type { RadioStatus } from './live-radio'
 
@@ -26,14 +25,23 @@ function flag(code: string) {
 
 interface Sign { label: string; sub: string }
 
+// Atmospheric highway signage — a loop that roughly tracks the phases of the
+// drive: leaving town, the open highway, the canyon, the storm, the descent.
 const SIGNS: Sign[] = [
-  ...projects
-    .slice()
-    .sort((a, b) => a.year - b.year)
-    .map(p => ({ label: `${p.year}`, sub: p.title.toUpperCase() })),
   { label: 'BOULDER', sub: 'ELEV 5430' },
-  { label: 'NEXT EXIT', sub: 'NO SERVICES' },
-  { label: 'I-70 W', sub: 'MOUNTAINS' },
+  { label: 'CITY LIMIT', sub: 'RESUME SPEED' },
+  { label: 'NEXT SERVICES', sub: '42 MILES' },
+  { label: 'US-36 WEST', sub: 'THE FOOTHILLS' },
+  { label: 'RUNAWAY TRUCK', sub: 'RAMP 1 MILE' },
+  { label: 'FALLING ROCK', sub: 'NEXT 8 MI' },
+  { label: 'THE CANYON', sub: 'NARROW ROAD' },
+  { label: 'ELEV 9000 FT', sub: 'THINNER AIR' },
+  { label: 'BRIDGE', sub: 'ICES BEFORE ROAD' },
+  { label: 'HIGH WINDS', sub: 'STORM AHEAD' },
+  { label: 'CONTINENTAL', sub: 'DIVIDE' },
+  { label: 'STEEP GRADE', sub: 'DOWNSHIFT' },
+  { label: 'LAST EXIT', sub: 'NO RETURN' },
+  { label: 'I-70 WEST', sub: 'THE MOUNTAINS' },
 ]
 
 // ── the country: phases of the drive, keyed to distance ─────────────────────
@@ -156,10 +164,12 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       const ridgeAmp = mix(pa.ridgeAmp, pb.ridgeAmp, pt)
 
       // ── camera ─────────────────────────────────────────────────────────────
-      // curvature: signed, slowly wandering. Positive bends right.
-      const curve = Math.sin(distM / 210) * 0.55 + Math.sin(distM / 87 + 2.1) * 0.35
-      // vertical: crests and sags. Positive = road falls away (you see less of it).
-      const hillV = Math.sin(distM / 300 + 1.2) * 0.7 + Math.sin(distM / 122) * 0.3
+      // curvature: signed, slowly wandering. Positive bends right. Kept gentle
+      // so the far road leans into a bend instead of swimming across the frame.
+      const curve = Math.sin(distM / 250) * 0.38 + Math.sin(distM / 104 + 2.1) * 0.2
+      // vertical: crests and sags. Positive = road falls away (you see less of
+      // it). Softened so the road rarely cuts off hard over a crest.
+      const hillV = Math.sin(distM / 360 + 1.2) * 0.5 + Math.sin(distM / 155) * 0.18
       // horizon breathes a little with terrain
       const horizon = H * 0.46 + Math.sin(distM / 260) * H * 0.012
       const cxm = W / 2
@@ -177,7 +187,9 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       // world → screen. lat in meters (0 = road centerline), z in meters ahead.
       const proj = (z: number, lat: number) => {
         const zz = Math.max(z, 0.8)
-        const bend = curve * zz * zz * 0.0011          // horizontal curvature: lateral offset grows z²
+        // horizontal curvature: lateral offset grows with z², clamped so the far
+        // end of a hard bend leans off the road rather than swinging off-screen
+        const bend = Math.max(-9, Math.min(9, curve * zz * zz * 0.0009))
         const y = horizon + (f * camH) / zz + (f * hillV * zz) / 3500 + bobY
         const x = cxm + (f * (lat + bend - camLat)) / zz
         return { x, y, s: f / zz }                     // s = px per meter at this depth
@@ -623,51 +635,70 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
         cx.fillRect(0, 0, W, H)
       }
 
-      // ── windshield: you are inside the car ────────────────────────────────
-      cx.fillStyle = 'rgba(3,3,5,0.88)'
-      cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(W * 0.045, 0); cx.lineTo(0, H * 0.6); cx.closePath(); cx.fill()
-      cx.beginPath(); cx.moveTo(W, 0); cx.lineTo(W - W * 0.045, 0); cx.lineTo(W, H * 0.6); cx.closePath(); cx.fill()
-      const roof = cx.createLinearGradient(0, 0, 0, H * 0.07)
-      roof.addColorStop(0, 'rgba(3,3,5,0.95)')
-      roof.addColorStop(1, 'transparent')
-      cx.fillStyle = roof
-      cx.fillRect(0, 0, W, H * 0.07)
-      const refl = cx.createLinearGradient(0, H * 0.62, 0, H)
-      refl.addColorStop(0, 'transparent')
-      refl.addColorStop(1, `rgba(255,180,90,${0.025 + Math.sin(now / 2400) * 0.008})`)
-      cx.fillStyle = refl
-      cx.fillRect(0, H * 0.62, W, H * 0.38)
+      // ── you are inside the car: headliner, pillars, dashboard ─────────────
+      // headliner across the top of the glass
+      const liner = cx.createLinearGradient(0, 0, 0, H * 0.13)
+      liner.addColorStop(0, 'rgba(6,6,9,0.98)')
+      liner.addColorStop(0.55, 'rgba(6,6,9,0.5)')
+      liner.addColorStop(1, 'transparent')
+      cx.fillStyle = liner
+      cx.fillRect(0, 0, W, H * 0.13)
+      // two sun visors folded up against the headliner
+      cx.fillStyle = 'rgba(10,10,13,0.92)'
+      cx.fillRect(W * 0.10, H * 0.052, W * 0.30, H * 0.032)
+      cx.fillRect(W * 0.60, H * 0.052, W * 0.30, H * 0.032)
 
-      // ── the hood: bobs with the suspension, leans into the curve ──────────
-      const hoodTop = H * 0.855 + bobY * 0.55
-      const apexX = cxm - curve * W * 0.03
-      const hg = cx.createLinearGradient(0, hoodTop, 0, H)
-      hg.addColorStop(0, '#12151b')
-      hg.addColorStop(0.4, '#0a0c10')
-      hg.addColorStop(1, '#05060a')
-      cx.fillStyle = hg
+      // A-pillars — thick, angled, framing the glass down to the dash corners
+      cx.fillStyle = 'rgba(5,5,8,0.97)'
+      cx.beginPath()
+      cx.moveTo(0, 0); cx.lineTo(W * 0.125, 0); cx.lineTo(W * 0.045, H * 0.84); cx.lineTo(0, H * 0.84)
+      cx.closePath(); cx.fill()
+      cx.beginPath()
+      cx.moveTo(W, 0); cx.lineTo(W - W * 0.125, 0); cx.lineTo(W - W * 0.045, H * 0.84); cx.lineTo(W, H * 0.84)
+      cx.closePath(); cx.fill()
+      // interior trim highlight on the inner pillar edge
+      cx.strokeStyle = 'rgba(120,132,155,0.07)'; cx.lineWidth = 1.5
+      cx.beginPath(); cx.moveTo(W * 0.125, 0); cx.lineTo(W * 0.045, H * 0.84); cx.stroke()
+      cx.beginPath(); cx.moveTo(W - W * 0.125, 0); cx.lineTo(W - W * 0.045, H * 0.84); cx.stroke()
+
+      // windshield tint — a faint amber sky reflection low on the glass
+      const refl = cx.createLinearGradient(0, H * 0.55, 0, H * 0.80)
+      refl.addColorStop(0, 'transparent')
+      refl.addColorStop(1, `rgba(255,180,90,${0.02 + Math.sin(now / 2400) * 0.006})`)
+      cx.fillStyle = refl
+      cx.fillRect(0, H * 0.55, W, H * 0.25)
+
+      // ── the dashboard cowl: padded top of the dash, bobs with the road ────
+      const dashTop = H * 0.80 + bobY * 0.5
+      const apexX = cxm - curve * W * 0.02
+      // instrument-cluster glow washing up into the glass above the dash
+      const clusterGlow = cx.createLinearGradient(0, dashTop - H * 0.15, 0, dashTop)
+      clusterGlow.addColorStop(0, 'transparent')
+      clusterGlow.addColorStop(1, `rgba(90,255,170,${0.02 + (tuned ? 0.02 : 0)})`)
+      cx.fillStyle = clusterGlow
+      cx.fillRect(0, dashTop - H * 0.15, W, H * 0.15)
+      // the dash surface
+      const dg = cx.createLinearGradient(0, dashTop - H * 0.02, 0, H)
+      dg.addColorStop(0, '#0e1117')
+      dg.addColorStop(0.45, '#080a0f')
+      dg.addColorStop(1, '#040509')
+      cx.fillStyle = dg
       cx.beginPath()
       cx.moveTo(-2, H + 2)
-      cx.lineTo(-2, H * 0.97)
-      cx.quadraticCurveTo(apexX - W * 0.3, hoodTop + H * 0.012, apexX, hoodTop)
-      cx.quadraticCurveTo(apexX + W * 0.3, hoodTop + H * 0.012, W + 2, H * 0.97)
+      cx.lineTo(-2, dashTop + H * 0.02)
+      cx.quadraticCurveTo(apexX - W * 0.33, dashTop - H * 0.012, apexX, dashTop + H * 0.004)
+      cx.quadraticCurveTo(apexX + W * 0.33, dashTop - H * 0.012, W + 2, dashTop + H * 0.02)
       cx.lineTo(W + 2, H + 2)
       cx.closePath()
       cx.fill()
-      cx.strokeStyle = `rgba(140,160,200,${0.10 + flash * 0.3 + town * 0.06 + glare * 0.25})`
-      cx.lineWidth = 1.2
+      // soft top edge of the dash catching the sky/lightning
+      cx.strokeStyle = `rgba(150,170,205,${0.08 + flash * 0.28 + town * 0.05 + glare * 0.22})`
+      cx.lineWidth = 1.3
       cx.beginPath()
-      cx.moveTo(0, H * 0.97)
-      cx.quadraticCurveTo(apexX - W * 0.3, hoodTop + H * 0.012, apexX, hoodTop)
-      cx.quadraticCurveTo(apexX + W * 0.3, hoodTop + H * 0.012, W, H * 0.97)
+      cx.moveTo(0, dashTop + H * 0.02)
+      cx.quadraticCurveTo(apexX - W * 0.33, dashTop - H * 0.012, apexX, dashTop + H * 0.004)
+      cx.quadraticCurveTo(apexX + W * 0.33, dashTop - H * 0.012, W, dashTop + H * 0.02)
       cx.stroke()
-      cx.strokeStyle = 'rgba(150,170,210,0.05)'
-      cx.beginPath(); cx.moveTo(apexX, hoodTop + 2); cx.lineTo(apexX, H); cx.stroke()
-      const spec = cx.createRadialGradient(apexX, H * 0.93, 4, apexX, H * 0.95, W * 0.26)
-      spec.addColorStop(0, `rgba(120,140,190,${0.07 + flash * 0.2 + glare * 0.15})`)
-      spec.addColorStop(1, 'transparent')
-      cx.fillStyle = spec
-      cx.fillRect(0, hoodTop, W, H - hoodTop)
 
       // steering wheel follows the road
       if (wheelRef.current) wheelRef.current.style.transform = `rotate(${(curve * 30).toFixed(2)}deg)`
@@ -684,11 +715,29 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
     <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#04050c', animation: 'garage-fade 1.2s ease' }}>
       <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
 
-      {/* cockpit — the same dash you sat behind in the garage, still with you */}
+      {/* rear-view mirror — the road you already drove, receding */}
       <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, height: 128,
+        position: 'absolute', top: '3.5%', left: '50%', transform: 'translateX(-50%)', zIndex: 101,
+        width: 150, height: 34, borderRadius: 17, pointerEvents: 'none',
+        background: 'linear-gradient(180deg, #0b0d11, #05070a)',
+        border: '2px solid #14161b', boxShadow: '0 6px 18px rgba(0,0,0,0.75)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+      }}>
+        <div style={{ width: '92%', height: '66%', borderRadius: 12,
+          background: 'radial-gradient(ellipse at 50% 120%, rgba(255,60,50,0.18), rgba(6,7,10,0.95) 62%)' }} />
+        <div style={{ position: 'absolute', left: '38%', bottom: 7, width: 3, height: 3, borderRadius: '50%',
+          background: 'rgba(255,60,50,0.7)', boxShadow: '0 0 5px rgba(255,60,50,0.8)' }} />
+        <div style={{ position: 'absolute', right: '38%', bottom: 7, width: 3, height: 3, borderRadius: '50%',
+          background: 'rgba(255,60,50,0.7)', boxShadow: '0 0 5px rgba(255,60,50,0.8)' }} />
+      </div>
+
+      {/* cockpit — a solid dashboard the instruments actually sit on */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 101,
+        height: 'clamp(150px, 21vh, 205px)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        gap: 'clamp(16px, 4vw, 56px)', paddingBottom: 14,
+        gap: 'clamp(16px, 4vw, 56px)', paddingBottom: 'clamp(14px, 2.4vh, 26px)',
+        background: 'linear-gradient(180deg, rgba(10,12,16,0) 0%, rgba(9,11,15,0.7) 20%, #0a0c11 52%, #050609 100%)',
         fontFamily: '"Space Mono", monospace', pointerEvents: 'none',
       }}>
         {/* steering wheel, counter-steering with the road */}
@@ -756,7 +805,7 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
           </div>
           <div style={{ fontSize: 9, color: 'rgba(255,236,205,0.75)', marginTop: 4, minHeight: 12,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }}>
-            {station ? `${flag(station.country)} ${station.name}` : '— between stations —'}
+            {station ? `${flag(station.country)} ${station.name}${station.city ? ` · ${station.city}` : ''}` : '— between stations —'}
           </div>
           <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.1em' }}>
             ← → seek stations
