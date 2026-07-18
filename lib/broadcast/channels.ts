@@ -47,11 +47,10 @@ export const CHANNELS: BroadcastChannel[] = [
     ],
   },
   {
-    id: 'tashkent', ch: '12', city: 'TASHKENT', kind: 'hls', reception: 'unstable',
-    hlsUrl: 'https://stream8.cinerama.uz/1001/tracks-v1a1/playlist.m3u8', // O'zbekiston national TV
+    id: 'opatija', ch: '12', city: 'OPATIJA', kind: 'hls', reception: 'grainy',
+    hlsUrl: 'https://cdn-006.whatsupcams.com/hls/hr_opatija01.m3u8', // Adriatic promenade cam, off-season
     altHlsUrls: [
-      'https://stream8.cinerama.uz/1002/tracks-v1a1/playlist.m3u8', // second national feed, same head end
-      'https://stream8.cinerama.uz/1003/tracks-v1a1/playlist.m3u8',
+      'https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8', // a foreign signal drifting in when the cam drops
     ],
   },
   {
