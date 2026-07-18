@@ -115,6 +115,7 @@ export default function World6Garage() {
   const [showIntro, setShowIntro] = useState(true)
   const [driving, setDriving] = useState(false)
   const [igniting, setIgniting] = useState(false)
+  const [showGlobe, setShowGlobe] = useState(false)
   const radioRef = useRef<LiveRadio | null>(null)
 
   // nearest station + how well it's tuned (for the display, independent of buffering)
@@ -172,10 +173,18 @@ export default function World6Garage() {
     findSecret('garage-tuned-the-world')
   }, [stations, freq, ensureRadio, findSecret])
 
-  // keyboard: seek with ← →, volume with ↑ ↓ (parked only)
+  const selectFromGlobe = useCallback((s: RadioStation) => {
+    ensureRadio()
+    setFreq(s.freq)
+    setShowGlobe(false)
+    findSecret('garage-radio-garden')
+  }, [ensureRadio, findSecret])
+
+  // keyboard: seek with ← →, volume with ↑ ↓ (parked only), Esc closes the globe
   useEffect(() => {
     if (driving) return
     const onKey = (e: KeyboardEvent) => {
+      if (showGlobe) { if (e.key === 'Escape') setShowGlobe(false); return }
       if (e.key === 'ArrowLeft') { e.preventDefault(); seekStation(-1) }
       else if (e.key === 'ArrowRight') { e.preventDefault(); seekStation(1) }
       else if (e.key === 'ArrowUp') { e.preventDefault(); ensureRadio(); setVolume(v => Math.min(1, v + 0.08)) }
@@ -183,7 +192,7 @@ export default function World6Garage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [driving, seekStation, ensureRadio])
+  }, [driving, showGlobe, seekStation, ensureRadio])
 
   const turnKey = useCallback(() => {
     if (driving || igniting) return
@@ -210,8 +219,17 @@ export default function World6Garage() {
         @keyframes vfd-flicker { 0%,97%,100%{opacity:1} 98%{opacity:0.85} }
       `}</style>
 
-      {/* the windshield — 3D garage, driver's seat POV */}
-      <GarageScene headlightsOn={headlightsOn} engineOn={driving} />
+      {/* the windshield — 3D garage, driver's seat POV. Also hosts the radio globe
+          (swapped in via globeMode) so the world only ever holds one live WebGL
+          context, instead of opening a second canvas on top of it. */}
+      <GarageScene
+        headlightsOn={headlightsOn}
+        engineOn={driving}
+        globeMode={showGlobe}
+        stations={stations}
+        activeStationId={stationObj?.id ?? null}
+        onSelectStation={selectFromGlobe}
+      />
 
       {/* windshield frame: A-pillars + roofline (decorative, let drags reach canvas) */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 20 }}>
@@ -237,21 +255,23 @@ export default function World6Garage() {
       </div>
 
       {/* title / intro */}
-      <div style={{ position: 'fixed', top: 20, left: 24, zIndex: 30,
-        fontFamily: '"Space Mono", monospace', color: 'rgba(255,223,140,0.85)', animation: 'garage-fade 0.8s ease' }}>
-        <div style={{ fontSize: 13, letterSpacing: '0.25em', textTransform: 'uppercase' }}>Midnight Garage</div>
-        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>12:47 AM · engine off</div>
-        {showIntro && (
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 8, maxWidth: 250, lineHeight: 1.7 }}>
-            drag the windshield to look around · tune the radio to real stations from around the world · turn the key to drive
-          </div>
-        )}
-      </div>
+      {!showGlobe && (
+        <div style={{ position: 'fixed', top: 20, left: 24, zIndex: 30,
+          fontFamily: '"Space Mono", monospace', color: 'rgba(255,223,140,0.85)', animation: 'garage-fade 0.8s ease' }}>
+          <div style={{ fontSize: 13, letterSpacing: '0.25em', textTransform: 'uppercase' }}>Midnight Garage</div>
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>12:47 AM · engine off</div>
+          {showIntro && (
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 8, maxWidth: 250, lineHeight: 1.7 }}>
+              drag the windshield to look around · tune the radio to real stations from around the world · turn the key to drive
+            </div>
+          )}
+        </div>
+      )}
 
       <HomeButton />
 
       {/* ── THE DASHBOARD ────────────────────────────────────────────────── */}
-      {!driving && (
+      {!driving && !showGlobe && (
         <div style={{
           position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 40,
           height: 'clamp(200px, 34vh, 250px)',
@@ -335,6 +355,12 @@ export default function World6Garage() {
               <button onClick={() => { ensureRadio(); setMuted(m => !m) }} style={{ ...radioBtn, color: muted ? '#ff5a4a' : radioBtn.color }}>
                 {muted ? 'MUTED' : 'MUTE'}
               </button>
+              <button
+                onClick={() => { ensureRadio(); setShowGlobe(true) }}
+                disabled={!stations.length}
+                style={{ ...radioBtn, opacity: stations.length ? 1 : 0.35 }}
+                title="tune by place instead of frequency"
+              >🌐 WORLD</button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                 <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.3)' }}>VOL</span>
                 <input type="range" min={0} max={1} step={0.01} value={volume}
@@ -361,6 +387,31 @@ export default function World6Garage() {
               ☀ HEADLIGHTS {headlightsOn ? 'ON' : 'OFF'}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* the radio garden — tune by place instead of frequency. The globe itself
+          renders in GarageScene's canvas underneath; this layer is just the
+          label + close control, with a vignette that leaves the globe visible. */}
+      {showGlobe && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 60, pointerEvents: 'none',
+          background: 'radial-gradient(ellipse 70% 60% at 50% 50%, transparent 35%, rgba(2,3,3,0.75) 100%)',
+          fontFamily: '"Space Mono", monospace',
+        }}>
+          <div style={{ position: 'absolute', top: 22, left: 0, right: 0, textAlign: 'center' }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.25em', color: 'rgba(120,255,170,0.6)' }}>THE WORLD, INSTEAD OF THE DIAL</div>
+            <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 6 }}>drag to spin · click a light to tune there</div>
+          </div>
+          <button
+            onClick={() => setShowGlobe(false)}
+            style={{
+              position: 'absolute', top: 20, right: 22, pointerEvents: 'auto',
+              background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 4,
+              color: 'rgba(255,255,255,0.5)', fontFamily: 'inherit', fontSize: 9, letterSpacing: '0.15em',
+              padding: '7px 12px', cursor: 'pointer',
+            }}
+          >✕ CLOSE</button>
         </div>
       )}
 

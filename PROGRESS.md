@@ -871,6 +871,72 @@ Strava/terrain code paths; build-verified, confirmed live in browser)
 
 ---
 
+## 2026-07-16/17 — World 6 (Garage): Radio Garden, done properly
+
+Objective:
+Tyler asked directly for a Radio Garden-style globe in the Garage's car radio —
+a second way to explore the world radio pool by place instead of by sweeping
+the FM dial. Garage already had real, live, global internet radio (radio-browser.info
+streams, honest data, no fakes); this was purely a new way to navigate it.
+
+Why:
+Radio Garden's whole trick is that geography IS the interface. The FM dial is
+great and stays as the default, but a rotating globe studded with glowing
+points per station — drag to spin, click a light, it tunes there — turns
+"scanning a band" into "visiting a place." Explicitly requested, high-confidence
+win, contained to one world.
+
+Changes Made:
+- app/api/radio/route.ts: added lat/lon (country centroid) to every station,
+  with small deterministic jitter so same-country stations don't stack into
+  one dot.
+- components/worlds/garage/RadioGlobe.tsx (NEW): the globe content — dark
+  sphere, faint wireframe lat/long grid, one glowing point per station
+  (brighter + pulsing on the currently-tuned one), hover label, click-to-tune.
+- components/worlds/garage/GarageScene.tsx: the globe is rendered *inside the
+  same persistent Canvas* as the garage interior (swapped via a `globeMode`
+  prop + a CameraRig that snaps the shared camera between the two framings),
+  not as a second Canvas. Also drops the interior's fog/garage meshes/spotlights
+  when in globe mode.
+- components/worlds/World6Garage.tsx: new "🌐 WORLD" button next to SEEK/MUTE;
+  dashboard + title-card hide while the globe is open; Esc closes it; selecting
+  a station calls the same tuneTo()/ensureRadio() path the dial already uses,
+  so LiveRadio's crossfade-out-of-static behavior is shared, not duplicated.
+
+Things Discovered (real engineering finding, not just this-session trivia):
+Two independent, simultaneously-mounted @react-three/fiber <Canvas> elements
+in this environment produced a canvas with a valid, non-lost WebGL context
+that nonetheless never called onCreated and never rendered a single frame —
+completely silent, no console errors. Confirmed with `window` markers that
+the React component executed but R3F's own render pipeline never completed
+initialization on the second context. World 6 previously never had two R3F
+canvases mounted at once (NightDrive is a plain 2D canvas, not R3F), so this
+had never been hit before. Fix: never open a second WebGL context for this
+world — the globe shares GarageScene's one persistent Canvas via a content
+swap, which is strictly better anyway (one GPU context per world, not two,
+which matters more on real low-end/mobile devices than it did here).
+
+Verification:
+- `next build`: clean, no type errors.
+- Manually driven in a real browser end-to-end: entered Garage, opened the
+  globe, dragged to spin, hovered a station (label + pulse), clicked it —
+  dial snapped to 92.6 FM / Radio Jamaica, dashboard reappeared correctly with
+  the new station live. Closed via both the X button and Esc.
+- Fixed a real mobile bug found in this pass: the "MIDNIGHT GARAGE" title
+  card overlapped the globe's own title at narrow widths — now hidden while
+  the globe is open, verified at 390px.
+- Confirmed driving mode (NightDrive) still works unaffected.
+
+Recommended Focus For Tomorrow:
+World 7 (Contact) and World 14 (Aisle) are the most overdue worlds — both
+untouched since 2026-07-02, both flagged as "next" by several past sessions
+that never got to them because the daily loop kept colliding on Worlds 1/9.
+
+Risk Level: Low (additive, one world, shares existing audio/tuning code paths;
+build + manual browser verification both green)
+
+---
+
 ## YYYY-MM-DD
 
 Objective:
