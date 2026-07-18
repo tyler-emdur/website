@@ -124,6 +124,8 @@ export default function World14Aisle() {
   const [basket, setBasket] = useState<BasketEntry[]>([])
   const [taken, setTaken] = useState<string | null>(null)
   const [pa, setPa] = useState<string | null>(null)
+  const [showReceipt, setShowReceipt] = useState(false)
+  const enteredAt = useRef(Date.now())
   const foundGemsRef = useRef<Set<string>>(new Set())
   const paFiredRef = useRef<Set<number>>(new Set())
   const paTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -169,10 +171,17 @@ export default function World14Aisle() {
     }
   }, [currentSlot, basket.length, store])
 
+  const checkout = useCallback(() => {
+    setShowReceipt(true)
+    store.findSecret('aisle-checked-out')
+  }, [store])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setShowReceipt(false); return }
       setHasMoved(true); startAmbience()
       if (e.key.toLowerCase() === 'e') takeItem()
+      if (e.key.toLowerCase() === 'c') checkout()
     }
     const onWheel = () => { setHasMoved(true); startAmbience() }
     window.addEventListener('keydown', onKey)
@@ -181,7 +190,7 @@ export default function World14Aisle() {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('wheel', onWheel)
     }
-  }, [takeItem, startAmbience])
+  }, [takeItem, startAmbience, checkout])
 
   // the buzz worsens the deeper you walk
   useEffect(() => { ambienceRef.current?.setDepth(darkAt(centerIndex)) }, [centerIndex])
@@ -237,6 +246,16 @@ export default function World14Aisle() {
         <div style={{ fontSize: 10, letterSpacing: '0.2em' }}>BASKET: {basket.length}</div>
         <div style={{ fontSize: 8, marginTop: 3, color: 'rgba(255,255,255,0.3)' }}>
           {basket.length === 0 ? 'empty. everything is technically free.' : 'running total: incalculable'}
+        </div>
+        <div
+          onClick={checkout}
+          style={{
+            fontSize: 8, marginTop: 8, letterSpacing: '0.15em', cursor: 'pointer', display: 'inline-block',
+            color: 'rgba(246,198,106,0.8)', border: '1px solid rgba(246,198,106,0.3)',
+            padding: '5px 9px', background: 'rgba(6,6,10,0.6)',
+          }}
+        >
+          ◇ CHECK OUT · [C]
         </div>
       </div>
 
@@ -322,7 +341,120 @@ export default function World14Aisle() {
         )}
       </div>
 
+      {showReceipt && (
+        <Receipt
+          basket={basket}
+          depth={centerIndex}
+          enteredAt={enteredAt.current}
+          onClose={() => setShowReceipt(false)}
+        />
+      )}
+
       <AisleCanvas onCenterIndexChange={setCenterIndex} />
+    </div>
+  )
+}
+
+// ── the receipt — the only proof you ever came in ────────────────────────────
+function fmtElapsed(ms: number) {
+  const s = Math.floor(ms / 1000)
+  const m = Math.floor(s / 60)
+  const h = Math.floor(m / 60)
+  if (h > 0) return `${h}h ${m % 60}m ${s % 60}s`
+  if (m > 0) return `${m}m ${s % 60}s`
+  return `${s}s`
+}
+
+function Receipt({ basket, depth, enteredAt, onClose }: {
+  basket: BasketEntry[]
+  depth: number
+  enteredAt: number
+  onClose: () => void
+}) {
+  const now = new Date()
+  const elapsed = fmtElapsed(Date.now() - enteredAt)
+  const stamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  const deep = depth > 120
+  const veryDeep = depth > 200
+  const footer = veryDeep
+    ? ['YOU ARE PAST THE PART WE HAVE MAPS FOR.', 'THIS RECEIPT IS YOUR ONLY PROOF YOU CAME IN.', 'HAVE YOU CONSIDERED STAYING.']
+    : deep
+      ? ['THANK YOU FOR SHOPPING WITH US.', 'AND SHOPPING WITH US.', 'AND SHOPPING WITH US.']
+      : ['THANK YOU FOR SHOPPING WITH US.', 'PLEASE COME AGAIN.', 'YOU WILL COME AGAIN.']
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(2,2,4,0.82)', backdropFilter: 'blur(3px)', animation: 'aisle-pa 0.4s ease',
+        fontFamily: '"Space Mono", monospace', padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: 340, maxWidth: '92vw', maxHeight: '86vh', overflowY: 'auto',
+          background: 'repeating-linear-gradient(180deg, #f4f1e8 0px, #f4f1e8 26px, #efece2 27px)',
+          color: '#14120c', padding: '26px 24px 20px', boxShadow: '0 24px 60px rgba(0,0,0,0.7)',
+          fontSize: 11, lineHeight: 1.7, letterSpacing: '0.02em',
+          clipPath: 'polygon(0 0,100% 0,100% 100%,96% 98.5%,92% 100%,88% 98.5%,84% 100%,80% 98.5%,76% 100%,72% 98.5%,68% 100%,64% 98.5%,60% 100%,56% 98.5%,52% 100%,48% 98.5%,44% 100%,40% 98.5%,36% 100%,32% 98.5%,28% 100%,24% 98.5%,20% 100%,16% 98.5%,12% 100%,8% 98.5%,4% 100%,0 98.5%)',
+        }}
+      >
+        <div style={{ textAlign: 'center', letterSpacing: '0.24em', fontSize: 13, fontWeight: 700 }}>AISLE 14</div>
+        <div style={{ textAlign: 'center', fontSize: 9, marginTop: 2 }}>FOODMART · STORE #∞</div>
+        <div style={{ textAlign: 'center', fontSize: 9, opacity: 0.7 }}>REG 03 · CASHIER: —— (UNATTENDED)</div>
+        <div style={{ textAlign: 'center', fontSize: 9, opacity: 0.7, marginTop: 2 }}>{stamp}</div>
+
+        <div style={{ borderTop: '1px dashed #14120c', margin: '12px 0 10px' }} />
+
+        {basket.length === 0 ? (
+          <div style={{ textAlign: 'center', fontSize: 10, opacity: 0.85, lineHeight: 2 }}>
+            NO ITEMS SCANNED<br />
+            YOU CAME IN FOR SOMETHING<br />
+            <span style={{ opacity: 0.6 }}>the store remembers what. you don&apos;t.</span>
+          </div>
+        ) : (
+          basket.map((b, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.label}</span>
+              <span style={{ whiteSpace: 'nowrap', opacity: 0.85 }}>{b.price}</span>
+            </div>
+          ))
+        )}
+
+        <div style={{ borderTop: '1px dashed #14120c', margin: '10px 0' }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>ITEMS</span><span>{basket.length}</span></div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>TIME IN STORE</span><span>{elapsed}</span></div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>DEPTH REACHED</span><span>#{String(depth).padStart(5, '0')}</span></div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginTop: 4 }}>
+          <span>TOTAL</span><span>YOUR ATTENTION</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, opacity: 0.7 }}>
+          <span>PAID</span><span>IN FULL, SOMEHOW</span>
+        </div>
+
+        <div style={{ borderTop: '1px dashed #14120c', margin: '12px 0 10px' }} />
+
+        <div style={{ textAlign: 'center', fontSize: 9, letterSpacing: '0.06em', lineHeight: 1.9, opacity: 0.9 }}>
+          {footer.map((l, i) => <div key={i}>{l}</div>)}
+        </div>
+
+        {/* barcode */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 1, marginTop: 12, height: 34, alignItems: 'stretch' }}>
+          {Array.from({ length: 48 }).map((_, i) => (
+            <div key={i} style={{ width: (i * 53 % 4) + 1, background: '#14120c', opacity: (i * 37 % 5) === 0 ? 0.15 : 1 }} />
+          ))}
+        </div>
+        <div style={{ textAlign: 'center', fontSize: 8, letterSpacing: '0.3em', marginTop: 4, opacity: 0.7 }}>
+          0 14 14 {String(depth).padStart(6, '0')} {String(basket.length).padStart(2, '0')}
+        </div>
+
+        <div style={{ textAlign: 'center', fontSize: 8, marginTop: 14, opacity: 0.45, letterSpacing: '0.15em', cursor: 'pointer' }} onClick={onClose}>
+          [ TAP ANYWHERE · ESC ] — KEEP SHOPPING
+        </div>
+      </div>
     </div>
   )
 }
