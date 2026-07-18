@@ -12,9 +12,6 @@ const NightDrive = dynamic(() => import('./garage/NightDrive'), { ssr: false })
 const FREQ_LO = 87.7
 const FREQ_HI = 108.0
 
-function regionName(code: string) {
-  try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code } catch { return code }
-}
 function countryFlag(code: string) {
   if (!/^[A-Za-z]{2}$/.test(code)) return '📻'
   return String.fromCodePoint(...[...code.toUpperCase()].map(c => 127397 + c.charCodeAt(0)))
@@ -210,7 +207,8 @@ export default function World6Garage() {
   const stationObj = liveStation ?? (near.station && near.strength > 0.2 ? near.station : null)
   const stationName = stationObj?.name ?? null
   const stationCountry = stationObj?.country
-  const stationGenre = stationObj?.tags?.split(',').map(s => s.trim()).filter(Boolean)[0]?.toUpperCase() ?? null
+  const stationCity = stationObj?.city ?? null
+  const stationGenre = stationObj?.tags ?? null
 
   return (
     <div style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', background: '#050608', overflow: 'hidden' }}>
@@ -329,7 +327,7 @@ export default function World6Garage() {
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>
                   {loadingStations ? 'acquiring stations…'
                     : stationName
-                      ? `${countryFlag(stationCountry ?? '')} ${stationName} · ${regionName(stationCountry ?? '')}${stationGenre ? ` · ${stationGenre}` : ''}`
+                      ? `${countryFlag(stationCountry ?? '')} ${stationName}${stationCity ? ` · ${stationCity}` : ''}${stationGenre ? ` · ${stationGenre}` : ''}`
                       : '— between stations —'}
                 </div>
               </div>

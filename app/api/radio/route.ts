@@ -1,173 +1,186 @@
 import { NextResponse } from 'next/server'
-import { unstable_cache } from 'next/cache'
 
-// Live internet radio for the Garage. Stations come from the radio-browser.info
-// community database, which continuously health-checks every stream and exposes
-// the result as `lastcheckok` — so we only ever hand the dial a station that was
-// confirmed playing on radio-browser's last sweep. We also require an https
-// stream (the site is https; http streams would be blocked as mixed content)
-// and a browser-playable codec (MP3/AAC — <audio> can't do Ogg everywhere).
+// The Garage radio is a curated dial, not a firehose. Every station here is a
+// real, long-lived stream someone actually programs — college freeform, pirate-
+// spirited underground, electroclash and late-night electro, the kind of thing
+// you leave on while you work and it earns its keep. No "top 40 per country"
+// scrape; this is a hand-built lineup with real cities behind it, so the globe
+// ("tune by place") is a genuine map of where each signal comes from.
 //
-// The dial is an FM band, so each station is pinned to a pseudo-frequency spread
-// evenly across 87.5–108.0. Everything between stations is static (client-side).
+// Playback is a plain <audio> element (see live-radio.ts) — cross-origin media
+// needs no CORS — so the only hard requirements are: HTTPS (the site is https,
+// http streams are blocked as mixed content) and a browser-playable codec
+// (MP3 / AAC). Every URL below was verified against both.
+//
+// The dial is an FM band; each station is pinned to a pseudo-frequency spread
+// across 87.7–108.0, and everything between stations is static (client-side).
 
 export interface RadioStation {
   id: string
   name: string
   country: string        // ISO-3166 alpha-2, for the flag
   countryName: string
-  tags: string
+  city: string           // real city — shown on the globe and the dial
+  tags: string           // genre / vibe, shown on the head unit
   url: string
   codec: string
   bitrate: number
   freq: number           // pinned dial position, MHz
-  lat: number            // country centroid, for the globe
+  lat: number            // real city latitude, for the globe
   lon: number
 }
 
-// Country centroids for the globe view — approximate, country-level (the
-// station data itself is only ever country-resolution, so city-precision
-// would be theater). Covers every code in COUNTRIES plus the FALLBACK set.
-const COUNTRY_COORDS: Record<string, [number, number]> = {
-  JP: [36.2, 138.3], FR: [46.6, 2.2], BR: [-14.2, -51.9], DE: [51.2, 10.4],
-  GB: [55.4, -3.4], US: [39.8, -98.6], IN: [20.6, 79.0], MX: [23.6, -102.5],
-  IT: [41.9, 12.6], ZA: [-30.6, 22.9], SE: [60.1, 18.6], KR: [35.9, 127.8],
-  NG: [9.1, 8.7], AU: [-25.3, 133.8], IS: [64.9, -19.0], JM: [18.1, -77.3],
-  TR: [38.9, 35.2], GR: [39.1, 21.8], RU: [61.5, 105.3], PT: [39.4, -8.2],
-  EG: [26.8, 30.8], AR: [-38.4, -63.6], TH: [15.9, 101.0], NL: [52.1, 5.3],
-  MA: [31.8, -7.1],
-}
+type Curated = Omit<RadioStation, 'freq'>
 
-// Curated country spread — a genuine trip around the world, not just the anglosphere.
-const COUNTRIES = [
-  'JP', 'FR', 'BR', 'DE', 'GB', 'US', 'IN', 'MX', 'IT', 'ZA',
-  'SE', 'KR', 'NG', 'AU', 'IS', 'JM', 'TR', 'GR', 'RU', 'PT',
-  'EG', 'AR', 'TH', 'NL', 'MA',
-]
-
-const PER_COUNTRY = 2
-const TARGET = 18
-
-// radio-browser has no single canonical host; these mirrors round-robin the same DB.
-const MIRRORS = [
-  'https://de1.api.radio-browser.info',
-  'https://de2.api.radio-browser.info',
-  'https://nl1.api.radio-browser.info',
-  'https://at1.api.radio-browser.info',
-]
-
-interface RawStation {
-  stationuuid: string
-  name: string
-  url_resolved: string
-  countrycode: string
-  country: string
-  tags: string
-  codec: string
-  bitrate: number
-  lastcheckok: number
-  hls: number
-}
-
-// Famous, long-lived public streams as a floor: if radio-browser is unreachable
-// (or an org egress policy blocks it), the dial still has a real world tour on it.
-// All https so they survive on the deployed https site.
-const FALLBACK: Omit<RadioStation, 'freq' | 'lat' | 'lon'>[] = [
-  { id: 'fb-somafm-gs', name: 'SomaFM Groove Salad', country: 'US', countryName: 'United States', tags: 'ambient,downtempo', url: 'https://ice1.somafm.com/groovesalad-128-mp3', codec: 'MP3', bitrate: 128 },
-  { id: 'fb-fip', name: 'FIP', country: 'FR', countryName: 'France', tags: 'eclectic', url: 'https://icecast.radiofrance.fr/fip-midfi.mp3', codec: 'MP3', bitrate: 128 },
-  { id: 'fb-radioparadise', name: 'Radio Paradise Main Mix', country: 'US', countryName: 'United States', tags: 'eclectic,rock', url: 'https://stream.radioparadise.com/mp3-128', codec: 'MP3', bitrate: 128 },
-  { id: 'fb-nts1', name: 'NTS Radio 1', country: 'GB', countryName: 'United Kingdom', tags: 'underground', url: 'https://stream-relay-geo.ntslive.net/stream', codec: 'AAC', bitrate: 128 },
-  { id: 'fb-kexp', name: 'KEXP Seattle', country: 'US', countryName: 'United States', tags: 'indie,college', url: 'https://kexp-mp3-128.streamguys1.com/kexp128.mp3', codec: 'MP3', bitrate: 128 },
-  { id: 'fb-franceinter', name: 'France Inter', country: 'FR', countryName: 'France', tags: 'talk,culture', url: 'https://icecast.radiofrance.fr/franceinter-midfi.mp3', codec: 'MP3', bitrate: 128 },
-  { id: 'fb-somafm-drone', name: 'SomaFM Drone Zone', country: 'US', countryName: 'United States', tags: 'ambient,space', url: 'https://ice1.somafm.com/dronezone-128-mp3', codec: 'MP3', bitrate: 128 },
-  { id: 'fb-jazzradio', name: 'TSF Jazz', country: 'FR', countryName: 'France', tags: 'jazz', url: 'https://tsfjazz.ice.infomaniak.ch/tsfjazz-high.mp3', codec: 'MP3', bitrate: 128 },
-  { id: 'fb-radiotunis', name: 'Radio Nova', country: 'FR', countryName: 'France', tags: 'eclectic', url: 'https://novazz.ice.infomaniak.ch/novazz-128.mp3', codec: 'MP3', bitrate: 128 },
-  { id: 'fb-somafm-sf', name: 'SomaFM Secret Agent', country: 'US', countryName: 'United States', tags: 'lounge,spy', url: 'https://ice1.somafm.com/secretagent-128-mp3', codec: 'MP3', bitrate: 128 },
-]
-
-function assignFrequencies<T extends { country: string }>(list: T[]): (T & { freq: number; lat: number; lon: number })[] {
-  const lo = 87.7, hi = 107.9
-  const n = Math.max(1, list.length)
-  // deterministic per-station jitter so two stations in the same country
-  // don't render as one dot on the globe, without needing city data
-  const seen: Record<string, number> = {}
-  return list.map((s, i) => {
-    const base = COUNTRY_COORDS[s.country] ?? [0, 0]
-    const dupIdx = seen[s.country] ?? 0
-    seen[s.country] = dupIdx + 1
-    const jitter = dupIdx * 2.4
-    return {
-      ...s,
-      // spread evenly, snap to the 0.1 grid a real dial uses
-      freq: Math.round((lo + (hi - lo) * (i / Math.max(1, n - 1))) * 10) / 10,
-      lat: base[0] + (dupIdx % 2 === 0 ? jitter : -jitter),
-      lon: base[1] + (dupIdx % 2 === 0 ? -jitter : jitter),
-    }
-  })
-}
-
-async function fetchFromMirror(base: string): Promise<RadioStation[]> {
-  const out: Omit<RadioStation, 'freq' | 'lat' | 'lon'>[] = []
-  const seen = new Set<string>()
-
-  await Promise.all(
-    COUNTRIES.map(async cc => {
-      try {
-        const res = await fetch(
-          `${base}/json/stations/search?countrycode=${cc}&order=clickcount&reverse=true&hidebroken=true&limit=14`,
-          { headers: { 'User-Agent': 'tyleremdur.com/1.0' }, signal: AbortSignal.timeout(6000) },
-        )
-        if (!res.ok) return
-        const raw: RawStation[] = await res.json()
-        let added = 0
-        for (const r of raw) {
-          if (added >= PER_COUNTRY) break
-          if (r.lastcheckok !== 1) continue
-          if (r.hls === 1) continue                        // <audio> can't do bare HLS
-          if (!r.url_resolved?.startsWith('https://')) continue
-          const codec = (r.codec || '').toUpperCase()
-          if (!/MP3|AAC/.test(codec)) continue
-          const key = r.url_resolved
-          if (seen.has(key)) continue
-          seen.add(key)
-          out.push({
-            id: r.stationuuid,
-            name: r.name.trim().slice(0, 42) || 'UNKNOWN',
-            country: (r.countrycode || cc).toUpperCase(),
-            countryName: r.country || cc,
-            tags: r.tags || '',
-            url: r.url_resolved,
-            codec,
-            bitrate: r.bitrate || 0,
-          })
-          added++
-        }
-      } catch { /* mirror/country failed — skip */ }
-    }),
-  )
-
-  return assignFrequencies(out)
-}
-
-const getStations = unstable_cache(
-  async (): Promise<RadioStation[]> => {
-    for (const base of MIRRORS) {
-      const list = await fetchFromMirror(base)
-      if (list.length >= 8) return list
-    }
-    return assignFrequencies(FALLBACK)
+// ── the lineup ────────────────────────────────────────────────────────────────
+// Ordered as a journey down the dial: West-coast underground → US freeform →
+// London pirate → Paris (the FIP family) → back to ambient. Cities repeat on
+// purpose — that's what a real curated dial looks like, a few scenes going deep.
+const LINEUP: Curated[] = [
+  // ── late-night electro / electroclash — the thing to leave on ──────────────
+  {
+    id: 'soma-u80s', name: 'SomaFM · Underground 80s', tags: 'electroclash · synth · EBM',
+    city: 'San Francisco', country: 'US', countryName: 'United States',
+    url: 'https://ice1.somafm.com/u80s-128-mp3', codec: 'MP3', bitrate: 128,
+    lat: 37.77, lon: -122.42,
   },
-  ['garage-radio-stations'],
-  { revalidate: 30 * 60 },   // pool refreshes every 30 min
-)
+  {
+    id: 'fip-electro', name: 'FIP Électro', tags: 'electro · club · leftfield',
+    city: 'Paris', country: 'FR', countryName: 'France',
+    url: 'https://icecast.radiofrance.fr/fipelectro-midfi.mp3', codec: 'MP3', bitrate: 128,
+    lat: 48.86, lon: 2.35,
+  },
+  {
+    id: 'soma-cliqhop', name: 'SomaFM · cliqhop idm', tags: 'idm · glitch · braindance',
+    city: 'San Francisco', country: 'US', countryName: 'United States',
+    url: 'https://ice1.somafm.com/cliqhop-128-mp3', codec: 'MP3', bitrate: 128,
+    lat: 37.75, lon: -122.44,
+  },
+  {
+    id: 'soma-beatblender', name: 'SomaFM · Beat Blender', tags: 'deep house · downtempo',
+    city: 'San Francisco', country: 'US', countryName: 'United States',
+    url: 'https://ice1.somafm.com/beatblender-128-mp3', codec: 'MP3', bitrate: 128,
+    lat: 37.79, lon: -122.40,
+  },
+
+  // ── US college / freeform — real DJs, no algorithm ─────────────────────────
+  {
+    id: 'kexp', name: 'KEXP 90.3', tags: 'college · indie · live sessions',
+    city: 'Seattle', country: 'US', countryName: 'United States',
+    url: 'https://kexp-mp3-128.streamguys1.com/kexp128.mp3', codec: 'MP3', bitrate: 128,
+    lat: 47.61, lon: -122.33,
+  },
+  {
+    id: 'kalx', name: 'KALX 90.7 Berkeley', tags: 'freeform · student radio',
+    city: 'Berkeley', country: 'US', countryName: 'United States',
+    url: 'https://stream.kalx.berkeley.edu:8443/kalx-128.mp3', codec: 'MP3', bitrate: 128,
+    lat: 37.87, lon: -122.26,
+  },
+  {
+    id: 'dublab', name: 'dublab', tags: 'leftfield · beats · future roots',
+    city: 'Los Angeles', country: 'US', countryName: 'United States',
+    url: 'https://dublab.out.airtime.pro/dublab_a', codec: 'MP3', bitrate: 128,
+    lat: 34.05, lon: -118.24,
+  },
+  {
+    id: 'kcrw-e24', name: 'KCRW Eclectic24', tags: 'eclectic · tastemaker',
+    city: 'Santa Monica', country: 'US', countryName: 'United States',
+    url: 'https://streams.kcrw.com/e24_mp3', codec: 'MP3', bitrate: 128,
+    lat: 34.02, lon: -118.49,
+  },
+  {
+    id: 'wfmu', name: 'WFMU', tags: 'freeform · the last real one',
+    city: 'Jersey City', country: 'US', countryName: 'United States',
+    url: 'https://stream0.wfmu.org/freeform-128k', codec: 'MP3', bitrate: 128,
+    lat: 40.72, lon: -74.05,
+  },
+  {
+    id: 'wwoz', name: 'WWOZ 90.7', tags: 'jazz · roots · brass',
+    city: 'New Orleans', country: 'US', countryName: 'United States',
+    url: 'https://wwoz-sc.streamguys1.com/wwoz-hi.mp3', codec: 'MP3', bitrate: 128,
+    lat: 29.95, lon: -90.07,
+  },
+
+  // ── London underground ─────────────────────────────────────────────────────
+  {
+    id: 'nts1', name: 'NTS 1', tags: 'underground · freeform',
+    city: 'London', country: 'GB', countryName: 'United Kingdom',
+    url: 'https://stream-relay-geo.ntslive.net/stream', codec: 'AAC', bitrate: 128,
+    lat: 51.54, lon: -0.08,
+  },
+  {
+    id: 'nts2', name: 'NTS 2', tags: 'underground · deeper cuts',
+    city: 'London', country: 'GB', countryName: 'United Kingdom',
+    url: 'https://stream-relay-geo.ntslive.net/stream2', codec: 'AAC', bitrate: 128,
+    lat: 51.51, lon: -0.13,
+  },
+  {
+    id: 'rinse', name: 'Rinse FM', tags: 'pirate · dance · grime',
+    city: 'London', country: 'GB', countryName: 'United Kingdom',
+    url: 'https://admin.stream.rinse.fm/proxy/rinse_uk/stream', codec: 'AAC', bitrate: 128,
+    lat: 51.49, lon: -0.10,
+  },
+
+  // ── Paris — the FIP family, the best-programmed dial on earth ──────────────
+  {
+    id: 'fip', name: 'FIP', tags: 'eclectic · the mothership',
+    city: 'Paris', country: 'FR', countryName: 'France',
+    url: 'https://icecast.radiofrance.fr/fip-midfi.mp3', codec: 'MP3', bitrate: 128,
+    lat: 48.86, lon: 2.34,
+  },
+  {
+    id: 'fip-groove', name: 'FIP Groove', tags: 'funk · soul · groove',
+    city: 'Paris', country: 'FR', countryName: 'France',
+    url: 'https://icecast.radiofrance.fr/fipgroove-midfi.mp3', codec: 'MP3', bitrate: 128,
+    lat: 48.88, lon: 2.36,
+  },
+  {
+    id: 'fip-jazz', name: 'FIP Jazz', tags: 'jazz · late night',
+    city: 'Paris', country: 'FR', countryName: 'France',
+    url: 'https://icecast.radiofrance.fr/fipjazz-midfi.mp3', codec: 'MP3', bitrate: 128,
+    lat: 48.84, lon: 2.33,
+  },
+  {
+    id: 'nova', name: 'Radio Nova', tags: 'eclectic · institution',
+    city: 'Paris', country: 'FR', countryName: 'France',
+    url: 'https://novazz.ice.infomaniak.ch/novazz-128.mp3', codec: 'MP3', bitrate: 128,
+    lat: 48.87, lon: 2.35,
+  },
+
+  // ── ambient / downtempo — the far end of the dial, for deep work ───────────
+  {
+    id: 'soma-groovesalad', name: 'SomaFM · Groove Salad', tags: 'ambient · downtempo',
+    city: 'San Francisco', country: 'US', countryName: 'United States',
+    url: 'https://ice1.somafm.com/groovesalad-128-mp3', codec: 'MP3', bitrate: 128,
+    lat: 37.76, lon: -122.41,
+  },
+  {
+    id: 'soma-dronezone', name: 'SomaFM · Drone Zone', tags: 'ambient · space · deep',
+    city: 'San Francisco', country: 'US', countryName: 'United States',
+    url: 'https://ice1.somafm.com/dronezone-128-mp3', codec: 'MP3', bitrate: 128,
+    lat: 37.78, lon: -122.39,
+  },
+  {
+    id: 'radioparadise', name: 'Radio Paradise', tags: 'eclectic · listener-funded',
+    city: 'Paradise, CA', country: 'US', countryName: 'United States',
+    url: 'https://stream.radioparadise.com/mp3-128', codec: 'MP3', bitrate: 128,
+    lat: 39.76, lon: -121.62,
+  },
+]
+
+// Spread the lineup across the FM band in listed order, snapping to the 0.1 grid
+// a real dial uses. Order is the journey; frequency is just where it lands.
+function assignFrequencies(list: Curated[]): RadioStation[] {
+  const lo = 87.9, hi = 107.7
+  const n = Math.max(1, list.length - 1)
+  return list.map((s, i) => ({
+    ...s,
+    freq: Math.round((lo + (hi - lo) * (i / n)) * 10) / 10,
+  }))
+}
+
+const STATIONS = assignFrequencies(LINEUP)
 
 export async function GET() {
-  try {
-    let stations = await getStations()
-    if (!stations || stations.length < 4) stations = assignFrequencies(FALLBACK)
-    // Interleave so adjacent dial positions are usually different countries.
-    return NextResponse.json({ stations: stations.slice(0, TARGET) })
-  } catch {
-    return NextResponse.json({ stations: assignFrequencies(FALLBACK) }, { status: 200 })
-  }
+  return NextResponse.json({ stations: STATIONS })
 }

@@ -207,9 +207,9 @@ export default function GarageScene({
   return (
     <Canvas
       camera={{ position: [0, 1.16, 1.0], fov: 66 }}
-      style={{ background: globeMode ? 'transparent' : '#050608' }}
+      style={{ background: globeMode ? '#02040a' : '#050608' }}
       dpr={[0.9, 1.5]}
-      gl={{ antialias: true, alpha: globeMode }}
+      gl={{ antialias: true }}
       shadows={false}
     >
       <CameraRig globe={globeMode} />
