@@ -740,6 +740,20 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
         background: 'linear-gradient(180deg, rgba(10,12,16,0) 0%, rgba(9,11,15,0.7) 20%, #0a0c11 52%, #050609 100%)',
         fontFamily: '"Space Mono", monospace', pointerEvents: 'none',
       }}>
+        {/* dashboard air vents in the far corners — slatted grilles */}
+        {[{ left: 26 }, { right: 26 }].map((pos, i) => (
+          <div key={i} style={{
+            position: 'absolute', bottom: 22, ...pos, width: 76, height: 24, borderRadius: 5,
+            background: 'linear-gradient(180deg,#0e1116,#06080c)', border: '1px solid rgba(255,255,255,0.045)',
+            boxShadow: 'inset 0 1px 0 rgba(150,170,205,0.06)',
+            display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2.5, padding: '0 8px',
+          }}>
+            {Array.from({ length: 4 }).map((_, j) => (
+              <div key={j} style={{ height: 2, borderRadius: 1, background: 'rgba(0,0,0,0.55)', boxShadow: '0 1px 0 rgba(255,255,255,0.035)' }} />
+            ))}
+          </div>
+        ))}
+
         {/* steering wheel, counter-steering with the road */}
         <div style={{ position: 'relative', width: 168, height: 96, overflow: 'hidden', flexShrink: 0 }}>
           <div ref={wheelRef} style={{
