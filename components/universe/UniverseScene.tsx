@@ -5,7 +5,7 @@ import { EffectComposer, Bloom, Vignette, ChromaticAberration, Noise, Scanline }
 import { BlendFunction } from 'postprocessing'
 import * as THREE from 'three'
 import CameraRig from './camera/CameraRig'
-import ProjectsRegion from './regions/ProjectsRegion'
+import IndexRegion from './regions/IndexRegion'
 import RunningRegion from './regions/RunningRegion'
 import ArchivesRegion from './regions/ArchivesRegion'
 import ExploreRegion from './regions/ExploreRegion'
@@ -70,7 +70,7 @@ export default function UniverseScene() {
         Each has its own Nebula backdrop and objects.
       */}
       <group>
-        <ProjectsRegion />
+        <IndexRegion />
         <ArchivesRegion />
         <LabRegion />
         <ExploreRegion />

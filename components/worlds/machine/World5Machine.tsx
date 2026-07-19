@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
 import { useWorldStore, type WorldId } from '@/lib/world-store'
 import HomeButton from '../HomeButton'
-import { projects } from '@/lib/data/projects'
 import { PROGRAMS } from './programs'
 import {
   EXPERIMENTS, README_TXT, RECOVERED_SECTORS, RECYCLED, WEBSITE_V1_LINKS, WORLD_FILES,
@@ -44,22 +43,6 @@ function Notepad({ lines }: { lines: string[] }) {
   return (
     <div style={{ background: '#fff', height: '100%', overflowY: 'auto', padding: '10px 12px', fontFamily: '"Courier New", monospace', fontSize: 12, lineHeight: 1.7, color: '#000', whiteSpace: 'pre-wrap' }}>
       {lines.join('\n')}
-    </div>
-  )
-}
-
-function ProjectExe({ p }: { p: (typeof projects)[number] }) {
-  const STATUS: Record<string, string> = { shipped: '#008000', wip: '#808000', archived: '#808080' }
-  return (
-    <div style={{ background: '#fff', height: '100%', overflowY: 'auto', padding: '12px 14px', fontFamily: '"Courier New", monospace', fontSize: 12, color: '#000' }}>
-      <div style={{ fontWeight: 700, fontSize: 14 }}>{p.title} <span style={{ color: '#666', fontWeight: 400 }}>({p.year})</span></div>
-      <div style={{ color: STATUS[p.status], fontSize: 10, textTransform: 'uppercase', margin: '4px 0 10px' }}>status: {p.status}</div>
-      <div style={{ lineHeight: 1.7, marginBottom: 10 }}>{p.description}</div>
-      <div style={{ color: '#555', fontSize: 10, marginBottom: 12 }}>stack: {p.tech.join(' · ')}</div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {p.links.live && <a href={p.links.live} target="_blank" rel="noopener noreferrer" style={{ background: '#000080', color: '#fff', padding: '4px 10px', fontSize: 10, textDecoration: 'none' }}>RUN →</a>}
-        {p.links.github && <a href={p.links.github} target="_blank" rel="noopener noreferrer" style={{ border: '1px solid #000080', color: '#000080', padding: '4px 10px', fontSize: 10, textDecoration: 'none' }}>SOURCE →</a>}
-      </div>
     </div>
   )
 }
@@ -115,7 +98,7 @@ function ProgramWindow({ progId }: { progId: string }) {
 // The reason this machine exists: it is serving tyleremdur.com, right now,
 // to you. The log is a mix of the truth (worlds you have actually visited,
 // damage that is actually on the disk) and the machine's own bookkeeping.
-const SRV_EPOCH = new Date('2024-11-09T23:47:00').getTime() // digger v1.0 deploy
+const SRV_EPOCH = new Date('2024-11-09T23:47:00').getTime() // the night the server first went up
 const SRV_CITIES = [
   'BOULDER, CO', 'PORTLAND, OR', 'BROOKLYN, NY', 'DELHI', 'REYKJAVIK',
   'TAIPEI', 'ULAANBAATAR', 'ISTANBUL', 'DUSHANBE', 'SAXON HARBOR, WI',
@@ -239,10 +222,9 @@ function Terminal({ bootCount, onRun, onSecret, onWorld, onSrv }: {
     setOut(prev => [...prev, ...lines.map(text => ({ id: ++termSeq, text, color }))])
 
   const DIRS: Record<string, string[]> = {
-    'C:\\': ['WORLDS         <DIR>', 'PROJECTS       <DIR>', 'EXPERIMENTS    <DIR>', 'GAMES          <DIR>', 'RECOVERED      <DIR>', 'RECYCLED       <DIR>', 'WEBSITE.V1     <DIR>', 'SRVHOST.EXE', 'README.TXT', 'COMMITS.LOG'],
+    'C:\\': ['WORLDS         <DIR>', 'EXPERIMENTS    <DIR>', 'GAMES          <DIR>', 'RECOVERED      <DIR>', 'RECYCLED       <DIR>', 'WEBSITE.V1     <DIR>', 'SRVHOST.EXE', 'README.TXT', 'COMMITS.LOG'],
     'C:\\WORLDS': WORLD_FILES.map(w => `${w.file.padEnd(14)}${w.size.padStart(7)}  ${w.note}`),
     'C:\\RECYCLED': RECYCLED.map(r => `${r.file.padEnd(34)}    0  ${r.deleted}`),
-    'C:\\PROJECTS': projects.map(p => `${p.id.toUpperCase().slice(0, 12)}.EXE`),
     'C:\\EXPERIMENTS': EXPERIMENTS.map(e => e.title.toUpperCase().replace(/[^A-Z0-9.]/g, '_').slice(0, 20) + '.LOG'),
     'C:\\GAMES': ['MINESWEEPER.EXE', ...PROGRAMS.map(p => p.title.toUpperCase())],
     'C:\\RECOVERED': RECOVERED_SECTORS.map(s => s.file),
@@ -315,11 +297,7 @@ function Terminal({ bootCount, onRun, onSecret, onWorld, onSrv }: {
         if (arg.replace('.EXE', '').startsWith('MINESWEEP')) { print(['Starting Minesweeper...']); onRun('minesweeper'); break }
         const prog = PROGRAMS.find(p => p.title.toUpperCase().startsWith(arg.replace('.EXE', '')))
         if (prog) { print([`Starting ${prog.title}...`]); onRun(prog.id) }
-        else {
-          const proj = projects.find(p => p.id.toUpperCase().startsWith(arg.replace('.EXE', '')))
-          if (proj?.links.live) { print([`Launching ${proj.title} (external)...`]); window.open(proj.links.live, '_blank') }
-          else print([`Cannot execute: ${arg || '?'}`], '#f66')
-        }
+        else print([`Cannot execute: ${arg || '?'}`], '#f66')
         break
       }
       case 'COMMITS':
@@ -980,7 +958,6 @@ export default function World5Machine() {
     { icon: '💻', label: 'My Computer', act: () => open('dir:root', 'C:\\', (
       <FolderGrid items={[
         { icon: '🌐', label: 'WORLDS', onOpen: openWorlds },
-        { icon: '📁', label: 'PROJECTS', onOpen: () => openIcon('projects') },
         { icon: '📁', label: 'EXPERIMENTS', onOpen: () => openIcon('experiments') },
         { icon: '📁', label: 'GAMES', onOpen: () => openIcon('games') },
         { icon: '📁', label: 'RECOVERED', onOpen: openRecovered },
@@ -1014,14 +991,6 @@ export default function World5Machine() {
       case 'v1':
         findSecret('machine-website-v1')
         open('v1', 'index.htm — tyleremdur.com (1 of 1 pages)', <WebsiteV1 />, 420, 340)
-        break
-      case 'projects':
-        open('dir:projects', 'C:\\PROJECTS', (
-          <FolderGrid items={projects.map(p => ({
-            icon: '⚙', label: `${p.id.toUpperCase()}.EXE`,
-            onOpen: () => open(`proj:${p.id}`, `${p.title}.EXE`, <ProjectExe p={p} />, 420, 300),
-          }))} />
-        ), 460, 280)
         break
       case 'experiments':
         open('dir:experiments', 'C:\\EXPERIMENTS — deleted, not gone', (
@@ -1130,7 +1099,6 @@ export default function World5Machine() {
                     { label: '⌨  MS-DOS Prompt', act: () => { openIcon('terminal'); setStartOpen(false) } },
                     { label: '💣  Minesweeper', act: () => { openMinesweeper(); setStartOpen(false) } },
                     { label: '🕹  Games', act: () => { openIcon('games'); setStartOpen(false) } },
-                    { label: '⚙  Projects', act: () => { openIcon('projects'); setStartOpen(false) } },
                     { label: '🧪  Experiments', act: () => { openIcon('experiments'); setStartOpen(false) } },
                     { label: '🗑  Recycle Bin', act: () => { openRecycleBin(); setStartOpen(false) } },
                     { label: '📄  Read Me', act: () => { openIcon('readme'); setStartOpen(false) } },

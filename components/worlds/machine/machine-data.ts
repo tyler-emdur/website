@@ -1,5 +1,5 @@
 // The Machine — file system contents for the EMDUR-486.
-// Everything in here is real: real projects, real dead experiments, real notes.
+// Everything in here is real: real dead experiments, real notes, real regrets.
 
 export interface MachineExperiment {
   id: string
@@ -11,7 +11,7 @@ export interface MachineExperiment {
 export const EXPERIMENTS: MachineExperiment[] = [
   { id: 'exp1', title: 'font-that-breathes.css', status: 'shelved', note: 'Tried making body text subtly expand and contract with a sine wave tied to scroll velocity. Nauseating at anything above 40wpm. Kept the keyframes, deleted the idea.' },
   { id: 'exp2', title: 'markov-commit-messages.py', status: 'abandoned', note: 'Trained a tiny Markov chain on my own commit history to auto-generate commit messages. It mostly produced "fix fix bug the the thing." Accurate, unfortunately.' },
-  { id: 'exp3', title: 'terrain-from-strava.js', status: 'revisit someday', note: 'Idea: turn a GPX file into a 3D relief you can fly through. Got as far as a flat, ugly triangle mesh before getting distracted by Digger. UPDATE: this one actually shipped. See world 2.' },
+  { id: 'exp3', title: 'terrain-from-strava.js', status: 'revisit someday', note: 'Idea: turn a GPX file into a 3D relief you can fly through. Got as far as a flat, ugly triangle mesh before getting distracted by something shinier. UPDATE: this one actually made it. See world 2.' },
   { id: 'exp4', title: 'inbox-zero-simulator', status: 'abandoned', note: 'A game where you sort a fake inbox against the clock. Realized halfway through that I was building a worse version of my actual job.' },
   { id: 'exp5', title: 'css-only-solar-system.html', status: 'shelved', note: 'No JS, pure CSS animation, all 8 planets plus Pluto out of spite. Runs at 6fps on anything older than 2 years old. Beautiful and useless.' },
   { id: 'exp6', title: 'sleep-data-to-midi.py', status: 'revisit someday', note: 'Mapped a week of sleep-tracker data to a MIDI sequence. The result sounded like a fax machine having a bad week. There is something here. Not sure what.' },
@@ -77,7 +77,7 @@ export const RECOVERED_SECTORS = [
   {
     file: 'SECTOR_002.DAT',
     content: [
-      'recovered · deploy log, digger v1.0',
+      'recovered · deploy log, build 1.0',
       '',
       '2024-11-09 23:47 · git push origin main · deploy complete',
       '47 objects in universe · 3 users online · one of them was me',
@@ -192,9 +192,9 @@ export function garbleLine(line: string, seed: number): string {
     .join('')
 }
 
+// The v1 site's link list, preserved as it was. No project index — that was
+// never what this page was for; it was four links and a lot of white space.
 export const WEBSITE_V1_LINKS = [
-  { label: 'digger', href: 'https://digger-five.vercel.app' },
-  { label: 'strava analytics', href: 'https://bhs-strava.vercel.app' },
   { label: 'github', href: 'https://github.com/tyler-emdur' },
   { label: 'email me', href: 'mailto:healthreinvented@gmail.com' },
 ]

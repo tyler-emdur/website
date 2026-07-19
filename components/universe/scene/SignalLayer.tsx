@@ -25,8 +25,8 @@ export default function SignalLayer() {
 
     // Connect specific objects that shouldn't be connected
     const pairings = [
-      { from: 'origin', to: 'proj-website', color: '#60A5FA', dashed: true },
-      { from: 'proj-digger', to: 'arch-core', color: '#B45309', dashed: false },
+      { from: 'origin', to: 'idx-recursive', color: '#60A5FA', dashed: true },
+      { from: 'idx-null', to: 'arch-core', color: '#B45309', dashed: false },
       { from: 'run-golden', to: 'explore-maroon', color: '#22C55E', dashed: false },
       { from: 'arch-wormhole', to: 'lab-collider', color: '#A855F7', dashed: true },
       { from: 'explore-corridor', to: 'run-pixel', color: '#FF006E', dashed: false },

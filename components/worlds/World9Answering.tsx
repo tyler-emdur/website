@@ -14,24 +14,25 @@ interface Tape {
   saved?: boolean // Tyler's saved messages vs. visitor messages
 }
 
-// The saved messages: Tyler's projects call and leave voicemails.
-// Every fact in here is real — see lib/data/projects.ts.
+// The saved messages. Nobody here is selling anything — these are calls that
+// came in from the other worlds and got left on the tape. Each one is a door
+// into somewhere else on the site for anyone listening closely.
 const SAVED_TAPES: Tape[] = [
   {
-    id: 'saved-digger', saved: true, name: 'digger — music discovery engine', at: '2025',
-    text: "hey, it's digger. someone connected their spotify at one in the morning and i walked the last.fm similarity graph for them for an hour. surfaced an ambient act with two hundred listeners. they saved nine tracks. this is what you built me for. anyway. call me back.",
+    id: 'saved-wrong-number', saved: true, name: 'unlisted number', at: '2:14 am',
+    text: "yeah, hi. i'm trying to reach a marcy. this is the number she wrote down for me. i've called it four times now and every time it picks up in a room i can hear — there's a hum in there, and something further back that isn't the hum. anyway. if you're marcy, it's ray. if you're not marcy, i'm sorry about the room.",
   },
   {
-    id: 'saved-hailbot', saved: true, name: 'hail bot — discord', at: '2024',
-    text: "this is hail bot. it hailed north of denver on tuesday. i posted the alert forty-one seconds after the radar flagged it. nobody said thanks. i don't need thanks. i watch the sky. that's the job.",
+    id: 'saved-coordinates', saved: true, name: 'number withheld', at: '—',
+    text: "forty degrees, zero one five zero north. one oh five, two seven zero five west. i'll say it again in case the tape was still winding. forty degrees, zero one five zero north. one oh five, two seven zero five west. that's all it is. that's all it's ever been. please stop putting it on the air.",
   },
   {
-    id: 'saved-wildfire', saved: true, name: 'wildfire risk model', at: '2025',
-    text: "wildfire model here. red flag warning in the foothills, wind gusting forty. i pulled the open-meteo numbers four times so you don't have to feel it in your stomach. i'm a scikit-learn model. worrying is literally my architecture. stay inside.",
+    id: 'saved-payphone', saved: true, name: 'pay phone · us-36 west', at: 'mile 41',
+    text: "there's still a pay phone out here, which means somebody is still paying for it. i put in a quarter to find out who. it rang you. so i guess it's you. i've got maybe forty seconds left and nothing to report. it's snowing on the pass and the radio's down to one station.",
   },
   {
-    id: 'saved-strava', saved: true, name: 'strava analytics', at: '2025',
-    text: "it's the strava dashboard. i know you stopped at mile six on saturday. gps-confirmed. ninety seconds, at the water fountain. your moving time is safe with me. i tell no one. that is the entire feature.",
+    id: 'saved-foodmart', saved: true, name: 'foodmart · store #∞', at: 'after 2am',
+    text: "this is the courtesy desk calling about an item left in aisle fourteen. we don't have a lost and found. we have an aisle. it's the same aisle. if you'd like to collect it you'll need to come back inside and keep walking. thank you for shopping with us.",
   },
   {
     id: 'saved-website', saved: true, name: 'this website', at: '2026',

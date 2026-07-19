@@ -63,10 +63,12 @@ export const CHANNELS: BroadcastChannel[] = [
   },
   {
     id: 'reykjavik', ch: '23', city: 'REYKJAVIK', kind: 'hls', reception: 'clean',
-    hlsUrl: 'https://ruv-web-live.akamaized.net/streymi/ruverl/ruverl.m3u8', // RÚV — Icelandic national television
-    altHlsUrls: [
-      'https://live.visir.is/hls-live/visir.smil/playlist.m3u8', // Vísir — Reykjavík newsroom
-    ],
+    // Do not put RÚV (ruv-web-live.akamaized.net) back on this dial position.
+    // It geo-restricts outside Iceland, and it does it by streaming a valid
+    // HLS manifest of a "not allowed outside Iceland" slate — so the liveness
+    // check in /api/broadcast sees #EXTM3U, calls it live, and every visitor
+    // outside Iceland tunes to a rights notice instead of a picture.
+    hlsUrl: 'https://live.visir.is/hls-live/visir.smil/playlist.m3u8', // Vísir — Reykjavík newsroom
   },
   {
     id: 'dushanbe', ch: '27', city: 'DUSHANBE', kind: 'hls', reception: 'grainy',

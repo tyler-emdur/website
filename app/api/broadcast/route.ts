@@ -15,22 +15,23 @@ export interface ChannelStatus {
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
 const CHECK_TIMEOUT_MS = 4000
 
-async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
+// The signal has to reach the work itself, so the deadline covers both the
+// connection and the body read — a manifest that connects and then dribbles
+// bytes is exactly the kind of dead feed this check exists to catch.
+async function withTimeout<T>(work: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T | null> {
   const controller = new AbortController()
   const t = setTimeout(() => controller.abort(), ms)
-  try { return await p } catch { return null } finally { clearTimeout(t) }
+  try { return await work(controller.signal) } catch { return null } finally { clearTimeout(t) }
 }
 
 // null = network hiccup on our side (unknown), true/false = definitive
 async function checkHlsLive(url: string): Promise<boolean | null> {
-  const res = await withTimeout(
-    fetch(url, { headers: { 'User-Agent': UA }, cache: 'no-store' }),
-    CHECK_TIMEOUT_MS,
-  )
-  if (!res) return null
-  if (!res.ok) return false
-  const text = await res.text().catch(() => '')
-  return text.trimStart().startsWith('#EXTM3U')
+  return withTimeout(async signal => {
+    const res = await fetch(url, { headers: { 'User-Agent': UA }, cache: 'no-store', signal })
+    if (!res.ok) return false
+    const text = await res.text()
+    return text.trimStart().startsWith('#EXTM3U')
+  }, CHECK_TIMEOUT_MS)
 }
 
 async function checkCascade(urls: string[]): Promise<ChannelStatus> {

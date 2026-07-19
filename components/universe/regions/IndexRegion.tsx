@@ -6,7 +6,7 @@ import { REGIONS } from '@/lib/universe-store'
 import { renderObject } from '../objects/UniverseObjectRenderer'
 import NebulaCloud, { NebulaHalo } from '../scene/NebulaCloud'
 
-const region = REGIONS.find(r => r.id === 'projects')!
+const region = REGIONS.find(r => r.id === 'index')!
 const COLOR = '#3B82F6'
 const POS = region.position
 
@@ -103,7 +103,7 @@ function AssemblyPoint({ position }: { position: [number, number, number] }) {
   )
 }
 
-export default function ProjectsRegion() {
+export default function IndexRegion() {
   return (
     <group>
       <NebulaHalo color={COLOR} position={POS} />

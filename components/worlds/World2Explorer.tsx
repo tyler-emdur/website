@@ -113,6 +113,19 @@ export default function World2Explorer() {
         </div>
       )}
 
+      {/* street-coverage.json is a few hundred KB even compressed, and the
+          terrain can't draw until it lands. Without this the world is just a
+          black rectangle for the whole download and reads as broken. */}
+      {state.loading && (
+        <div style={{
+          position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: '"Space Mono", monospace', color: 'rgba(255,255,255,0.35)', fontSize: 11,
+          letterSpacing: 2, textTransform: 'uppercase',
+        }}>
+          <span className="w2-surveying">surveying boulder</span>
+        </div>
+      )}
+
       {!state.loading && !state.configured && (
         <div style={{
           position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',

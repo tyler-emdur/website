@@ -31,18 +31,21 @@ const WEATHER_LABELS: Record<number, string> = {
   81: 'rain showers', 82: 'heavy showers', 85: 'snow showers', 95: 'thunderstorm',
 }
 
-interface WorldItem { id: number; name: string; bg: string; ac: string }
+// `short` is what fits on a 84px tile at 7px Press Start 2P — roughly 12
+// characters including the "W#: " prefix. Without it the long names either cut
+// mid-word or wrap onto a second line and cover the thumbnail.
+interface WorldItem { id: number; name: string; short: string; bg: string; ac: string }
 
 const ALL_WORLDS: WorldItem[] = [
-  { id: 0, name: 'Surface', bg: '#000022', ac: '#00ff88' },
-  { id: 1, name: 'Universe', bg: '#0d001a', ac: '#ff00aa' },
-  { id: 2, name: 'Boulder Explorer', bg: '#03040d', ac: '#5ecbe0' },
-  { id: 3, name: 'Broadcast', bg: '#220022', ac: '#ff55ff' },
-  { id: 5, name: 'The Machine', bg: '#0a0e14', ac: '#5ecbe0' },
-  { id: 6, name: 'Garage', bg: '#0a0e14', ac: '#ffb347' },
-  { id: 7, name: 'Contact', bg: '#220044', ac: '#aa55ff' },
-  { id: 9, name: 'Answering Machine', bg: '#0c0805', ac: '#ff4433' },
-  { id: 14, name: 'The Endless Aisle', bg: '#0b0b10', ac: '#F472B6' },
+  { id: 0, name: 'Surface', short: 'Surface', bg: '#000022', ac: '#00ff88' },
+  { id: 1, name: 'Universe', short: 'Universe', bg: '#0d001a', ac: '#ff00aa' },
+  { id: 2, name: 'Boulder Explorer', short: 'Boulder', bg: '#03040d', ac: '#5ecbe0' },
+  { id: 3, name: 'Broadcast', short: 'KWND', bg: '#220022', ac: '#ff55ff' },
+  { id: 5, name: 'The Machine', short: 'Machine', bg: '#0a0e14', ac: '#5ecbe0' },
+  { id: 6, name: 'Garage', short: 'Garage', bg: '#0a0e14', ac: '#ffb347' },
+  { id: 7, name: 'Contact', short: 'Contact', bg: '#220044', ac: '#aa55ff' },
+  { id: 9, name: 'Answering Machine', short: 'Tape', bg: '#0c0805', ac: '#ff4433' },
+  { id: 14, name: 'The Endless Aisle', short: 'Aisle', bg: '#0b0b10', ac: '#F472B6' },
 ]
 
 function PanelHeader({ label, style }: { label: string; style?: React.CSSProperties }) {
@@ -239,7 +242,7 @@ function WorldThumbnail({ world, onClick }: { world: WorldItem; onClick: () => v
   }, [world])
 
   return (
-    <button onClick={onClick} className="wt" style={{
+    <button onClick={onClick} className="wt" title={`World ${world.id}: ${world.name}`} style={{
       flexShrink: 0, width: 84, height: 64, border: `2px groove ${BORDER_LIGHT}`,
       cursor: 'pointer', background: world.bg, display: 'block', position: 'relative', padding: 0
     }}>
@@ -247,9 +250,10 @@ function WorldThumbnail({ world, onClick }: { world: WorldItem; onClick: () => v
       <div className="wlbl" style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         background: 'rgba(0,0,0,.8)', color: '#00ccff', fontSize: 7,
-        fontFamily: '"Press Start 2P", monospace', textAlign: 'center', padding: '1px 0'
+        fontFamily: '"Press Start 2P", monospace', textAlign: 'center', padding: '1px 0',
+        whiteSpace: 'nowrap', overflow: 'hidden'
       }}>
-        W{world.id}: {world.name.slice(0, 8)}
+        W{world.id}: {world.short}
       </div>
     </button>
   )
@@ -334,7 +338,7 @@ export default function World0Surface() {
   const lastSparkleRef = useRef<number>(0)
 
   const go = useCallback(() => navigateTo(1, { type: 'door' }), [navigateTo])
-  const goProjects = useCallback(() => navigateTo(5, { type: 'door' }), [navigateTo])
+  const goMachine = useCallback(() => navigateTo(5, { type: 'door' }), [navigateTo])
 
   useEffect(() => {
     const tick = () => {
@@ -1038,7 +1042,7 @@ export default function World0Surface() {
                 <div>
                   This website is made up of <span style={{ color: '#ffffff' }}>{ALL_WORLDS.length} different &quot;worlds&quot;</span>,
                   each one being its own mini website with a unique design, purpose, and personality.
-                  Every world explores a different part of my work, interests, projects, and random ideas.<br /><br />
+                  Every world is a different place to end up in, and a different set of rules once you&apos;re there.<br /><br />
                   Some worlds are serious and functional. Some are experimental. Some are just for fun.<br /><br />
                   The multiverse is still a work in progress, and many of these worlds are actively being
                   built and expanded. Think of it as a living project that grows over time as I create
@@ -1074,7 +1078,7 @@ export default function World0Surface() {
           <MiniPanel label="INDEX">
             <div style={{ margin: '-6px -8px', padding: 4 }}>
               <button className="w0-ibtn" onClick={go} style={{ width: '100%' }}>WORLDS</button>
-              <button className="w0-ibtn" onClick={goProjects} style={{ width: '100%' }}>PROJECTS</button>
+              <button className="w0-ibtn" onClick={goMachine} style={{ width: '100%' }}>THE MACHINE</button>
               <a href="mailto:tyler@tyleremdur.com" className="w0-ibtn">CONTACT</a>
               <a href="https://github.com/tyler-emdur/website" target="_blank" rel="noopener noreferrer" className="w0-ibtn">SOURCE CODE</a>
             </div>

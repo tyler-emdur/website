@@ -43,6 +43,8 @@ export class LiveRadio {
   private lastFreq = 98
   private running = false
   private muted = false
+  private lastStatus: RadioStatus | null = null
+  private lastActiveId: string | null = null
 
   onStatus: ((s: RadioStatus, station: RadioStation | null) => void) | null = null
 
@@ -79,6 +81,11 @@ export class LiveRadio {
       this.audio.addEventListener('playing', () => this.emit())
       this.audio.addEventListener('waiting', () => this.emit())
       this.audio.addEventListener('error', () => { this.activeId = null; this.emit() })
+      // 'playing' fires the instant playback starts, which is usually still at
+      // currentTime 0 — so on its own it can only ever report TUNING. Without
+      // this the dial stays stuck on TUNING for the whole song. emit()
+      // de-dupes, so the ~4Hz timeupdate costs one state change on the way in.
+      this.audio.addEventListener('timeupdate', () => this.emit())
 
       this.running = true
     } catch { /* no audio available — silent radio */ }
@@ -139,10 +146,12 @@ export class LiveRadio {
     if (!this.onStatus) return
     const active = this.stations.find(s => s.id === this.activeId) ?? null
     let status: RadioStatus = 'static'
-    if (this.muted) status = 'static'
-    if (active) {
+    if (active && !this.muted) {
       status = this.audio && !this.audio.paused && this.audio.readyState >= 3 && this.audio.currentTime > 0 ? 'live' : 'tuning'
     }
+    if (status === this.lastStatus && active?.id === this.lastActiveId) return
+    this.lastStatus = status
+    this.lastActiveId = active?.id ?? null
     this.onStatus(status, active)
   }
 

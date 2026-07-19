@@ -30,7 +30,7 @@ const PROCESSES = [
   ' 003  ??  R    2:18.99 discovery-engine',
   ' 004  ??  S    0:00.08 comet-system',
   ' 005  ??  Ss   0:00.12 nebula-renderer',
-  ' 006  ??  S    0:00.03 region-probe [projects]',
+  ' 006  ??  S    0:00.03 region-probe [index]',
   ' 007  ??  S    0:00.03 region-probe [running]',
   ' 008  ??  S    0:00.03 region-probe [archives]',
   ' 009  ??  S    0:00.03 region-probe [explore]',
@@ -76,8 +76,6 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
     help: [
       R('── KNOWN COMMANDS ─────────────────────────────', 'dim'),
       R('  about        who is this'),
-      R('  skills       technology stack'),
-      R('  projects     things that have been built'),
       R('  runs         race log'),
       R('  contact      how to reach'),
       R('  goto [name]  navigate to a sector'),
@@ -96,47 +94,16 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
     ],
 
     about: [
-      R('TYLER EMDUR', 'hi'),
+      R('OPERATOR — T. EMDUR', 'hi'),
       R('────────────────────────'),
-      R('builder. runner. colorado.'),
+      R('one person. boulder, colorado.'),
       R(''),
-      R('makes things that work — dashboards, tools,'),
-      R('discovery engines, weird little websites.'),
+      R('builds places and then leaves the lights on'),
+      R('in them. this survey is one of the places.'),
       R(''),
       R('currently: somewhere above 5000ft', 'dim'),
-      R('typically: boulder, co', 'dim'),
-      R('status: shipping', 'cy'),
-    ],
-
-    skills: [
-      R('TECHNOLOGY STACK', 'hi'),
-      R('────────────────────────'),
-      R('languages   TypeScript, JavaScript, Python'),
-      R('frontend    Next.js, React, Three.js, GLSL'),
-      R('backend     Node.js, Flask, Express'),
-      R('databases   PostgreSQL, Redis, SQLite'),
-      R('apis        Spotify, Strava, Open-Meteo,'),
-      R('            Last.fm, Gemini, Discord'),
-      R('tools       Vercel, Tailwind, shadcn/ui'),
-      R('infra       Vercel, GitHub Actions'),
-      R(''),
-      R('currently learning: GLSL shaders, WebGPU', 'dim'),
-    ],
-
-    projects: [
-      R('SHIPPED PROJECTS', 'hi'),
-      R('────────────────────────'),
-      R('  Digger          music discovery engine (Spotify + Last.fm)'),
-      R('  Faraday Tools   construction tools, solar estimator'),
-      R('  Strava Analytics  GPS-confirmed stop detection + Redis'),
-      R('  Wildfire Risk   scikit-learn + real-time weather data'),
-      R('  AP Practice     Gemini-graded FRQs, study platform'),
-      R('  Fit Maker       daily outfit gen + weather matching'),
-      R('  Hail Bot        Discord bot, hail monitoring'),
-      R('  Mathibex        math equation generator (Flask)'),
-      R('  Trackflation    HS running data viz (Chart.js)'),
-      R(''),
-      R('→ enter PROJECTS sector for full detail', 'dim'),
+      R('typically: awake later than intended', 'dim'),
+      R('status: still transmitting', 'cy'),
     ],
 
     runs: [
@@ -179,7 +146,7 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
     status: [
       R('UNIVERSE STATUS REPORT', 'hi'),
       R('────────────────────────'),
-      R('SECTOR 01-A  PROJECTS      ■ ONLINE'),
+      R('SECTOR 01-A  INDEX         ■ ONLINE'),
       R('SECTOR 02-B  RUNNING       ■ ONLINE'),
       R('SECTOR 03-Ω  ARCHIVES      ▲ DEGRADED — database fault detected'),
       R('SECTOR 04-Δ  EXPLORE       ■ ONLINE'),
@@ -207,7 +174,7 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
       R('────────────────────────'),
       R(INTERCEPTED_TRACKS[Math.floor(Math.random() * INTERCEPTED_TRACKS.length)], 'cy'),
       R(''),
-      R('← source frequency drifting · check Digger for details', 'dim'),
+      R('← source frequency drifting · origin unresolved', 'dim'),
     ],
 
     fortune: [R(ARCHIVE_RECORDS[Math.floor(Math.random() * ARCHIVE_RECORDS.length)], 'cy')],
@@ -331,7 +298,7 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
       R(''),
       R('               [LAB]', 'pk'),
       R('                 |'),
-      R('     [ARCHIVES] [TE-∅] [PROJECTS]'),
+      R('     [ARCHIVES] [TE-∅] [INDEX]   '),
       R('                 |'),
       R('              [EXPLORE]'),
       R('                 |'),
@@ -424,7 +391,7 @@ export default function HiddenTerminal() {
       } else {
         setLines(prev => [...prev, echo,
           { text: `SECTOR NOT FOUND: "${target}"`, cls: 'er' },
-          { text: 'sectors: projects | running | archives | explore | lab', cls: 'dim' },
+          { text: 'sectors: index | running | archives | explore | lab', cls: 'dim' },
         ])
       }
       return

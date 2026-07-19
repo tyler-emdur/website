@@ -102,7 +102,7 @@ function VoidPainter({ active }: { active: boolean }) {
 }
 
 /* ─── Type Collider ─── */
-const WORDS=['DIGGER','RUNNER','BUILDER','COLORADO','SIGNAL','NOISE','THRESHOLD','WORMHOLE','SYSTEM','EDGE','DRIFT','TEXTURE','MOUNTAIN','SHADER','LOOP','14,115 FT','ANOMALY','EXPLORE']
+const WORDS=['CARRIER','RUNNER','BUILDER','COLORADO','SIGNAL','NOISE','THRESHOLD','WORMHOLE','SYSTEM','EDGE','DRIFT','TEXTURE','MOUNTAIN','SHADER','LOOP','14,115 FT','ANOMALY','EXPLORE']
 interface TW{x:number;y:number;vx:number;vy:number;w:number;text:string;col:string;angle:number;av:number}
 function TypeCollider({ active }: { active: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null)
