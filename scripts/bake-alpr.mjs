@@ -131,12 +131,34 @@ async function main() {
   // Cameras found by hand that OSM either does not tag with a direct image or
   // does not know about. Every one still gets fetched and dated below — being
   // on this list is a lead, not a promise.
+  //
+  // Boulder County Parks & Open Space runs four cameras at each of four
+  // properties and publishes every one of them as a plain JPEG on a two-minute
+  // loop. OSM knows about one of the sixteen. The rest were found by walking
+  // the URL pattern, which is the only reason this board has anything to look
+  // at: sixteen cameras that show you a picture, against seventy-odd that only
+  // ever produce a plate number. Some of these sit just north of the ALPR
+  // bounding box — the readers are a Boulder story, the cameras are a county
+  // one.
+  const OPEN_SPACE = [
+    { slug: 'walker', name: 'Walker Ranch', lat: 39.95125, lon: -105.33744 },
+    { slug: 'heil', name: 'Heil Valley Ranch', lat: 40.14930, lon: -105.30610 },
+    { slug: 'pella', name: 'Pella Crossing', lat: 40.18560, lon: -105.18150 },
+    { slug: 'lagerman', name: 'Lagerman Reservoir', lat: 40.15830, lon: -105.18750 },
+  ]
   const SEEDS = [
+    ...OPEN_SPACE.flatMap(p => [1, 2, 3, 4].map(n => ({
+      lat: p.lat, lon: p.lon, name: `${p.name} ${n}`,
+      operator: 'Boulder County Parks & Open Space',
+      url: `https://bouldercountyopenspace.org/photos/${p.slug}/live${n}.jpg`,
+    }))),
     { lat: 40.0274, lon: -105.2519, name: 'Flatiron Cam', operator: 'Boulder Flatiron Cam', url: 'https://boulderflatironcam.com/live/bfc.jpg' },
     { lat: 40.0274, lon: -105.2519, name: 'Flatiron Cam SC', operator: 'Boulder Flatiron Cam', url: 'https://boulderflatironcam.com/bfc/bfcsc.jpg' },
     { lat: 40.0274, lon: -105.2519, name: 'Flatiron Netcam', operator: 'Boulder Flatiron Cam', url: 'https://boulderflatironcam.com/bfc/netcam.jpg' },
   ]
-  candidates.push(...SEEDS)
+  // Seeds go first: OSM has some of these same URLs with no name on them, and
+  // dedupe keeps whichever it sees first. A named camera is a better row.
+  candidates.unshift(...SEEDS)
 
   const seen = new Set()
   const feeds = []

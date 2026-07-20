@@ -601,7 +601,7 @@ export default function World0Surface() {
   const linkStyle: React.CSSProperties = { color: LINK, textDecoration: 'underline', cursor: 'pointer' }
 
   return (
-    <div style={{
+    <div className="w0-root" style={{
       position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
       background: NAVY, fontFamily: 'Arial, Helvetica, sans-serif', fontSize: 12,
       userSelect: 'none', border: '3px ridge #3333aa',
@@ -807,6 +807,29 @@ export default function World0Surface() {
         }
         .w0-note { animation: w0-note-dance 0.5s ease-in-out infinite; display: inline-block; }
 
+        /* === Phones ===
+           The desktop layout is three columns pinned inside one non-scrolling
+           screen — 800x600 thinking, on purpose. On a phone the two fixed
+           sidebars eat the whole width and the middle column, which is the
+           entire point of the page, gets squeezed to nothing. So on narrow
+           screens the columns unstack into one scrolling strip, and the
+           middle one goes first: hero, ENTER, then the junk drawer. */
+        @media (max-width: 760px) {
+          .w0-root { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+          .w0-body { flex-direction: column; flex: 0 0 auto !important; overflow: visible !important; }
+          .w0-col-left, .w0-col-right, .w0-col-center {
+            width: 100% !important; flex: 0 0 auto !important; overflow: visible !important;
+          }
+          .w0-col-center { order: -1; }
+          /* the starfield needs a real height once nothing is stretching it */
+          .w0-hero { flex: 0 0 auto !important; height: 320px; }
+          /* side by side at 190px wide, these two are unreadable */
+          .w0-split { grid-template-columns: 1fr !important; flex: 0 0 auto !important; }
+          .w0-split > * { min-height: 260px; }
+          /* touch has no hover, so the thumbnail scale-up never un-scales */
+          .wt:hover { transform: none; }
+        }
+
         .w0-marquee-band {
           display:inline-block; animation:w0-scroll 30s linear infinite;
           font-family:"Comic Sans MS",cursive; font-size:11px; font-weight:bold;
@@ -847,10 +870,10 @@ export default function World0Surface() {
       </div>
 
       {/* 3-column body */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+      <div className="w0-body" style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
 
         {/* LEFT */}
-        <div style={{ width: 170, flexShrink: 0, overflow: 'hidden', background: '#000033' }}>
+        <div className="w0-col-left" style={{ width: 170, flexShrink: 0, overflow: 'hidden', background: '#000033' }}>
 
           <div style={{
             background: '#000080', padding: '10px 10px 12px', margin: '4px 6px 4px 2px',
@@ -940,7 +963,7 @@ export default function World0Surface() {
         </div>
 
         {/* CENTER */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+        <div className="w0-col-center" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
 
           <div style={{
             background: 'linear-gradient(90deg, #330077, #110055)',
@@ -951,7 +974,7 @@ export default function World0Surface() {
           </div>
 
           {/* Hero / starfield */}
-          <div id="hero" ref={heroRef} style={{
+          <div id="hero" ref={heroRef} className="w0-hero" style={{
             position: 'relative', flex: '1 1 42%', minHeight: 200,
             background: '#000005', overflow: 'hidden', textAlign: 'center',
             border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px',
@@ -999,7 +1022,7 @@ export default function World0Surface() {
           <div style={{ height: 10, background: 'linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00ff00,#00ffff,#0066ff,#cc00ff,#ff0000)', flexShrink: 0 }} />
 
           {/* Welcome + Log */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px', background: '#000033', flex: '1 1 50%', minHeight: 0 }}>
+          <div className="w0-split" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: `2px solid ${BORDER}`, borderTop: 'none', margin: '0 4px', background: '#000033', flex: '1 1 50%', minHeight: 0 }}>
             <div className="w0-welcome w0-scroll" style={{ padding: 0, minHeight: 0, overflowY: 'auto' }}>
               <div className="w0-construct" title="under construction" />
               <div style={{ padding: '8px 10px 10px', position: 'relative', zIndex: 12 }}>
@@ -1089,7 +1112,7 @@ export default function World0Surface() {
         </div>
 
         {/* RIGHT */}
-        <div style={{ width: 210, flexShrink: 0, overflow: 'hidden', background: '#000033' }}>
+        <div className="w0-col-right" style={{ width: 210, flexShrink: 0, overflow: 'hidden', background: '#000033' }}>
 
           <MiniPanel label="INDEX">
             <div style={{ margin: '-6px -8px', padding: 4 }}>

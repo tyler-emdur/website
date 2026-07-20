@@ -199,9 +199,10 @@ function CameraMap({ cameras, bbox, activeIdx }: {
 }
 
 // ── the only thing on this board you can actually see ────────────────────────
-// Of every camera in Boulder, four publish a picture. None of them are plate
-// readers. They are pointed at open space, and they refresh every two minutes
-// whether or not anyone is looking.
+// Of every camera in the county, sixteen publish a picture — four apiece at
+// Walker Ranch, Heil Valley, Pella Crossing and Lagerman Reservoir. None of
+// them are plate readers. They are pointed at open space, and they refresh
+// every two minutes whether or not anyone is looking.
 function LiveFeed({ feeds: all, readers }: { feeds: Feed[]; readers: number }) {
   const feeds = useMemo(() => all.filter(f => f.live), [all])
   const frozen = useMemo(() => all.filter(f => !f.live), [all])

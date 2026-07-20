@@ -2,7 +2,7 @@
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
-  MathUtils, Object3D, Color, InstancedMesh, CanvasTexture, Mesh,
+  MathUtils, Object3D, Color, InstancedMesh, CanvasTexture, Mesh, Group,
   MeshStandardMaterial, MeshBasicMaterial, PointLight, AmbientLight, Fog, NearestFilter,
 } from 'three'
 import { SPACING, RAIL_X, getSlot, type Slot, type Shape } from './aisle-data'
@@ -42,6 +42,9 @@ export function zoneAt(idx: number) {
   }
 }
 
+const DECK_DECAY = new Color('#8b9184')
+const DECK_DARK = new Color('#191b1d')
+
 const FOG_BRIGHT = new Color('#c8ced4')
 const FOG_DECAY = new Color('#79876f')
 const FOG_DARK = new Color('#0a0807')
@@ -55,11 +58,18 @@ function srand(seed: number) {
   }
 }
 
-// muted retail packaging palette — grocery, not neon
-const PRODUCT_COLORS = [
+// What a club-store pick face is actually made of. Walk one and the thing you
+// notice is how little colour there is: it is a brown building. Everything
+// arrives as a corrugated case, the case is the display, and the only colour
+// is whatever got printed on one panel of it. So the palette is kraft first,
+// and the bright packaging shows up at the rate it really does.
+const CARDBOARD = ['#b0855a', '#a67c4e', '#b98f5e', '#9e7343', '#c19a6b', '#8f6a42']
+const PRINTED = [
   '#c0392b', '#e0a02a', '#1f6fa8', '#3f8f4a', '#e8e2d4', '#a8541f',
   '#7d3b6b', '#2fa5a0', '#d4562f', '#f0c419', '#4a6fb5', '#8cb83f',
 ]
+// stretch wrap over a pallet is not grey, it is a cloudy near-white
+const WRAP = ['#dfe3dd', '#d6dbd6', '#e6e9e2']
 
 // ── canvas-texture text sprites (no troika) ──────────────────────────────────
 function makeLabelTexture(lines: { text: string; size: number; color: string }[], bg: string | null, w = 256, h = 128) {
@@ -175,8 +185,12 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
           if (gap) continue
           const stack = rnd() < 0.62 ? 2 : 1
           const baseZ = z - SPACING / 2 + (p + 0.5) * caseW
-          // one colour per column: a column is one product, as it would be
-          col.set(PRODUCT_COLORS[Math.floor(rnd() * PRODUCT_COLORS.length)])
+          // one colour per column: a column is one product, as it would be.
+          // Two cases in three are bare corrugated — that ratio is the whole
+          // reason a real club store reads brown from the end of the aisle.
+          col.set(rnd() < 0.66
+            ? CARDBOARD[Math.floor(rnd() * CARDBOARD.length)]
+            : PRINTED[Math.floor(rnd() * PRINTED.length)])
           col.lerp(new Color('#4a4a48'), zone.decay * 0.45 + zone.dark * 0.35)
           const isCan = rnd() < 0.18
           for (let lvl = 0; lvl < stack; lvl++) {
@@ -208,7 +222,7 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
           if (!stocked) continue
           // two case stacks side by side on the pallet, like the real thing —
           // printed cardboard most of the time, stretch-wrapped grey sometimes
-          const wrapped = rnd() < 0.3
+          const wrapped = rnd() < 0.68
           for (const half of [-1, 1]) {
             if (rnd() < 0.12) continue          // a gap where one got pulled
             const ph = 0.8 + rnd() * 0.5
@@ -220,7 +234,9 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
             o.rotation.set(0, (rnd() - 0.5) * 0.05, 0)
             o.scale.set(BAY_DEPTH * 0.82, ph, SPACING * 0.4)
             o.updateMatrix()
-            col.set(wrapped ? '#a9aeb4' : PRODUCT_COLORS[Math.floor(rnd() * PRODUCT_COLORS.length)])
+            col.set(wrapped
+              ? WRAP[Math.floor(rnd() * WRAP.length)]
+              : CARDBOARD[Math.floor(rnd() * CARDBOARD.length)])
             col.lerp(new Color('#4a4a4d'), zone.decay * 0.38 + zone.dark * 0.5)
             pallets.setMatrixAt(pi, o.matrix); pallets.setColorAt(pi, col); pi++
           }
@@ -415,19 +431,19 @@ function AisleSign({ n }: { n: number }) {
       </mesh>
       <LabelPlane
         lines={[
-          { text: title, size: 44, color: dark > 0.4 ? '#7a2018' : '#f2efe6' },
-          ...(sub ? [{ text: sub, size: 20, color: dark > 0.4 ? '#5a1812' : '#c9d2d8' }] : []),
+          { text: title, size: 44, color: dark > 0.4 ? '#7a2018' : '#16181b' },
+          ...(sub ? [{ text: sub, size: 20, color: dark > 0.4 ? '#5a1812' : '#585f66' }] : []),
         ]}
-        bg={dark > 0.4 ? '#120a08' : '#1e4d3a'}
+        bg={dark > 0.4 ? '#120a08' : '#eceef0'}
         width={1.7}
         position={[0, 0, 0.011]}
       />
       <LabelPlane
         lines={[
-          { text: title, size: 44, color: dark > 0.4 ? '#7a2018' : '#f2efe6' },
-          ...(sub ? [{ text: sub, size: 20, color: dark > 0.4 ? '#5a1812' : '#c9d2d8' }] : []),
+          { text: title, size: 44, color: dark > 0.4 ? '#7a2018' : '#16181b' },
+          ...(sub ? [{ text: sub, size: 20, color: dark > 0.4 ? '#5a1812' : '#585f66' }] : []),
         ]}
-        bg={dark > 0.4 ? '#120a08' : '#1e4d3a'}
+        bg={dark > 0.4 ? '#120a08' : '#eceef0'}
         width={1.7}
         position={[0, 0, -0.011]}
         rotation={[0, Math.PI, 0]}
@@ -531,20 +547,112 @@ function Floor() {
   )
 }
 
+// ── the deck ─────────────────────────────────────────────────────────────────
+// A club store has no ceiling. It has a roof, and you are looking at the
+// underside of it: white steel bar joists on five-foot centres, the red
+// sprinkler main running the length of the aisle, and nothing else. Nobody
+// covered any of it up, because covering it up costs money and the whole
+// building is an argument about money.
+const JOIST_EVERY = 1.6
+const DECK_SPAN = 70          // metres of joists kept alive around the walker
+
 function Ceiling() {
-  const ref = useRef<Mesh>(null)
+  const ref = useRef<Group>(null)
+  const deckRef = useRef<Mesh>(null)
+  const joistRef = useRef<InstancedMesh>(null)
+  const JOIST_N = Math.ceil(DECK_SPAN / JOIST_EVERY)
+
+  useEffect(() => {
+    const joists = joistRef.current
+    if (!joists) return
+    const o = new Object3D()
+    for (let i = 0; i < JOIST_N; i++) {
+      // joists span the aisle crosswise; the deep ones are the girders they
+      // frame into, every fifth bay
+      const girder = i % 5 === 0
+      o.position.set(0, girder ? -0.30 : -0.16, DECK_SPAN / 2 - i * JOIST_EVERY)
+      o.scale.set(9, girder ? 0.46 : 0.2, girder ? 0.18 : 0.09)
+      o.updateMatrix()
+      joists.setMatrixAt(i, o.matrix)
+    }
+    joists.instanceMatrix.needsUpdate = true
+  }, [JOIST_N])
+
   useFrame(({ camera }) => {
-    if (!ref.current) return
-    ref.current.position.z = camera.position.z
-    // the ceiling comes down to meet you, slowly, the deeper you walk
+    const g = ref.current
+    if (!g) return
+    // snap to the joist period so the structure never visibly slides
+    g.position.z = Math.round(camera.position.z / JOIST_EVERY) * JOIST_EVERY
+    // the roof comes down to meet you, slowly, the deeper you walk
     const idx = Math.max(0, -camera.position.z / SPACING)
-    ref.current.position.y = CEIL_Y + 0.12 - zoneAt(idx).dark * 0.45
+    const { decay, dark } = zoneAt(idx)
+    g.position.y = CEIL_Y + 0.12 - dark * 0.45
+    const deck = deckRef.current
+    if (deck) {
+      const m = deck.material as MeshStandardMaterial
+      m.color.set('#c2c7cc').lerp(DECK_DECAY, decay * 0.55).lerp(DECK_DARK, dark)
+    }
+  })
+
+  return (
+    <group ref={ref} position={[0, CEIL_Y + 0.12, 0]}>
+      <mesh ref={deckRef} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[9, DECK_SPAN * 1.4]} />
+        <meshStandardMaterial color="#c2c7cc" roughness={0.95} />
+      </mesh>
+      <instancedMesh ref={joistRef} args={[undefined, undefined, JOIST_N]} frustumCulled={false}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#aeb4b8" roughness={0.72} metalness={0.35} />
+      </instancedMesh>
+      {/* sprinkler main. It is red because the code says it is red. */}
+      <mesh position={[2.15, -0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.07, 0.07, DECK_SPAN * 1.4, 8]} />
+        <meshStandardMaterial color="#8e2118" roughness={0.55} metalness={0.3} />
+      </mesh>
+    </group>
+  )
+}
+
+// ── skylights ────────────────────────────────────────────────────────────────
+// The detail that gives a Costco away before you've read a single sign: the
+// building is lit by the sky. Rows of translucent panels down the roof, and on
+// a clear afternoon half the fixtures aren't even on, because the sun is doing
+// the work for free.
+//
+// Which is worth having here for one reason. The further you walk, the more of
+// them go out — and unlike a dead fixture, a dead skylight means it is no
+// longer daytime above this part of the building. The sun runs out before the
+// aisle does.
+function Skylight({ index }: { index: number }) {
+  const ref = useRef<Mesh>(null)
+  const zone = zoneAt(index)
+  const rnd = srand(index * 977 + 13)
+  const shut = rnd() < zone.decay * 0.45 + zone.dark * 0.85
+  useFrame(({ camera }) => {
+    const idx = Math.max(0, -camera.position.z / SPACING)
+    const d = zoneAt(idx).dark
+    // daylight is a property of the building, not of this panel — walk into
+    // the dark end and every skylight behind you is dimmer too
+    const day = shut ? 0.02 : Math.max(0.02, 1 - d * 0.95) * (1 - zone.decay * 0.35)
+    const m = ref.current?.material as MeshBasicMaterial | undefined
+    if (m) m.opacity = 0.25 + day * 0.75
   })
   return (
-    <mesh ref={ref} rotation={[Math.PI / 2, 0, 0]} position={[0, CEIL_Y + 0.12, 0]}>
-      <planeGeometry args={[9, 160]} />
-      <meshStandardMaterial color="#2b2e33" roughness={0.95} />
-    </mesh>
+    <group position={[0, CEIL_Y + 0.06 - zone.dark * 0.45, -index * SPACING]}>
+      {/* the diffuser, hanging just under the deck where you can see it */}
+      <mesh ref={ref} position={[0, -0.2, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[2.4, 3.6]} />
+        <meshBasicMaterial color="#eef4fb" transparent opacity={1} toneMapped={false} side={2} />
+      </mesh>
+      {/* the curb it sits in — a frame around the opening, not a lid over it */}
+      {([[0, 1.85, 2.7, 0.22], [0, -1.85, 2.7, 0.22], [1.32, 0, 0.16, 3.9], [-1.32, 0, 0.16, 3.9]] as const)
+        .map(([cx, cz, w, d], i) => (
+          <mesh key={i} position={[cx, -0.1, cz]}>
+            <boxGeometry args={[w, 0.2, d]} />
+            <meshStandardMaterial color="#b6bbc0" roughness={0.8} />
+          </mesh>
+        ))}
+    </group>
   )
 }
 
@@ -630,6 +738,7 @@ function Atmosphere() {
   const ambientRef = useRef<AmbientLight>(null)
   const p1 = useRef<PointLight>(null)
   const p2 = useRef<PointLight>(null)
+  const sun = useRef<PointLight>(null)
   const fogRef = useRef<Fog | null>(null)
   const bg = useRef(new Color())
   // whole-corridor brown-out: every so often the power sags and everything dims
@@ -681,6 +790,14 @@ function Atmosphere() {
       p2.current.intensity = (4.0 - decay * 1.5 - dark * 3.3) * bl
       p2.current.color.set(decay > 0.4 ? '#cfe8c4' : '#eef2f5')
     }
+    // daylight: one pool riding the nearest skylight. A light per panel would
+    // put eight more into every shader in the scene for the same picture.
+    // It does not brown out with the rest — the sun is not on the store's
+    // electrical, which is exactly why losing it later reads as worse.
+    if (sun.current) {
+      sun.current.position.set(0, CEIL_Y - 0.6, zBase - SPACING * (FIXTURE_EVERY / 2))
+      sun.current.intensity = Math.max(0, 4.6 - decay * 1.8 - dark * 4.6)
+    }
   })
   return (
     <>
@@ -688,6 +805,7 @@ function Atmosphere() {
       <hemisphereLight args={['#f2f6f9', '#4a463c', 0.7]} />
       <pointLight ref={p1} intensity={5.2} distance={22} decay={1.35} />
       <pointLight ref={p2} intensity={4.0} distance={22} decay={1.35} />
+      <pointLight ref={sun} color="#e4edf8" intensity={4.6} distance={20} decay={1.25} />
     </>
   )
 }
@@ -808,6 +926,16 @@ function SlotWindow() {
     return arr
   }, [start, end])
 
+  // skylights sit halfway between the fixtures, so the aisle alternates
+  // lamp, sky, lamp, sky the way a real roof grid does
+  const skylights = useMemo(() => {
+    const arr: number[] = []
+    const half = Math.floor(FIXTURE_EVERY / 2)
+    const f0 = Math.max(0, Math.floor(start / FIXTURE_EVERY) * FIXTURE_EVERY)
+    for (let i = f0 + half; i <= end; i += FIXTURE_EVERY) arr.push(i)
+    return arr
+  }, [start, end])
+
   const signs = useMemo(() => {
     const arr: number[] = []
     for (let n = 0; n < 40; n++) {
@@ -824,6 +952,7 @@ function SlotWindow() {
       <Shelving startIndex={start} endIndex={end} />
       {featured.map(s => <FeaturedItem key={s.index} slot={s} />)}
       {fixtures.map(i => <Fixture key={i} index={i} />)}
+      {skylights.map(i => <Skylight key={i} index={i} />)}
       {signs.map(n => <AisleSign key={n} n={n} />)}
       {carts.map((i, k) => <Cart key={i} index={i} lean={k % 2 === 0 ? 1 : -1} />)}
     </>
