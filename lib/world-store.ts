@@ -34,7 +34,7 @@ const WORLD_TITLES: Record<WorldId, string> = {
   5: 'EMDUR-486 — press any key',
   6: '12:47 AM · engine off',
   7: 'Tyler Emdur — tyleremdur.com',
-  8: 'departures · every reader in colorado',
+  8: 'departures · every reader in boulder',
   9: 'one new message',
   14: "warehouse 14 · it doesn't end",
 }
