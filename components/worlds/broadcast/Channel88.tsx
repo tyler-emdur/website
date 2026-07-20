@@ -11,7 +11,8 @@ import { CHANNELS } from '@/lib/broadcast/channels'
 
 const WORLD_LABEL: Record<WorldId, string> = {
   0: 'SURFACE', 1: 'UNIVERSE', 2: 'TRACE', 3: 'BROADCAST',
-  5: 'MACHINE', 6: 'GARAGE', 7: 'ENDPOINT', 9: 'ANSWERING', 14: 'AISLE',
+  5: 'MACHINE', 6: 'GARAGE', 7: 'ENDPOINT', 8: 'DEPARTURES',
+  9: 'ANSWERING', 14: 'WAREHOUSE',
 }
 
 const OTHER_CHANNEL_COUNT = CHANNELS.filter(c => c.kind !== 'custom').length

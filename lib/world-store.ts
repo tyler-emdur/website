@@ -1,9 +1,9 @@
 'use client'
 import { create } from 'zustand'
 
-export type WorldId = 0 | 1 | 2 | 3 | 5 | 6 | 7 | 9 | 14
+export type WorldId = 0 | 1 | 2 | 3 | 5 | 6 | 7 | 8 | 9 | 14
 
-export const WORLD_IDS: WorldId[] = [0, 1, 2, 3, 5, 6, 7, 9, 14]
+export const WORLD_IDS: WorldId[] = [0, 1, 2, 3, 5, 6, 7, 8, 9, 14]
 
 export type PortalType =
   | 'door'
@@ -34,8 +34,9 @@ const WORLD_TITLES: Record<WorldId, string> = {
   5: 'EMDUR-486 — press any key',
   6: '12:47 AM · engine off',
   7: 'Tyler Emdur — tyleremdur.com',
+  8: 'departures · every reader in colorado',
   9: 'one new message',
-  14: "the aisle · it doesn't end",
+  14: "warehouse 14 · it doesn't end",
 }
 
 interface WorldState {
@@ -183,8 +184,9 @@ export function getWorldLog(): string {
     5: 'THE MACHINE',
     6: 'THE GARAGE',
     7: 'THE CONTACT PAGE',
+    8: 'THE DEPARTURES BOARD',
     9: 'THE ANSWERING MACHINE',
-    14: 'THE ENDLESS AISLE',
+    14: 'WAREHOUSE 14',
   }
   const secrets = loadSecrets()
   const lines = [

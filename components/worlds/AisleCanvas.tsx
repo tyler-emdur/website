@@ -8,7 +8,8 @@ import {
 import { SPACING, RAIL_X, getSlot, type Slot, type Shape } from './aisle-data'
 
 // The Endless Aisle: an actual supermarket at closing time. Fluorescent
-// fixtures, stocked gondola shelving, checkered linoleum. The deeper you walk,
+// fixtures, steel pallet racking stacked past the light, sealed concrete slab.
+// The deeper you walk,
 // the wronger it gets — lights thin out, the color drifts green, the stock
 // gives way to gaps, and something red glows up ahead that you never reach.
 
@@ -19,10 +20,14 @@ const ACCEL = 18
 const DAMPING = 9
 
 const AISLE_HALF = RAIL_X            // shelf faces sit just outside this
-const CEIL_Y = 3.3
-const SHELF_YS = [0.38, 1.02, 1.66, 2.3]
-const SHELF_DEPTH = 0.55
-const FIXTURE_EVERY = 2              // ceiling light every N slots
+const CEIL_Y = 8.4                   // ~28 ft to the deck, like the real thing
+// beam levels of a pallet rack. the bottom one is the pick face you can
+// actually reach; everything above it is reserve pallets you cannot.
+const BEAM_YS = [0.16, 2.05, 4.05, 6.05]
+const PICK_Y = BEAM_YS[0]
+const RACK_H = BEAM_YS[BEAM_YS.length - 1] + 1.6   // uprights run past the top beam
+const BAY_DEPTH = 1.15               // a pallet is 48in deep. so is the bay.
+const FIXTURE_EVERY = 4              // high-bays hang far apart, and high
 
 // ── depth decay ──────────────────────────────────────────────────────────────
 const smooth = (a: number, b: number, x: number) => {
@@ -37,7 +42,7 @@ export function zoneAt(idx: number) {
   }
 }
 
-const FOG_BRIGHT = new Color('#b9bfc6')
+const FOG_BRIGHT = new Color('#c8ced4')
 const FOG_DECAY = new Color('#79876f')
 const FOG_DARK = new Color('#0a0807')
 
@@ -51,7 +56,10 @@ function srand(seed: number) {
 }
 
 // muted retail packaging palette — grocery, not neon
-const PRODUCT_COLORS = ['#b33a2e', '#d9a441', '#2e6b8a', '#3f7a4a', '#d8d3c8', '#8a5a34', '#6d3f4e', '#c96f3a']
+const PRODUCT_COLORS = [
+  '#c0392b', '#e0a02a', '#1f6fa8', '#3f8f4a', '#e8e2d4', '#a8541f',
+  '#7d3b6b', '#2fa5a0', '#d4562f', '#f0c419', '#4a6fb5', '#8cb83f',
+]
 
 // ── canvas-texture text sprites (no troika) ──────────────────────────────────
 function makeLabelTexture(lines: { text: string; size: number; color: string }[], bg: string | null, w = 256, h = 128) {
@@ -95,19 +103,24 @@ function LabelPlane({ lines, bg, width, position, rotation }: {
 
 // ── shelving + stock, instanced over the visible window ─────────────────────
 function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: number }) {
-  const structRef = useRef<InstancedMesh>(null)
+  const structRef = useRef<InstancedMesh>(null)   // green uprights
+  const beamRef = useRef<InstancedMesh>(null)     // orange load beams
   const boxRef = useRef<InstancedMesh>(null)
   const canRef = useRef<InstancedMesh>(null)
+  const palletRef = useRef<InstancedMesh>(null)
 
-  const STRUCT_MAX = 2 * (WINDOW_AHEAD + WINDOW_BEHIND + 2) * 7
-  const PROD_MAX = 2 * (WINDOW_AHEAD + WINDOW_BEHIND + 2) * SHELF_YS.length * 5
+  const STRUCT_MAX = 2 * (WINDOW_AHEAD + WINDOW_BEHIND + 2) * 8
+  const PROD_MAX = 2 * (WINDOW_AHEAD + WINDOW_BEHIND + 2) * 10
+  const PALLET_MAX = 2 * (WINDOW_AHEAD + WINDOW_BEHIND + 2) * BEAM_YS.length * 3
+  const BEAM_MAX = 2 * (WINDOW_AHEAD + WINDOW_BEHIND + 2) * (BEAM_YS.length * 2 + 1)
 
   useEffect(() => {
     const struct = structRef.current, boxes = boxRef.current, cans = canRef.current
-    if (!struct || !boxes || !cans) return
+    const pallets = palletRef.current, beams = beamRef.current
+    if (!struct || !boxes || !cans || !pallets || !beams) return
     const o = new Object3D()
     const col = new Color()
-    let si = 0, bi = 0, ci = 0
+    let si = 0, bi = 0, ci = 0, pi = 0, bmi = 0
 
     for (let idx = startIndex; idx <= endIndex; idx++) {
       const z = -idx * SPACING
@@ -118,87 +131,138 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
       for (const side of [-1, 1]) {
         const rnd = srand(dejavu ? 4242 + (side + 1) / 2 : idx * 2 + (side + 1) / 2)
         const faceX = side * (AISLE_HALF + 0.1)
-        const backX = side * (AISLE_HALF + 0.1 + SHELF_DEPTH)
+        const midX = side * (AISLE_HALF + 0.1 + BAY_DEPTH / 2)
 
-        // back panel
-        o.position.set(backX, 1.45, z)
+        // four narrow uprights per bay — front and back of the depth, at both
+        // ends of the bay. Open frame: you can see through the rack, and the
+        // pallets read as objects sitting on it rather than a painted wall.
         o.rotation.set(0, 0, 0)
-        o.scale.set(0.06, 2.9, SPACING)
-        o.updateMatrix()
-        struct.setMatrixAt(si++, o.matrix)
-        // upright at slot boundary
-        o.position.set(side * (AISLE_HALF + 0.1 + SHELF_DEPTH / 2), 1.45, z - SPACING / 2)
-        o.scale.set(SHELF_DEPTH, 2.9, 0.05)
-        o.updateMatrix()
-        struct.setMatrixAt(si++, o.matrix)
-        // boards
-        for (const sy of SHELF_YS) {
-          o.position.set(side * (AISLE_HALF + 0.1 + SHELF_DEPTH / 2), sy, z)
-          o.scale.set(SHELF_DEPTH, 0.045, SPACING * 0.98)
+        for (const dz of [-SPACING / 2, SPACING / 2]) {
+          for (const dx of [-BAY_DEPTH / 2 + 0.08, BAY_DEPTH / 2 - 0.08]) {
+            o.position.set(midX + side * dx, RACK_H / 2, z + dz)
+            o.scale.set(0.12, RACK_H, 0.12)
+            o.updateMatrix()
+            struct.setMatrixAt(si++, o.matrix)
+          }
+          // diagonal brace between the pair, low down where you'd actually see it
+          o.position.set(midX, 1.05, z + dz)
+          o.scale.set(BAY_DEPTH - 0.2, 0.05, 0.05)
           o.updateMatrix()
           struct.setMatrixAt(si++, o.matrix)
         }
-        // kick base
-        o.position.set(side * (AISLE_HALF + 0.1 + SHELF_DEPTH / 2), 0.09, z)
-        o.scale.set(SHELF_DEPTH, 0.18, SPACING)
+        // load beams: a pair front and back at every level above the floor
+        for (let L = 1; L < BEAM_YS.length; L++) {
+          for (const dx of [-BAY_DEPTH / 2 + 0.08, BAY_DEPTH / 2 - 0.08]) {
+            o.position.set(midX + side * dx, BEAM_YS[L], z)
+            o.scale.set(0.1, 0.17, SPACING)
+            o.updateMatrix()
+            beams.setMatrixAt(bmi++, o.matrix)
+          }
+        }
+        // wire deck on the pick level
+        o.position.set(midX, PICK_Y, z)
+        o.scale.set(BAY_DEPTH, 0.05, SPACING * 0.98)
         o.updateMatrix()
-        struct.setMatrixAt(si++, o.matrix)
+        beams.setMatrixAt(bmi++, o.matrix)
 
-        // stock: rows of boxes and cans per shelf, thinning with depth
-        for (let s = 0; s < SHELF_YS.length; s++) {
-          const sy = SHELF_YS[s]
-          const n = 3 + Math.floor(rnd() * 3)
-          for (let p = 0; p < n; p++) {
-            const present = rnd() > 0.08 + zone.decay * 0.45 + zone.dark * 0.4
-            if (!present) continue
-            const isCan = rnd() < 0.35
-            const px = side * (AISLE_HALF + 0.16 + rnd() * (SHELF_DEPTH - 0.3))
-            const pz = z - SPACING / 2 + (p + 0.5) * (SPACING / n) + (rnd() - 0.5) * 0.1
-            const skew = (rnd() - 0.5) * zone.decay * 0.5
-            col.set(PRODUCT_COLORS[Math.floor(rnd() * PRODUCT_COLORS.length)])
-            // stock greys out as the aisle decays
-            col.lerp(new Color('#4a4a48'), zone.decay * 0.45 + zone.dark * 0.3)
+        // ── pick face: packed, two cases high, floor to beam ──
+        // A warehouse club pick face has no air in it. Cases butt against each
+        // other across the full bay and stack until they run out of headroom.
+        const COLS_N = 4
+        const caseW = SPACING / COLS_N
+        for (let p = 0; p < COLS_N; p++) {
+          const gap = rnd() < 0.05 + zone.decay * 0.45 + zone.dark * 0.45
+          if (gap) continue
+          const stack = rnd() < 0.62 ? 2 : 1
+          const baseZ = z - SPACING / 2 + (p + 0.5) * caseW
+          // one colour per column: a column is one product, as it would be
+          col.set(PRODUCT_COLORS[Math.floor(rnd() * PRODUCT_COLORS.length)])
+          col.lerp(new Color('#4a4a48'), zone.decay * 0.45 + zone.dark * 0.35)
+          const isCan = rnd() < 0.18
+          for (let lvl = 0; lvl < stack; lvl++) {
+            const bh = 0.42 + rnd() * 0.1
+            const y = PICK_Y + 0.04 + bh / 2 + lvl * (bh + 0.015)
+            const skew = (rnd() - 0.5) * zone.decay * 0.3
+            const px = faceX + side * (BAY_DEPTH * 0.44)
             if (isCan) {
-              const ch = 0.16 + rnd() * 0.1
-              o.position.set(px, sy + ch / 2 + 0.025, pz)
-              o.rotation.set(skew * 0.4, rnd() * Math.PI, skew)
-              o.scale.set(1, ch / 0.2, 1)
+              o.position.set(px, y, baseZ)
+              o.rotation.set(0, rnd() * Math.PI, skew)
+              o.scale.set(1.7, bh / 0.2, 1.7)
               o.updateMatrix()
-              cans.setMatrixAt(ci, o.matrix)
-              cans.setColorAt(ci, col)
-              ci++
+              cans.setMatrixAt(ci, o.matrix); cans.setColorAt(ci, col); ci++
             } else {
-              const bw = 0.14 + rnd() * 0.14
-              const bh = 0.2 + rnd() * 0.22
-              o.position.set(px, sy + bh / 2 + 0.025, pz)
-              o.rotation.set(0, (rnd() - 0.5) * 0.4, skew)
-              o.scale.set(bw / 0.2, bh / 0.2, (0.1 + rnd() * 0.1) / 0.2)
+              o.position.set(px, y, baseZ)
+              o.rotation.set(0, (rnd() - 0.5) * 0.08, skew)
+              o.scale.set((BAY_DEPTH * 0.8) / 0.2, bh / 0.2, (caseW * 0.94) / 0.2)
               o.updateMatrix()
-              boxes.setMatrixAt(bi, o.matrix)
-              boxes.setColorAt(bi, col)
-              bi++
+              boxes.setMatrixAt(bi, o.matrix); boxes.setColorAt(bi, col); bi++
             }
           }
         }
+
+        // ── reserve: shrink-wrapped pallets on the beam levels overhead ──
+        // These are the ones you are not meant to reach. They are simply
+        // stored above you, and they go up further than the light does.
+        for (let L = 1; L < BEAM_YS.length; L++) {
+          const stocked = rnd() > 0.14 + zone.decay * 0.34 + zone.dark * 0.4
+          if (!stocked) continue
+          // two case stacks side by side on the pallet, like the real thing —
+          // printed cardboard most of the time, stretch-wrapped grey sometimes
+          const wrapped = rnd() < 0.3
+          for (const half of [-1, 1]) {
+            if (rnd() < 0.12) continue          // a gap where one got pulled
+            const ph = 0.8 + rnd() * 0.5
+            o.position.set(
+              midX,
+              BEAM_YS[L] + 0.09 + ph / 2,
+              z + half * SPACING * 0.23 + (rnd() - 0.5) * 0.06,
+            )
+            o.rotation.set(0, (rnd() - 0.5) * 0.05, 0)
+            o.scale.set(BAY_DEPTH * 0.82, ph, SPACING * 0.4)
+            o.updateMatrix()
+            col.set(wrapped ? '#a9aeb4' : PRODUCT_COLORS[Math.floor(rnd() * PRODUCT_COLORS.length)])
+            col.lerp(new Color('#4a4a4d'), zone.decay * 0.38 + zone.dark * 0.5)
+            pallets.setMatrixAt(pi, o.matrix); pallets.setColorAt(pi, col); pi++
+          }
+          // the wooden pallet they sit on
+          o.position.set(midX, BEAM_YS[L] + 0.045, z)
+          o.scale.set(BAY_DEPTH * 0.86, 0.09, SPACING * 0.9)
+          o.updateMatrix()
+          col.set('#8a6c45')
+          col.lerp(new Color('#3b3630'), zone.decay * 0.4 + zone.dark * 0.5)
+          pallets.setMatrixAt(pi, o.matrix); pallets.setColorAt(pi, col); pi++
+        }
       }
     }
+
     // park unused instances out of sight
     o.position.set(0, -100, 0); o.scale.set(0.001, 0.001, 0.001); o.updateMatrix()
     for (let i = si; i < STRUCT_MAX; i++) struct.setMatrixAt(i, o.matrix)
     for (let i = bi; i < PROD_MAX; i++) boxes.setMatrixAt(i, o.matrix)
     for (let i = ci; i < PROD_MAX; i++) cans.setMatrixAt(i, o.matrix)
+    for (let i = pi; i < PALLET_MAX; i++) pallets.setMatrixAt(i, o.matrix)
+    for (let i = bmi; i < BEAM_MAX; i++) beams.setMatrixAt(i, o.matrix)
     struct.instanceMatrix.needsUpdate = true
     boxes.instanceMatrix.needsUpdate = true
     cans.instanceMatrix.needsUpdate = true
+    pallets.instanceMatrix.needsUpdate = true
+    beams.instanceMatrix.needsUpdate = true
     if (boxes.instanceColor) boxes.instanceColor.needsUpdate = true
     if (cans.instanceColor) cans.instanceColor.needsUpdate = true
-  }, [startIndex, endIndex, STRUCT_MAX, PROD_MAX])
+    if (pallets.instanceColor) pallets.instanceColor.needsUpdate = true
+  }, [startIndex, endIndex, STRUCT_MAX, PROD_MAX, PALLET_MAX, BEAM_MAX])
 
   return (
     <>
+      {/* uprights: the dark green perforated columns */}
       <instancedMesh ref={structRef} args={[undefined, undefined, STRUCT_MAX]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#8d9296" roughness={0.7} metalness={0.35} />
+        <meshStandardMaterial color="#2f5b46" roughness={0.62} metalness={0.35} />
+      </instancedMesh>
+      {/* load beams: safety orange, the single most recognisable thing in here */}
+      <instancedMesh ref={beamRef} args={[undefined, undefined, BEAM_MAX]} frustumCulled={false}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#d4560f" roughness={0.5} metalness={0.28} />
       </instancedMesh>
       <instancedMesh ref={boxRef} args={[undefined, undefined, PROD_MAX]} frustumCulled={false}>
         <boxGeometry args={[0.2, 0.2, 0.2]} />
@@ -207,6 +271,11 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
       <instancedMesh ref={canRef} args={[undefined, undefined, PROD_MAX]} frustumCulled={false}>
         <cylinderGeometry args={[0.055, 0.055, 0.2, 10]} />
         <meshStandardMaterial roughness={0.4} metalness={0.6} />
+      </instancedMesh>
+      {/* reserve pallets, stretch-wrapped */}
+      <instancedMesh ref={palletRef} args={[undefined, undefined, PALLET_MAX]} frustumCulled={false}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial roughness={0.72} metalness={0.05} />
       </instancedMesh>
     </>
   )
@@ -302,17 +371,23 @@ function Fixture({ index }: { index: number }) {
     m.emissiveIntensity += (target - m.emissiveIntensity) * (behind ? 0.06 : 0.5)
   })
   // fluorescent drifts green as the aisle decays
-  const tube = zone.decay > 0.4 ? '#d8f0d0' : '#f2f6f8'
+  const tube = zone.decay > 0.4 ? '#d8f0d0' : '#eef4ff'
   return (
     <group position={[0, CEIL_Y - zone.dark * 0.45, -index * SPACING]}>
+      {/* the lit face of a high-bay, pointing straight down at the concrete */}
       <mesh>
-        <boxGeometry args={[1.7, 0.07, 0.42]} />
+        <boxGeometry args={[1.15, 0.09, 1.15]} />
         <meshStandardMaterial ref={matRef} color="#20242a" emissive={tube} emissiveIntensity={1.2} />
       </mesh>
-      {/* housing */}
-      <mesh position={[0, 0.07, 0]}>
-        <boxGeometry args={[1.85, 0.08, 0.55]} />
-        <meshStandardMaterial color="#3a3f45" roughness={0.6} metalness={0.5} />
+      {/* reflector housing */}
+      <mesh position={[0, 0.16, 0]}>
+        <boxGeometry args={[1.3, 0.24, 1.3]} />
+        <meshStandardMaterial color="#3a3f45" roughness={0.55} metalness={0.6} />
+      </mesh>
+      {/* the drop rod up into the dark */}
+      <mesh position={[0, 0.9, 0]}>
+        <boxGeometry args={[0.05, 1.3, 0.05]} />
+        <meshStandardMaterial color="#2b3036" roughness={0.7} metalness={0.5} />
       </mesh>
     </group>
   )
@@ -394,24 +469,52 @@ function Cart({ index, lean }: { index: number; lean: number }) {
   )
 }
 
-// ── floor: checkered linoleum, follows the camera ───────────────────────────
+// ── floor: polished slab concrete, follows the camera ───────────────────────
+// A warehouse club floor is not tiled — it's the building's actual slab, ground
+// and sealed until it shines, scored with control joints so it cracks where it
+// was told to. The scuffs are forklift tires. Nobody buffs this far back.
 function Floor() {
   const ref = useRef<Mesh>(null)
   const tex = useMemo(() => {
     const cv = document.createElement('canvas')
     cv.width = 256; cv.height = 256
     const cx = cv.getContext('2d')!
-    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
-      const even = (x + y) % 2 === 0
-      cx.fillStyle = even ? '#c9c4b6' : '#a8a396'
-      cx.fillRect(x * 64, y * 64, 64, 64)
-      // grime
-      cx.fillStyle = 'rgba(60,55,45,0.08)'
-      for (let g = 0; g < 5; g++) cx.fillRect(x * 64 + (g * 13) % 60, y * 64 + (g * 29) % 60, 8, 8)
+    cx.fillStyle = '#9a9a97'
+    cx.fillRect(0, 0, 256, 256)
+    // aggregate mottling — ground concrete is never one flat tone
+    for (let i = 0; i < 900; i++) {
+      const v = 0.05 + Math.random() * 0.07
+      cx.fillStyle = Math.random() > 0.5 ? `rgba(255,255,255,${v})` : `rgba(40,40,44,${v})`
+      const r = 1 + Math.random() * 3
+      cx.fillRect(Math.random() * 256, Math.random() * 256, r, r)
+    }
+    // sealer sheen — broad soft streaks along the direction of travel
+    for (let i = 0; i < 14; i++) {
+      cx.fillStyle = `rgba(255,255,255,${0.02 + Math.random() * 0.03})`
+      cx.fillRect(Math.random() * 256, 0, 6 + Math.random() * 22, 256)
+    }
+    // control joints: the saw cuts, one per tile edge
+    cx.strokeStyle = 'rgba(45,45,48,0.55)'
+    cx.lineWidth = 2
+    cx.beginPath()
+    cx.moveTo(0, 0); cx.lineTo(256, 0)
+    cx.moveTo(0, 128); cx.lineTo(256, 128)
+    cx.moveTo(0, 0); cx.lineTo(0, 256)
+    cx.moveTo(128, 0); cx.lineTo(128, 256)
+    cx.stroke()
+    // forklift scuffs
+    cx.strokeStyle = 'rgba(30,30,34,0.10)'
+    cx.lineWidth = 3
+    for (let i = 0; i < 7; i++) {
+      cx.beginPath()
+      const y = Math.random() * 256
+      cx.moveTo(Math.random() * 200, y)
+      cx.quadraticCurveTo(128, y + 20, 60 + Math.random() * 190, y + 8)
+      cx.stroke()
     }
     const t = new CanvasTexture(cv)
     t.wrapS = t.wrapT = 1000 // RepeatWrapping
-    t.repeat.set(6, 60)
+    t.repeat.set(3, 30)
     return t
   }, [])
   useFrame(({ camera }) => {
@@ -423,7 +526,7 @@ function Floor() {
   return (
     <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
       <planeGeometry args={[9, 160]} />
-      <meshStandardMaterial map={tex} roughness={0.55} metalness={0.05} />
+      <meshStandardMaterial map={tex} roughness={0.32} metalness={0.08} />
     </mesh>
   )
 }
@@ -532,7 +635,7 @@ function Atmosphere() {
   // whole-corridor brown-out: every so often the power sags and everything dims
   const brown = useRef({ level: 1, until: 0, next: 4 })
   useEffect(() => {
-    fogRef.current = new Fog('#b9bfc6', 6, 26)
+    fogRef.current = new Fog('#c8ced4', 10, 46)
     scene.fog = fogRef.current
     return () => { scene.fog = null }
   }, [scene])
@@ -559,32 +662,32 @@ function Atmosphere() {
     const fog = fogRef.current
     if (fog) {
       fog.color.copy(FOG_BRIGHT).lerp(FOG_DECAY, decay).lerp(FOG_DARK, dark)
-      fog.near = 6 - dark * 3.5
-      fog.far = 26 - decay * 6 - dark * 9
+      fog.near = 10 - dark * 7
+      fog.far = 46 - decay * 12 - dark * 22
       bg.current.copy(fog.color).multiplyScalar(0.55 + bl * 0.45)
       scene.background = bg.current
     }
-    if (ambientRef.current) ambientRef.current.intensity = (0.85 - decay * 0.3 - dark * 0.42) * (0.4 + bl * 0.6)
+    if (ambientRef.current) ambientRef.current.intensity = (1.55 - decay * 0.62 - dark * 0.92) * (0.4 + bl * 0.6)
     // two pooled lights ride along near the closest fixtures
     const flickMul = flicker > 0.05 && Math.sin(t * 17.3) * Math.sin(t * 5.1) < -0.75 ? 0.28 : 1
     const zBase = Math.round(camera.position.z / (SPACING * FIXTURE_EVERY)) * SPACING * FIXTURE_EVERY
     if (p1.current) {
       p1.current.position.set(0, CEIL_Y - 0.3, zBase - SPACING)
-      p1.current.intensity = (2.4 - decay * 0.8 - dark * 1.9) * flickMul * bl
+      p1.current.intensity = (5.2 - decay * 1.9 - dark * 4.2) * flickMul * bl
       p1.current.color.set(decay > 0.4 ? '#cfe8c4' : '#eef2f5')
     }
     if (p2.current) {
       p2.current.position.set(0, CEIL_Y - 0.3, zBase - SPACING * (FIXTURE_EVERY + 1))
-      p2.current.intensity = (1.8 - decay * 0.6 - dark * 1.5) * bl
+      p2.current.intensity = (4.0 - decay * 1.5 - dark * 3.3) * bl
       p2.current.color.set(decay > 0.4 ? '#cfe8c4' : '#eef2f5')
     }
   })
   return (
     <>
-      <ambientLight ref={ambientRef} intensity={0.85} color="#dfe4e8" />
-      <hemisphereLight args={['#e8ecef', '#3a3830', 0.35]} />
-      <pointLight ref={p1} intensity={2.4} distance={12} decay={1.6} />
-      <pointLight ref={p2} intensity={1.8} distance={12} decay={1.6} />
+      <ambientLight ref={ambientRef} intensity={1.55} color="#e6ebf0" />
+      <hemisphereLight args={['#f2f6f9', '#4a463c', 0.7]} />
+      <pointLight ref={p1} intensity={5.2} distance={22} decay={1.35} />
+      <pointLight ref={p2} intensity={4.0} distance={22} decay={1.35} />
     </>
   )
 }

@@ -104,16 +104,17 @@ function darkAt(idx: number) {
   return t * t * (3 - 2 * t)
 }
 
-// PA announcements fire once as you pass each depth. Deadpan. The store knows.
+// PA announcements fire once as you pass each depth. Deadpan. The warehouse knows.
 const PA_LINES: { at: number; text: string }[] = [
-  { at: 20, text: 'attention shoppers: the store closes in ten minutes. it has been closing for some time now.' },
-  { at: 55, text: 'cleanup on aisle 14. cleanup on aisle 14. take your time.' },
-  { at: 74, text: 'notice: some aisle contents may repeat. this is normal. this is normal.' },
-  { at: 90, text: 'attention shoppers: restocking does not reach this far. items past this point are sold as-is.' },
-  { at: 125, text: 'if you can still hear this announcement, you are past the part of the store we have maps for.' },
+  { at: 20, text: 'attention members: the warehouse closes in ten minutes. it has been closing for some time now.' },
+  { at: 55, text: 'sample station, aisle fourteen. sample station, aisle fourteen. take your time.' },
+  { at: 74, text: 'notice: some bay contents may repeat. this is normal. this is normal.' },
+  { at: 90, text: 'attention members: restocking does not reach this far. every sign past this point has an asterisk.' },
+  { at: 125, text: 'if you can still hear this announcement, you are past the part of the warehouse we have maps for.' },
   { at: 142, text: 'please do not look behind you. there is nothing there. that is the problem.' },
-  { at: 160, text: 'the exit sign ahead is real. the exit is not. thank you for shopping with us.' },
-  { at: 220, text: 'the front of the store is exactly where you left it. this has always been true.' },
+  { at: 160, text: 'the exit sign ahead is real. the exit is not. please have your receipt ready.' },
+  { at: 220, text: 'the front of the warehouse is exactly where you left it. this has always been true.' },
+  { at: 260, text: 'the hot dog is still a dollar fifty. that is the one thing here that has never changed.' },
   { at: 300, text: 'attention. attention. never mind.' },
 ]
 
@@ -226,13 +227,13 @@ export default function World14Aisle() {
         color: 'rgba(255,255,255,0.55)',
       }}>
         <div style={{ fontSize: 13, letterSpacing: '0.25em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.75)' }}>
-          The Endless Aisle
+          Warehouse 14
         </div>
         <div style={{ fontSize: 9, marginTop: 4 }}>
           ITEM {String(centerIndex).padStart(5, '0')} · KEEP WALKING
         </div>
         <div style={{ fontSize: 8, marginTop: 10, color: 'rgba(246,198,106,0.65)', maxWidth: 220, lineHeight: 1.7 }}>
-          ★ TODAY&apos;S MANAGER&apos;S SPECIAL<br />
+          ★ TODAY&apos;S MANAGER&apos;S MARKDOWN<br />
           {special.item.label}<br />
           <span style={{ color: 'rgba(246,198,106,0.4)' }}>somewhere near position #{special.index}</span>
         </div>
@@ -245,7 +246,7 @@ export default function World14Aisle() {
       }}>
         <div style={{ fontSize: 10, letterSpacing: '0.2em' }}>BASKET: {basket.length}</div>
         <div style={{ fontSize: 8, marginTop: 3, color: 'rgba(255,255,255,0.3)' }}>
-          {basket.length === 0 ? 'empty. everything is technically free.' : 'running total: incalculable'}
+          {basket.length === 0 ? 'empty. a flatbed is available.' : 'running total: incalculable'}
         </div>
         <div
           onClick={checkout}
@@ -376,6 +377,16 @@ function Receipt({ basket, depth, enteredAt, onClose }: {
   const stamp = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
   const deep = depth > 120
   const veryDeep = depth > 200
+
+  // The exit ritual. You do not leave a warehouse club with an unmarked
+  // receipt — someone draws a line across it on your way out. Nobody counted
+  // anything. The line happens regardless. It arrives a beat after the receipt
+  // prints, which is exactly how long it takes to walk to the door.
+  const [checked, setChecked] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setChecked(true), 1500)
+    return () => clearTimeout(t)
+  }, [])
   const footer = veryDeep
     ? ['YOU ARE PAST THE PART WE HAVE MAPS FOR.', 'THIS RECEIPT IS YOUR ONLY PROOF YOU CAME IN.', 'HAVE YOU CONSIDERED STAYING.']
     : deep
@@ -394,6 +405,7 @@ function Receipt({ basket, depth, enteredAt, onClose }: {
       <div
         onClick={e => e.stopPropagation()}
         style={{
+          position: 'relative',
           width: 340, maxWidth: '92vw', maxHeight: '86vh', overflowY: 'auto',
           background: 'repeating-linear-gradient(180deg, #f4f1e8 0px, #f4f1e8 26px, #efece2 27px)',
           color: '#14120c', padding: '26px 24px 20px', boxShadow: '0 24px 60px rgba(0,0,0,0.7)',
@@ -402,9 +414,10 @@ function Receipt({ basket, depth, enteredAt, onClose }: {
         }}
       >
         <div style={{ textAlign: 'center', letterSpacing: '0.24em', fontSize: 13, fontWeight: 700 }}>AISLE 14</div>
-        <div style={{ textAlign: 'center', fontSize: 9, marginTop: 2 }}>FOODMART · STORE #∞</div>
+        <div style={{ textAlign: 'center', fontSize: 9, marginTop: 2 }}>WHOLESALE · WAREHOUSE #∞</div>
         <div style={{ textAlign: 'center', fontSize: 9, opacity: 0.7 }}>REG 03 · CASHIER: —— (UNATTENDED)</div>
         <div style={{ textAlign: 'center', fontSize: 9, opacity: 0.7, marginTop: 2 }}>{stamp}</div>
+        <div style={{ textAlign: 'center', fontSize: 9, opacity: 0.7 }}>MEMBER 1114 ████ ████ · EXECUTIVE</div>
 
         <div style={{ borderTop: '1px dashed #14120c', margin: '12px 0 10px' }} />
 
@@ -441,6 +454,13 @@ function Receipt({ basket, depth, enteredAt, onClose }: {
           {footer.map((l, i) => <div key={i}>{l}</div>)}
         </div>
 
+        <div style={{
+          textAlign: 'center', fontSize: 8, letterSpacing: '0.12em', marginTop: 10,
+          opacity: checked ? 0.75 : 0, transition: 'opacity 260ms ease 120ms',
+        }}>
+          ITEMS VERIFIED AT DOOR — {String(basket.length).padStart(2, '0')}/{String(basket.length).padStart(2, '0')}
+        </div>
+
         {/* barcode */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: 1, marginTop: 12, height: 34, alignItems: 'stretch' }}>
           {Array.from({ length: 48 }).map((_, i) => (
@@ -454,6 +474,20 @@ function Receipt({ basket, depth, enteredAt, onClose }: {
         <div style={{ textAlign: 'center', fontSize: 8, marginTop: 14, opacity: 0.45, letterSpacing: '0.15em', cursor: 'pointer' }} onClick={onClose}>
           [ TAP ANYWHERE · ESC ] — KEEP SHOPPING
         </div>
+
+        {/* the checker's highlighter — drawn over everything, at an angle,
+            by someone who did not read it */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute', left: '4%', top: '46%', width: '92%', height: 26,
+            background: 'linear-gradient(90deg, rgba(255,236,64,0.62), rgba(255,222,40,0.5))',
+            mixBlendMode: 'multiply', transform: 'rotate(-8deg)', transformOrigin: 'left center',
+            borderRadius: 3, pointerEvents: 'none',
+            clipPath: checked ? 'inset(0 0 0 0)' : 'inset(0 100% 0 0)',
+            transition: 'clip-path 320ms cubic-bezier(.5,0,.2,1)',
+          }}
+        />
       </div>
     </div>
   )

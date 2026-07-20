@@ -44,8 +44,9 @@ const ALL_WORLDS: WorldItem[] = [
   { id: 5, name: 'The Machine', short: 'Machine', bg: '#0a0e14', ac: '#5ecbe0' },
   { id: 6, name: 'Garage', short: 'Garage', bg: '#0a0e14', ac: '#ffb347' },
   { id: 7, name: 'Contact', short: 'Contact', bg: '#220044', ac: '#aa55ff' },
+  { id: 8, name: 'Departures', short: 'Depart', bg: '#0a0906', ac: '#ffd666' },
   { id: 9, name: 'Answering Machine', short: 'Tape', bg: '#0c0805', ac: '#ff4433' },
-  { id: 14, name: 'The Endless Aisle', short: 'Aisle', bg: '#0b0b10', ac: '#F472B6' },
+  { id: 14, name: 'Warehouse 14', short: 'Costco', bg: '#0b0b10', ac: '#F472B6' },
 ]
 
 function PanelHeader({ label, style }: { label: string; style?: React.CSSProperties }) {
@@ -204,6 +205,21 @@ function WorldThumbnail({ world, onClick }: { world: WorldItem; onClick: () => v
           cx.globalAlpha = 1
           cx.fillStyle = ac
           cx.beginPath(); cx.arc(40, 30, 2, 0, Math.PI * 2); cx.fill()
+          break
+        }
+        case 8: { // departures: rows of flip-board text resolving left to right
+          cx.fillStyle = ac
+          for (let r = 0; r < 7; r++) {
+            const phase = (t * 0.55 + r * 0.32) % 1.6
+            const settled = Math.min(1, phase / 0.9)
+            const w = settled * 60
+            cx.globalAlpha = 0.28 + settled * 0.5
+            cx.fillRect(6, 6 + r * 7, w, 3)
+            if (settled < 1) { // the frontier still flipping
+              cx.globalAlpha = 0.9
+              cx.fillRect(6 + w, 6 + r * 7, 3 + (r % 3) * 2, 3)
+            }
+          }
           break
         }
         case 9: { // answering machine: a message playing back

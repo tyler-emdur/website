@@ -57,8 +57,9 @@ export const WORLD_FILES: WorldFile[] = [
   { file: 'MACHINE.WLD',  world: 5,  size: '486K',  note: 'this machine' },
   { file: 'GARAGE.WLD',   world: 6,  size: '124K',  note: '12:47 am, engine off' },
   { file: 'ENDPOINT.WLD', world: 7,  size: '1K',    note: 'signal terminus' },
+  { file: 'DEPARTUR.WLD', world: 8,  size: '110K',  note: 'every reader in town' },
   { file: 'ANSWERNG.WLD', world: 9,  size: '33K',   note: 'one new message' },
-  { file: 'AISLE_14.WLD', world: 14, size: '???K',  note: "it doesn't end" },
+  { file: 'WRHOUS14.WLD', world: 14, size: '???K',  note: "it doesn't end" },
 ]
 
 // Recovered sectors: unreadable on early boots, heal over repeat visits.

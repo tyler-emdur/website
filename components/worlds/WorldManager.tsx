@@ -9,6 +9,7 @@ import World3Broadcast from './World3Broadcast'
 import World5Machine from './machine/World5Machine'
 import World6Garage from './World6Garage'
 import World7Contact from './World7Contact'
+import World8Departures from './World8Departures'
 import World9Answering from './World9Answering'
 import World14Aisle from './World14Aisle'
 
@@ -20,6 +21,7 @@ const WORLD_COMPONENTS: Record<number, React.ComponentType> = {
   5: World5Machine,
   6: World6Garage,
   7: World7Contact,
+  8: World8Departures,
   9: World9Answering,
   14: World14Aisle,
 }

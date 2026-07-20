@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
 import { useWorldStore, type WorldId } from '@/lib/world-store'
 import HomeButton from '../HomeButton'
+import Tetris from './Tetris'
 import { PROGRAMS } from './programs'
 import {
   EXPERIMENTS, README_TXT, RECOVERED_SECTORS, RECYCLED, WEBSITE_V1_LINKS, WORLD_FILES,
@@ -226,7 +227,7 @@ function Terminal({ bootCount, onRun, onSecret, onWorld, onSrv }: {
     'C:\\WORLDS': WORLD_FILES.map(w => `${w.file.padEnd(14)}${w.size.padStart(7)}  ${w.note}`),
     'C:\\RECYCLED': RECYCLED.map(r => `${r.file.padEnd(34)}    0  ${r.deleted}`),
     'C:\\EXPERIMENTS': EXPERIMENTS.map(e => e.title.toUpperCase().replace(/[^A-Z0-9.]/g, '_').slice(0, 20) + '.LOG'),
-    'C:\\GAMES': ['MINESWEEPER.EXE', ...PROGRAMS.map(p => p.title.toUpperCase())],
+    'C:\\GAMES': ['MINESWEEPER.EXE', 'TETRIS.EXE', ...PROGRAMS.map(p => p.title.toUpperCase())],
     'C:\\RECOVERED': RECOVERED_SECTORS.map(s => s.file),
     'C:\\WEBSITE.V1': ['INDEX.HTM'],
   }
@@ -295,6 +296,7 @@ function Terminal({ bootCount, onRun, onSecret, onWorld, onSrv }: {
           break
         }
         if (arg.replace('.EXE', '').startsWith('MINESWEEP')) { print(['Starting Minesweeper...']); onRun('minesweeper'); break }
+        if (arg.replace('.EXE', '').startsWith('TETRIS')) { print(['Starting Tetris...']); onRun('tetris'); break }
         const prog = PROGRAMS.find(p => p.title.toUpperCase().startsWith(arg.replace('.EXE', '')))
         if (prog) { print([`Starting ${prog.title}...`]); onRun(prog.id) }
         else print([`Cannot execute: ${arg || '?'}`], '#f66')
@@ -888,11 +890,16 @@ export default function World5Machine() {
     open('minesweeper', 'Minesweeper', <Minesweeper onWin={() => findSecret('machine-minesweeper-win')} />, 232, 306)
   }, [open, findSecret])
 
+  const openTetris = useCallback(() => {
+    open('tetris', 'Tetris — 40 line sprint', <Tetris onWin={() => findSecret('machine-sprint-40')} />, 400, 520)
+  }, [open, findSecret])
+
   const openProgram = useCallback((progId: string) => {
     if (progId === 'minesweeper') { openMinesweeper(); return }
+    if (progId === 'tetris') { openTetris(); return }
     const prog = PROGRAMS.find(p => p.id === progId)
     if (prog) open(`prog:${progId}`, prog.title, <ProgramWindow progId={progId} />, 480, 380)
-  }, [open, openMinesweeper])
+  }, [open, openMinesweeper, openTetris])
 
   const healedCount = Math.min(RECOVERED_SECTORS.length, Math.max(0, bootCount - 1))
 
@@ -972,6 +979,7 @@ export default function World5Machine() {
     { icon: '⌨', label: 'TERMINAL', act: () => openIcon('terminal') },
     { icon: '📄', label: 'README.TXT', act: () => openIcon('readme') },
     { icon: '💣', label: 'MINESWEEPER', act: openMinesweeper },
+    { icon: '🧱', label: 'TETRIS', act: openTetris },
     { icon: '📁', label: 'PROGRAMS', act: () => openIcon('games') },
     { icon: '🗒', label: 'RECOVERED', act: openRecovered },
     { icon: '🗑', label: 'Recycle Bin', act: openRecycleBin },
@@ -1004,6 +1012,7 @@ export default function World5Machine() {
         open('dir:games', 'C:\\GAMES', (
           <FolderGrid items={[
             { icon: '💣', label: 'MINESWEEPER', onOpen: openMinesweeper },
+            { icon: '🧱', label: 'TETRIS.EXE', onOpen: openTetris },
             ...PROGRAMS.map(p => ({
               icon: '🕹', label: p.title,
               onOpen: () => openProgram(p.id),

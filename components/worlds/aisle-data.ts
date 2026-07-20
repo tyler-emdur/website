@@ -1,6 +1,6 @@
 export const SPACING = 2.6
-export const RAIL_X = 3.2
-export const RAIL_Y = 2.3
+export const RAIL_X = 4.0   // half-width: two flatbeds pass without touching
+export const RAIL_Y = 2.3   // sign/tag height — where a person actually reads
 export const HANG_Y = RAIL_Y - 1.15
 export const GEM_EVERY = 11
 
@@ -19,74 +19,85 @@ export const SHAPES = ['box', 'sphere', 'cone', 'cylinder', 'torus', 'octahedron
 export type Shape = typeof SHAPES[number]
 
 // ── inventory ────────────────────────────────────────────────────────────────
-// This is a supermarket that stayed open too long. The stock is real product,
-// technically — it just stopped making sense a few thousand items ago. Retail
-// copy is deadpan. Prices are honest, which is to say: not in dollars, because
-// the registers stopped taking dollars a while back and nobody reset them.
-
-type Category = 'dry' | 'chilled' | 'household' | 'produce' | 'seasonal' | 'unshelved'
+// A warehouse club that stayed open too long. Concrete floor, steel racking to
+// a ceiling you can't see, and no signage telling you where anything is —
+// because a warehouse that's easy to leave is a warehouse you leave.
+//
+// The pricing follows the real conventions, which are already eerie enough that
+// they need no help:
+//   .99  ordinary stock, reordered forever
+//   .97  a manager marked it down by hand. nobody says why.
+//   .88 / .00  a deal that was negotiated with someone
+//   *    top-right of the sign: this item is not being reordered. ever. when
+//        it's gone it is gone, and the people who know what the asterisk means
+//        buy all of it. they call it the death star.
+type Category = 'bulk' | 'chilled' | 'household' | 'treasure' | 'seasonal' | 'foodcourt'
 
 export interface StockItem {
   label: string
   flavor: string
   price: string
   cat: Category
+  /** the asterisk. not being reordered. when it's gone, it's gone. */
+  star?: boolean
 }
 
 export const STOCK: StockItem[] = [
-  // dry & canned goods — center of the store, if there is a center
-  { cat: 'dry', label: 'CANNED SILENCE', flavor: 'Net wt. varies. Best served in a room where the lights already buzz.', price: 'PAY LATER' },
-  { cat: 'dry', label: 'GENERIC BRAND CEREAL', flavor: 'The box just says CEREAL. The mascot is a rectangle. It maintains eye contact.', price: '2 FOR 2' },
-  { cat: 'dry', label: 'OFF-BRAND SOUP', flavor: 'Flavor: SOUP. Ingredients: SOUP. Contains: SOUP.', price: '$?.99' },
-  { cat: 'dry', label: 'STORE-BRAND WATER', flavor: 'Sourced from the drinking fountain by the restrooms. Bottled with love, or at least nearby.', price: 'FREE-ISH' },
-  { cat: 'dry', label: 'BREAD, DAY ???', flavor: 'The sell-by sticker has been reprinted so many times it is now just a small mirror.', price: 'DAY OLD (×∞)' },
-  { cat: 'dry', label: 'CRACKERS (STALE ON ARRIVAL)', flavor: 'Freshness sealed out. Whatever this is, it is sealed in.', price: '1 MOLAR' },
-  { cat: 'dry', label: 'INSTANT NOODLES, EXPIRED 20██', flavor: 'The expiry year is smudged. On purpose, you think. By whom, you do not ask.', price: '3 MIN OF LIFE' },
-  { cat: 'dry', label: 'A CAN WITH NO LABEL', flavor: 'Heavier than it should be. Something inside shifts when you set it down. Do not set it down.', price: 'AS-IS' },
+  // bulk — the whole point. nothing here is a single of anything.
+  { cat: 'bulk', label: 'KIRKLAND SIGNATURE EVERYTHING', flavor: 'Contents: everything. Net wt. 40 lb. The label lists no ingredients, only a quantity.', price: '$24.99' },
+  { cat: 'bulk', label: 'PAPER TOWELS, 30 ROLLS', flavor: 'Will not fit in your vehicle. Will not fit in your home. You are buying them anyway. Everyone does.', price: '$21.99' },
+  { cat: 'bulk', label: 'MAYONNAISE, 1 GALLON', flavor: 'One gallon. For a household of one. The jar is taller than your forearm and it is not the largest one here.', price: '$11.97' },
+  { cat: 'bulk', label: 'MUFFINS, 12-PACK (6 FLAVORS)', flavor: 'Each muffin is the size of a fist. You will eat two today and throw out nine. This is the arrangement.', price: '$9.99' },
+  { cat: 'bulk', label: 'WATER, 40 BOTTLES', flavor: 'A pallet at the front, past the registers, where the heavy things live so you must carry them the furthest.', price: '$4.49' },
+  { cat: 'bulk', label: 'RICE, 50 LB SACK', flavor: 'Rated for a family, a restaurant, or one person planning something they have not told anyone about.', price: '$18.88' },
+  { cat: 'bulk', label: 'BATTERIES, 48-PACK', flavor: 'More batteries than devices you own. You will find them in a drawer in nine years, still holding charge.', price: '$16.97' },
+  { cat: 'bulk', label: 'A PALLET OF SOMETHING', flavor: 'Shrink-wrapped, unlabeled, stacked to shoulder height. It was here last time. It has not gotten shorter.', price: 'SEE SIGN' },
 
-  // chilled & frozen — the section the power keeps reaching, somehow
-  { cat: 'chilled', label: 'MILK — SELL BY: SOON', flavor: 'Not a date. A warning. The carton sweats when you look away.', price: '1 GLANCE' },
-  { cat: 'chilled', label: 'THE LAST FRESH THING', flavor: 'One left. There is always exactly one left. You have seen it in three different aisles.', price: 'MARKET PRICE' },
-  { cat: 'chilled', label: 'FROZEN PEAS (STILL FROZEN)', flavor: 'The freezer has no power. The peas do not care. The peas have made other arrangements.', price: 'COLD, SOMEHOW' },
-  { cat: 'chilled', label: 'ICE (NO LONGER AVAILABLE)', flavor: 'The bin is full. The scoop is warm. Take a bag. It will be a bag of water by the exit. There is no exit.', price: '32°F FLAT' },
-  { cat: 'chilled', label: 'YOGURT, FLAVOR: TUESDAY', flavor: 'Every flavor is a day of the week. It is always the same day. You know which one.', price: 'ONE (1) TUESDAY' },
+  // chilled — the cold aisle at the back wall, because the back is where you'll go
+  { cat: 'chilled', label: 'ROTISSERIE CHICKEN', flavor: 'Priced below cost since forever. Kept at the furthest possible point from the door, on purpose, and it works.', price: '$4.99' },
+  { cat: 'chilled', label: 'MILK — SELL BY: SOON', flavor: 'Not a date. A warning. Two gallons banded together because one gallon is not a quantity here.', price: '$5.49' },
+  { cat: 'chilled', label: 'CHEESE, WHEEL OF', flavor: 'A wheel. Not a wedge. You would need to host something. You are not going to host anything.', price: '$89.99' },
+  { cat: 'chilled', label: 'FROZEN BERRIES, 4 LB', flavor: 'For the smoothies you will make every morning starting Monday. It has been Monday for a while now.', price: '$12.97' },
+  { cat: 'chilled', label: 'THE LAST FRESH THING', flavor: 'One left in the case. There is always exactly one left. You have seen it in three different sections.', price: '$0.97', star: true },
 
-  // household — the aisle where things get practical, then stop
-  { cat: 'household', label: 'BATTERIES (HALF-CHARGED)', flavor: 'Enough charge to start something. Never enough to finish it. Sold in odd numbers.', price: '1.5 V' },
-  { cat: 'household', label: 'FLICKERING BULB, 40W', flavor: 'Guaranteed to flicker. Comes pre-installed in the ceiling above you. Right now. Look up.', price: 'ONE FLICKER' },
-  { cat: 'household', label: 'FLOOR WAX (DISCONTINUED SCENT)', flavor: 'Scent: "Recently Mopped." Nobody has mopped in a very long time. The floor disagrees.', price: 'SLICK' },
-  { cat: 'household', label: 'A KEY, UNMARKED', flavor: 'Fits a door not stocked in this location. Please do not ask which door. Please.', price: 'ASK NOBODY' },
-  { cat: 'household', label: 'EXACT CHANGE', flavor: 'The precise amount you will need at the register. The register does not exist. You will still need it.', price: 'CORRECT' },
-  { cat: 'household', label: 'PLASTIC BAG (ALREADY IN ONE)', flavor: "You are holding it. You have always been holding it. It rustles when the store thinks.", price: '5¢ / ∞' },
-  { cat: 'household', label: 'MOP & BUCKET, UNATTENDED', flavor: 'Left mid-job. The water is still cloudy. The cleanup on aisle 14 was never finished.', price: 'SEE MGR' },
+  // household — practical, then abruptly not
+  { cat: 'household', label: 'FOLDING TABLE, 6 FT', flavor: 'For an event. You have no event. The table knows this and is patient.', price: '$39.99' },
+  { cat: 'household', label: 'FLICKERING BULB, 12-PACK', flavor: 'Guaranteed 10,000 hours. One of them is already installed in the ceiling above you. Right now. Look up.', price: '$14.99' },
+  { cat: 'household', label: 'FLOOR WAX (DISCONTINUED SCENT)', flavor: 'Scent: "Recently Buffed." Nobody has buffed in a very long time. The concrete disagrees.', price: '$7.97', star: true },
+  { cat: 'household', label: 'A KEY, UNMARKED, 2-PACK', flavor: 'Fits a door not stocked at this location. Sold in twos, because you will lose one. You always lose one.', price: '$3.97', star: true },
+  { cat: 'household', label: 'FLATBED CART', flavor: 'Larger than a cart. For items a cart refuses. The wheel that squeaks is the one you hate.', price: 'NOT FOR SALE' },
+  { cat: 'household', label: 'PLASTIC WRAP, 3,000 FT', flavor: 'Three thousand feet. Over half a mile of it. You will use forty feet and pass it down in a will.', price: '$19.99' },
+  { cat: 'household', label: 'GARBAGE BAGS, 200 CT', flavor: 'Two hundred. One for every week of the next four years. The box does the math for you on the side.', price: '$22.88' },
 
-  // produce — nothing here grew anywhere you'd recognize
-  { cat: 'produce', label: 'APPLE (WAX FRUIT)', flavor: 'Shines beautifully. Bite it and find out. The store is watching to see if you bite it.', price: '1 TOOTH' },
-  { cat: 'produce', label: 'BANANAS, PERFECTLY RIPE FOREVER', flavor: 'They do not brown. They do not soften. They have been perfectly ripe since before you were born.', price: 'TIMELESS' },
-  { cat: 'produce', label: 'MUSHROOMS (LOCAL)', flavor: 'Grown on-site. Very on-site. In the back. Where the light does not go. Where you are heading.', price: 'FORAGED' },
-  { cat: 'produce', label: 'A SINGLE GRAPE', flavor: 'Sold individually. The bunch it came from is somewhere in the store, looking for it.', price: '1/∞ LB' },
+  // treasure — the reason people walk the whole floor. it is never the same twice.
+  { cat: 'treasure', label: 'A KAYAK', flavor: 'Next to the socks. It will not be here next week. Nothing here is here next week. That is the mechanism.', price: '$349.99' },
+  { cat: 'treasure', label: 'A CASKET', flavor: 'Genuinely stocked. Genuinely for sale. Between the patio furniture and the vitamins, priced like a mattress.', price: '$999.99' },
+  { cat: 'treasure', label: 'ENGAGEMENT RING, 2.4 CT', flavor: 'In a locked glass case, in a warehouse, near the tires. Someone has bought one of these in a hurry.', price: '$14,999.99' },
+  { cat: 'treasure', label: 'A SHED', flavor: 'Fully assembled, on the concrete, with a little porch. People live in less. The sign says SOME ASSEMBLY.', price: '$3,299.00' },
+  { cat: 'treasure', label: 'GRAND PIANO', flavor: 'Aisle 14. No one is playing it. The lid is propped. There is a little sign asking you not to.', price: '$8,999.99', star: true },
+  { cat: 'treasure', label: 'A TELESCOPE', flavor: 'Points at a ceiling you cannot see the top of. Someone has aimed it upward anyway. It is focused.', price: '$229.97', star: true },
 
-  // seasonal — the aisle that is every season and no season
-  { cat: 'seasonal', label: 'HALLOWEEN CANDY (IN JULY)', flavor: 'It is always the wrong holiday here. The decorations rotate on their own. You have heard them rotate.', price: '1 SCARE' },
-  { cat: 'seasonal', label: 'BEACH TOWEL, LANDLOCKED', flavor: 'For a beach this store insists exists two aisles over. It does not. You will look anyway.', price: 'SPF ∞' },
-  { cat: 'seasonal', label: 'GREETING CARD (BLANK INSIDE)', flavor: 'Front reads: THINKING OF YOU. Inside is where you would write who from. You cannot remember who.', price: 'SENTIMENT' },
-  { cat: 'seasonal', label: 'CALENDAR, WRONG YEAR', flavor: 'Every month is this month. Every day is today. It is a very efficient calendar.', price: '1 YEAR (USED)' },
+  // seasonal — every season at once, none of them the current one
+  { cat: 'seasonal', label: 'CHRISTMAS TREES (IN AUGUST)', flavor: 'The decorations went up before the last holiday ended. They rotate on their own. You have heard them rotate.', price: '$79.99' },
+  { cat: 'seasonal', label: 'PATIO SET, 7-PIECE', flavor: 'For a patio. You do not have a patio. The box has a photograph of a patio, and a family, and better weather.', price: '$799.00' },
+  { cat: 'seasonal', label: 'BEACH TOWEL, LANDLOCKED', flavor: 'For a beach this warehouse insists is two aisles over. It is not. You will go look anyway.', price: '$12.97', star: true },
+  { cat: 'seasonal', label: 'CALENDAR, WRONG YEAR', flavor: 'Every month is this month. Every day is today. Very efficient. Marked down twice already.', price: '$4.97', star: true },
 
-  // unshelved — items that fell off the manifest and kept existing
-  { cat: 'unshelved', label: "SOMEONE'S GROCERY LIST", flavor: 'Milk, eggs, get out while you still — the rest is torn off. The handwriting is getting familiar.', price: 'FOUND' },
-  { cat: 'unshelved', label: 'A JAR OF BUTTONS', flavor: 'None of them match. All of them are from coats. None of the coats are for sale here.', price: 'BY WEIGHT' },
-  { cat: 'unshelved', label: 'TWO OF THE EXACT SAME THING', flavor: 'You cannot tell which one you picked up first. Neither can the store. This bothers the store.', price: 'BOGO' },
-  { cat: 'unshelved', label: 'THE PA MICROPHONE', flavor: 'Still warm. Still on. If you take it, the announcements will be in your voice. They have been for a while.', price: 'ATTENTION SHOPPERS' },
-  { cat: 'unshelved', label: 'A CART, NOT YOURS', flavor: 'Half-full of things you were about to pick up. The wheel that squeaks is the one you hate.', price: 'ABANDONED' },
+  // food court — past the registers. the only part of the building with chairs.
+  { cat: 'foodcourt', label: 'HOT DOG & SODA COMBO', flavor: 'A dollar fifty. It has been a dollar fifty since 1985 and it will be a dollar fifty after the building is gone.', price: '$1.50' },
+  { cat: 'foodcourt', label: 'PIZZA, WHOLE PIE, 18"', flavor: 'Eighteen inches. Ready in six minutes. The number on your receipt is called out to a room with no clock.', price: '$9.95' },
+  { cat: 'foodcourt', label: 'SOFT SERVE, BOTTOMLESS', flavor: 'The machine is always down. The machine has never been up. There is still a line for the machine.', price: '$1.99' },
+  { cat: 'foodcourt', label: 'FREE SAMPLE, UNATTENDED', flavor: 'A tray of paper cups under a heat lamp. No employee. The cups are warm. Some of them are already empty.', price: 'FREE' },
+  { cat: 'foodcourt', label: 'A CART, NOT YOURS', flavor: 'Half-full of things you were about to pick up. Parked where you were about to stand.', price: 'ABANDONED' },
 ]
 
 const CAT_STYLE: Record<Category, { color: string; shape: Shape }> = {
-  dry: { color: '#b08a4a', shape: 'box' },
+  bulk: { color: '#b08a4a', shape: 'box' },
   chilled: { color: '#4a8c9a', shape: 'cylinder' },
   household: { color: '#7a7a86', shape: 'box' },
-  produce: { color: '#5a8c5f', shape: 'sphere' },
+  treasure: { color: '#a8873f', shape: 'octahedron' },
   seasonal: { color: '#a05a7a', shape: 'cone' },
-  unshelved: { color: '#8c7a4a', shape: 'octahedron' },
+  foodcourt: { color: '#b5504a', shape: 'cylinder' },
 }
 
 // filler junk between the real stock — texture, not content
@@ -105,13 +116,15 @@ const JUNK_COLORS = ['#c2b280', '#8a9a5b', '#6b4f3a', '#3d5a6c', '#5a4a6b']
 
 export interface Gem { key: string; label: string; flavor: string }
 export const GEMS: Gem[] = [
-  { key: 'managers-office', label: "THE MANAGER'S OFFICE (LOCKED)", flavor: 'the blinds are shut. the light is on. the OPEN sign faces inward.' },
-  { key: 'warm-cart', label: "A CART, STILL WARM", flavor: 'someone was pushing this a moment ago. the aisle behind you is empty. it stays empty.' },
-  { key: 'other-you', label: 'THE OTHER YOU, TWO AISLES OVER', flavor: 'same jacket. same basket. they turn the corner exactly when you do.' },
+  { key: 'membership-desk', label: 'MEMBERSHIP DESK (UNSTAFFED)', flavor: 'your card is on the counter. the photo is you. you do not remember it being taken, and you are not smiling.' },
+  { key: 'receipt-checker', label: 'THE RECEIPT CHECKER', flavor: 'stands at an exit you cannot find, holding a highlighter, facing this way. has not moved. is not waiting for anyone else.' },
+  { key: 'sample-station', label: 'SAMPLE STATION, STILL WARM', flavor: 'the pan is on. the little cups are filled. the employee stepped away. the tongs are still swinging.' },
+  { key: 'other-you', label: 'THE OTHER YOU, TWO BAYS OVER', flavor: 'same jacket. same flatbed. they turn at the endcap exactly when you do.' },
   { key: 'employee-month', label: 'EMPLOYEE OF THE MONTH', flavor: 'every month. same photo. the little brass plate just keeps changing the date.' },
-  { key: 'future-receipt', label: "A RECEIPT YOU HAVEN'T EARNED YET", flavor: 'itemizes things still on the shelves ahead. the total is already circled.' },
-  { key: 'exit-this-way', label: 'EXIT → (THIS WAY)', flavor: 'the arrow points deeper into the store. you have been following it the whole time.' },
-  { key: 'lost-child-page', label: 'ATTENTION: LOST CHILD', flavor: 'the description on the PA matches you. it was recorded years ago. it uses the past tense.' },
+  { key: 'future-receipt', label: "A RECEIPT YOU HAVEN'T EARNED YET", flavor: 'itemizes things still on the racking ahead. the total is already highlighted.' },
+  { key: 'exit-this-way', label: 'EXIT → (THIS WAY)', flavor: 'the arrow points deeper into the warehouse. you have been following it the whole time.' },
+  { key: 'the-asterisk', label: 'A SIGN WITH AN ASTERISK', flavor: 'top right corner. it means this item is not being reordered. when it is gone it is gone. every sign back here has one.' },
+  { key: 'lost-child-page', label: 'ATTENTION: LOST MEMBER', flavor: 'the description on the PA matches you. it was recorded years ago. it uses the past tense.' },
 ]
 
 // ── manager's special — rotates daily ────────────────────────────────────────
