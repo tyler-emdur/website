@@ -27,6 +27,7 @@ interface Camera {
   zone: string | null
 }
 interface Feed {
+  kind?: 'still' | 'video'
   lat: number
   lon: number
   name: string | null
@@ -199,23 +200,129 @@ function CameraMap({ cameras, bbox, activeIdx }: {
 }
 
 // ── the only thing on this board you can actually see ────────────────────────
-// Of every camera in the county, sixteen publish a picture — four apiece at
-// Walker Ranch, Heil Valley, Pella Crossing and Lagerman Reservoir. None of
-// them are plate readers. They are pointed at open space, and they refresh
-// every two minutes whether or not anyone is looking.
-function LiveFeed({ feeds: all, readers }: { feeds: Feed[]; readers: number }) {
-  const feeds = useMemo(() => all.filter(f => f.live), [all])
+// Thirty cameras in this county will show you what they see, and they split
+// two ways.
+//
+// Twenty-six belong to Parks & Open Space. They run on solar, they refresh
+// every ten minutes, and every one is aimed at a trailhead parking lot so you
+// can check whether it is full before you drive up. The nearest plate reader
+// to any of them is kilometres away.
+//
+// Four belong to the City of Boulder, and those are live video — open HLS, no
+// key — of signalised intersections. At Broadway & Canyon the city's camera and
+// a Boulder PD reader are sixty-five metres apart, pointed at the same asphalt.
+// One of them is showing you the intersection. The other is reading you.
+// HLS plays natively in Safari and on iOS and nowhere else, so everything else
+// needs hls.js — a third of a megabyte, for one panel, in one of ten worlds.
+// So it is imported here, at the moment a stream actually comes up, and never
+// enters the bundle of anyone who does not walk into this room.
+function VideoFeed({ url, onFail }: { url: string; onFail: () => void }) {
+  const ref = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    const v = ref.current
+    if (!v) return
+
+    // Do NOT ask canPlayType whether it can play HLS. Chrome answers "maybe"
+    // and then renders a black rectangle forever, which is how this shipped
+    // broken the first time. The honest question is whether the browser has
+    // Media Source Extensions: if it does, hls.js drives it; if it does not,
+    // it is iOS Safari, which is the one browser that really does play a
+    // playlist straight from src.
+    if (!('MediaSource' in window)) {
+      v.src = url
+      v.play().catch(() => {})
+      const fail = () => onFail()
+      v.addEventListener('error', fail)
+      return () => { v.removeEventListener('error', fail); v.removeAttribute('src'); v.load() }
+    }
+
+    let cancelled = false
+    let hls: { destroy: () => void } | null = null
+    import('hls.js')
+      .then(({ default: Hls }) => {
+        if (cancelled) return
+        // Some iOS versions expose MediaSource but cannot drive hls.js. They
+        // can still play a playlist natively, so that is the fallback rather
+        // than giving up.
+        if (!Hls.isSupported()) {
+          if (v.canPlayType('application/vnd.apple.mpegurl')) {
+            v.src = url
+            v.play().catch(() => {})
+          } else {
+            onFail()
+          }
+          return
+        }
+        // the panel is 232px wide; there is no reason to pull the 1080p ladder
+        const h = new Hls({ capLevelToPlayerSize: true, maxBufferLength: 6 })
+        hls = h
+        h.on(Hls.Events.ERROR, (_evt, data) => { if (data.fatal) onFail() })
+        h.loadSource(url)
+        h.attachMedia(v)
+        v.play().catch(() => {})
+      })
+      .catch(onFail)
+
+    return () => { cancelled = true; hls?.destroy() }
+  }, [url, onFail])
+
+  return (
+    <video
+      ref={ref}
+      muted
+      playsInline
+      autoPlay
+      style={{
+        width: '100%', height: '100%', objectFit: 'cover',
+        filter: 'saturate(0.7) contrast(1.05)',
+      }}
+    />
+  )
+}
+
+function metresBetween(aLat: number, aLon: number, bLat: number, bLon: number) {
+  const lat = ((aLat + bLat) / 2) * (Math.PI / 180)
+  const x = (bLon - aLon) * (Math.PI / 180) * Math.cos(lat)
+  const y = (bLat - aLat) * (Math.PI / 180)
+  return Math.sqrt(x * x + y * y) * 6371000
+}
+
+function LiveFeed({ feeds: all, readers, cameras }: { feeds: Feed[]; readers: number; cameras: Camera[] }) {
+  // Left in file order the four streams sit at the end, behind twenty-six
+  // stills — three minutes of parking lots before the good part. So they get
+  // interleaved: a stream every third slot, so the thing worth seeing is never
+  // more than twenty seconds away.
+  const feeds = useMemo(() => {
+    const live = all.filter(f => f.live)
+    const vids = live.filter(f => f.kind === 'video')
+    const stills = live.filter(f => f.kind !== 'video')
+    if (!vids.length) return stills
+    const out: Feed[] = []
+    let vi = 0
+    for (let s = 0; s < stills.length; s++) {
+      if (s % 2 === 0) out.push(vids[vi++ % vids.length])
+      out.push(stills[s])
+    }
+    return out
+  }, [all])
   const frozen = useMemo(() => all.filter(f => !f.live), [all])
   const oldest = frozen.reduce((m, f) => Math.max(m, f.ageHours ?? 0), 0)
+  const liveCount = useMemo(() => all.filter(f => f.live).length, [all])
+  const videoCount = useMemo(() => all.filter(f => f.live && f.kind === 'video').length, [all])
   const [i, setI] = useState(0)
   const [bust, setBust] = useState(() => Date.now())
   const [broken, setBroken] = useState(false)
+  const onFail = useCallback(() => setBroken(true), [])
 
+  // a still has nothing to show after the first frame; a stream is the only
+  // thing on this board that is actually moving, so it gets to stay up
   useEffect(() => {
     if (feeds.length < 2) return
-    const id = setInterval(() => { setI(v => (v + 1) % feeds.length); setBroken(false) }, 7000)
-    return () => clearInterval(id)
-  }, [feeds.length])
+    const dwell = feeds[i % feeds.length]?.kind === 'video' ? 15000 : 7000
+    const id = setTimeout(() => { setI(v => (v + 1) % feeds.length); setBroken(false) }, dwell)
+    return () => clearTimeout(id)
+  }, [feeds, i])
 
   // the source caches for 120s; re-request a little slower than that
   useEffect(() => {
@@ -233,13 +340,31 @@ function LiveFeed({ feeds: all, readers }: { feeds: Feed[]; readers: number }) {
   }
 
   const f = feeds[i]
+  // The board already knows where all seventy-four readers stand, so it can
+  // answer the only question that matters about any camera on this list: how
+  // close is the nearest one that reads plates. At the open space properties
+  // the answer is kilometres. At Broadway & Canyon it is sixty-five metres.
+  const nearest = cameras.reduce(
+    (m, c) => Math.min(m, metresBetween(f.lat, f.lon, c.lat, c.lon)),
+    Infinity,
+  )
+  const nearestLabel = nearest < 1000
+    ? `${Math.round(nearest)} M`
+    : `${(nearest / 1000).toFixed(nearest < 10000 ? 1 : 0)} KM`
+
   return (
     <div style={{ display: 'flex', gap: 14, alignItems: 'stretch', flex: 1, justifyContent: 'flex-end', minWidth: 260 }}>
       <div style={{ fontSize: 10, lineHeight: 1.9, opacity: 0.65, textAlign: 'right' }}>
         <div style={{ opacity: 0.5, letterSpacing: 2 }}>FEEDS AVAILABLE</div>
-        <div style={{ fontSize: 22, letterSpacing: 3, color: '#ffd666' }}>{feeds.length} / {readers}</div>
+        <div style={{ fontSize: 22, letterSpacing: 3, color: '#ffd666' }}>{liveCount} / {readers}</div>
         <div style={{ opacity: 0.6, maxWidth: 200 }}>
-          none of them read plates.<br />all of them face away from town.
+          {liveCount - videoCount} watch a parking lot.<br />
+          {videoCount} watch an intersection.<br />
+          none of them read plates.
+        </div>
+        <div style={{ marginTop: 8, opacity: 0.8 }}>
+          <span style={{ opacity: 0.55, letterSpacing: 1 }}>NEAREST READER</span><br />
+          <span style={{ fontSize: 15, letterSpacing: 2, color: '#ffd666' }}>{nearestLabel}</span>
         </div>
         {frozen.length > 0 && (
           <div style={{ marginTop: 8, opacity: 0.42, maxWidth: 200 }}>
@@ -258,12 +383,14 @@ function LiveFeed({ feeds: all, readers }: { feeds: Feed[]; readers: number }) {
             position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
             justifyContent: 'center', fontSize: 9, opacity: 0.5, letterSpacing: 1,
           }}>FEED DOWN</div>
+        ) : f.kind === 'video' ? (
+          <VideoFeed key={f.url} url={f.url} onFail={onFail} />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={`${f.url}${f.url.includes('?') ? '&' : '?'}t=${bust}`}
             alt=""
-            onError={() => setBroken(true)}
+            onError={onFail}
             style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(0.7) contrast(1.05)' }}
           />
         )}
@@ -272,8 +399,8 @@ function LiveFeed({ feeds: all, readers }: { feeds: Feed[]; readers: number }) {
           background: 'linear-gradient(180deg, transparent, rgba(8,6,3,0.9))',
           fontSize: 8, letterSpacing: 1, display: 'flex', justifyContent: 'space-between',
         }}>
-          <span>{(f.name ?? 'OPEN SPACE').toUpperCase().slice(0, 22)}</span>
-          <span style={{ color: '#8fdc7a' }}>● LIVE</span>
+          <span>{(f.name ?? 'OPEN SPACE').toUpperCase().slice(0, 26)}</span>
+          <span style={{ color: '#8fdc7a' }}>● {f.kind === 'video' ? 'LIVE VIDEO' : 'LIVE'}</span>
         </div>
       </div>
     </div>
@@ -423,7 +550,7 @@ export default function World8Departures() {
             <div>RETENTION&nbsp;&nbsp;&nbsp;&nbsp; 30 DAYS <span style={{ opacity: 0.55 }}>(RENEWING)</span></div>
           </div>
 
-          <LiveFeed feeds={data.feeds} readers={data.count} />
+          <LiveFeed feeds={data.feeds} readers={data.count} cameras={data.cameras} />
         </div>
       </div>
     </div>

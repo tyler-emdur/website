@@ -132,26 +132,43 @@ async function main() {
   // does not know about. Every one still gets fetched and dated below — being
   // on this list is a lead, not a promise.
   //
-  // Boulder County Parks & Open Space runs four cameras at each of four
-  // properties and publishes every one of them as a plain JPEG on a two-minute
-  // loop. OSM knows about one of the sixteen. The rest were found by walking
-  // the URL pattern, which is the only reason this board has anything to look
-  // at: sixteen cameras that show you a picture, against seventy-odd that only
-  // ever produce a plate number. Some of these sit just north of the ALPR
-  // bounding box — the readers are a Boulder story, the cameras are a county
-  // one.
+  // Boulder County Parks & Open Space points cameras at trailhead parking lots
+  // so you can see whether the lot is full before you drive up, and publishes
+  // every one of them as a plain JPEG on a ten-minute loop. The authoritative
+  // list is the county's own "Live Trailhead Cameras" page; OSM knows about one
+  // of the twenty-five. The counts per property are not uniform and the file
+  // naming is not either — Ron Stewart has five, Carolyn Holmberg has one and
+  // calls it parkinglot.jpg — so this is enumerated rather than generated.
+  //
+  // This is the whole reason the board has anything to look at. Twenty-five
+  // cameras in this county exist to show a person a picture. Seventy-four exist
+  // to produce a plate number. Note where Coalton is: Superior, a town with
+  // fourteen readers in it. Same town, opposite job.
+  //
+  // These run on solar. The county warns they may not work during cloudy
+  // weather, which is why the live/frozen check below matters — some of these
+  // legitimately go dark for a day and come back.
   const OPEN_SPACE = [
-    { slug: 'walker', name: 'Walker Ranch', lat: 39.95125, lon: -105.33744 },
-    { slug: 'heil', name: 'Heil Valley Ranch', lat: 40.14930, lon: -105.30610 },
-    { slug: 'pella', name: 'Pella Crossing', lat: 40.18560, lon: -105.18150 },
-    { slug: 'lagerman', name: 'Lagerman Reservoir', lat: 40.15830, lon: -105.18750 },
+    { slug: 'walker', name: 'Walker Ranch', lat: 39.95125, lon: -105.33744, cams: 4 },
+    { slug: 'heil', name: 'Heil Valley Ranch', lat: 40.14670, lon: -105.30330, cams: 4 },
+    { slug: 'pella', name: 'Pella Crossing', lat: 40.18560, lon: -105.18150, cams: 4 },
+    { slug: 'lagerman', name: 'Lagerman Preserve', lat: 40.15830, lon: -105.18750, cams: 4 },
+    { slug: 'coalton', name: 'Coalton Trailhead', lat: 39.93760, lon: -105.16160, cams: 4 },
+    { slug: 'rsp', name: 'Ron Stewart Preserve', lat: 40.24440, lon: -105.22310, cams: 5 },
+    { slug: 'chp', name: 'Carolyn Holmberg Preserve', lat: 39.95530, lon: -105.12440, file: 'parkinglot.jpg' },
   ]
   const SEEDS = [
-    ...OPEN_SPACE.flatMap(p => [1, 2, 3, 4].map(n => ({
-      lat: p.lat, lon: p.lon, name: `${p.name} ${n}`,
-      operator: 'Boulder County Parks & Open Space',
-      url: `https://bouldercountyopenspace.org/photos/${p.slug}/live${n}.jpg`,
-    }))),
+    ...OPEN_SPACE.flatMap(p => p.file
+      ? [{
+          lat: p.lat, lon: p.lon, name: p.name,
+          operator: 'Boulder County Parks & Open Space',
+          url: `https://bouldercountyopenspace.org/photos/${p.slug}/${p.file}`,
+        }]
+      : Array.from({ length: p.cams }, (_, i) => ({
+          lat: p.lat, lon: p.lon, name: `${p.name} ${i + 1}`,
+          operator: 'Boulder County Parks & Open Space',
+          url: `https://bouldercountyopenspace.org/photos/${p.slug}/live${i + 1}.jpg`,
+        }))),
     { lat: 40.0274, lon: -105.2519, name: 'Flatiron Cam', operator: 'Boulder Flatiron Cam', url: 'https://boulderflatironcam.com/live/bfc.jpg' },
     { lat: 40.0274, lon: -105.2519, name: 'Flatiron Cam SC', operator: 'Boulder Flatiron Cam', url: 'https://boulderflatironcam.com/bfc/bfcsc.jpg' },
     { lat: 40.0274, lon: -105.2519, name: 'Flatiron Netcam', operator: 'Boulder Flatiron Cam', url: 'https://boulderflatironcam.com/bfc/netcam.jpg' },
@@ -159,6 +176,24 @@ async function main() {
   // Seeds go first: OSM has some of these same URLs with no name on them, and
   // dedupe keeps whichever it sees first. A named camera is a better row.
   candidates.unshift(...SEEDS)
+
+  // ── the four that undo the joke ─────────────────────────────────────────────
+  // The City of Boulder publishes live video — not stills, video — from four
+  // signalised intersections, open HLS with no key and no referer check.
+  // Every other camera in this file is either pointed at an empty parking lot
+  // or pointed at your plate. These are pointed at the intersection itself,
+  // and at Broadway & Canyon a Boulder PD reader stands sixty-five metres from
+  // the lens. You can watch the exact piece of road where the board gets its
+  // rows, in real time, at 480p, because the city put it on the internet.
+  //
+  // Coordinates are the intersections, not the poles: the city does not say
+  // where the cameras are mounted, only what they are looking at.
+  const CITY_CAMS = [
+    { slug: 'broadway_and_canyon', name: 'Broadway & Canyon', lat: 40.01650, lon: -105.27970 },
+    { slug: 'foothills_and_arapahoe', name: 'Foothills & Arapahoe', lat: 40.01430, lon: -105.22640 },
+    { slug: '28th_and_colorado', name: '28th & Colorado', lat: 40.00720, lon: -105.26070 },
+    { slug: '28th_and_iris', name: '28th & Iris', lat: 40.03330, lon: -105.26070 },
+  ]
 
   const seen = new Set()
   const feeds = []
@@ -176,6 +211,7 @@ async function main() {
         const ageH = lm ? (Date.now() - Date.parse(lm)) / 3600000 : null
         const live = ageH !== null && ageH < 24
         feeds.push({
+          kind: 'still',
           lat: +c.lat.toFixed(5), lon: +c.lon.toFixed(5),
           name: c.name, url: c.url, operator: c.operator,
           lastModified: lm, ageHours: ageH === null ? null : Math.round(ageH),
@@ -189,8 +225,34 @@ async function main() {
       console.log(`  unreachable   ${c.url}`)
     }
   }
+  // A still is proved live by its Last-Modified. A stream has no such thing —
+  // what proves it is that the playlist parses and names a rendition. If the
+  // encoder is down the server still answers, so "200" alone is not enough.
+  for (const c of CITY_CAMS) {
+    const url = `https://videostream.bouldercolorado.gov/live/smil:${c.slug}.smil/playlist.m3u8`
+    try {
+      const r = await fetch(url, { headers: { 'User-Agent': UA } })
+      const body = r.ok ? await r.text() : ''
+      const live = body.startsWith('#EXTM3U') && /EXT-X-STREAM-INF/.test(body)
+      if (live) {
+        feeds.push({
+          kind: 'video',
+          lat: c.lat, lon: c.lon, name: c.name, url,
+          operator: 'City of Boulder',
+          lastModified: null, ageHours: 0, live: true,
+        })
+        console.log(`  LIVE    ${url}  (hls)`)
+      } else {
+        console.log(`  no stream     ${url}  (${r.status})`)
+      }
+    } catch {
+      console.log(`  unreachable   ${url}`)
+    }
+  }
+
   const liveN = feeds.filter(f => f.live).length
-  console.log(`  ${liveN} live, ${feeds.length - liveN} frozen, of ${candidates.length} candidates\n`)
+  const videoN = feeds.filter(f => f.live && f.kind === 'video').length
+  console.log(`  ${liveN} live (${videoN} video), ${feeds.length - liveN} frozen\n`)
 
   const inRoadBox = (c) =>
     c.lat >= ROADS_BBOX[0] && c.lat <= ROADS_BBOX[2] &&
