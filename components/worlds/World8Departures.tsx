@@ -200,18 +200,25 @@ function CameraMap({ cameras, bbox, activeIdx }: {
 }
 
 // ── the only thing on this board you can actually see ────────────────────────
-// Thirty cameras in this county will show you what they see, and they split
-// two ways.
+// Thirty-nine cameras around here will show you what they see, and they split
+// three ways.
 //
 // Twenty-six belong to Parks & Open Space. They run on solar, they refresh
 // every ten minutes, and every one is aimed at a trailhead parking lot so you
 // can check whether it is full before you drive up. The nearest plate reader
 // to any of them is kilometres away.
 //
-// Four belong to the City of Boulder, and those are live video — open HLS, no
-// key — of signalised intersections. At Broadway & Canyon the city's camera and
-// a Boulder PD reader are sixty-five metres apart, pointed at the same asphalt.
-// One of them is showing you the intersection. The other is reading you.
+// Four belong to the City of Boulder: live video of signalised intersections.
+// At Broadway & Canyon the city's camera and a Boulder PD reader are
+// sixty-five metres apart, pointed at the same asphalt. One is showing you the
+// intersection. The other is reading you.
+//
+// Nine belong to the state, and they are the ones that finish the thought.
+// CDOT films US 36 continuously from milepost 37 to milepost 45 — the whole
+// Boulder-to-Denver turnpike, a camera every mile or so, in order. Nobody
+// hides any of this. The stills, the intersections, the entire commute: all of
+// it is published, open, no key required. The only cameras in this county you
+// cannot look through are the ones looking at your plate.
 // HLS plays natively in Safari and on iOS and nowhere else, so everything else
 // needs hls.js — a third of a megabyte, for one panel, in one of ten worlds.
 // So it is imported here, at the moment a stream actually comes up, and never
@@ -359,7 +366,7 @@ function LiveFeed({ feeds: all, readers, cameras }: { feeds: Feed[]; readers: nu
         <div style={{ fontSize: 22, letterSpacing: 3, color: '#ffd666' }}>{liveCount} / {readers}</div>
         <div style={{ opacity: 0.6, maxWidth: 200 }}>
           {liveCount - videoCount} watch a parking lot.<br />
-          {videoCount} watch an intersection.<br />
+          {videoCount} watch a road.<br />
           none of them read plates.
         </div>
         <div style={{ marginTop: 8, opacity: 0.8 }}>

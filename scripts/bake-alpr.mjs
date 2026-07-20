@@ -188,6 +188,27 @@ async function main() {
   //
   // Coordinates are the intersections, not the poles: the city does not say
   // where the cameras are mounted, only what they are looking at.
+  // ── CDOT ────────────────────────────────────────────────────────────────────
+  // The state's camera network is a plain open JSON API with no key on it:
+  // cotg.carsprogram.org/cameras_v1/api/cameras returns all ~1,028 of them
+  // statewide, each with an HLS view. Ten stand inside this bounding box, and
+  // nine of those are strung along US 36 in milepost order from 37.15 to 44.90
+  // — which is to say the state films the entire Boulder-to-Denver turnpike,
+  // continuously, one camera every mile or so, and hands you the playlists.
+  //
+  // Fetched and filtered rather than hardcoded so the list follows the state's.
+  // The liveness check is not ceremony: MP 44.90 answers the API and does not
+  // answer with a stream.
+  const CDOT_API = 'https://cotg.carsprogram.org/cameras_v1/api/cameras'
+  // "US 36 MP 037.15 EB : 0.1 miles E of Colorado Ave" is a machine's name for
+  // a place. A board that already speaks in coordinates and timestamps wants
+  // the route and the milepost and nothing else.
+  const cdotName = (n) => {
+    const m = /^(.+?)\s+MP\s+(\d+\.\d+)\s+(EB|WB|NB|SB)/.exec(n)
+    // parseFloat would turn 037.50 into "37.5"; a milepost keeps both decimals
+    return m ? `${m[1]} MP ${parseFloat(m[2]).toFixed(2)} ${m[3]}` : n.slice(0, 26)
+  }
+
   const CITY_CAMS = [
     { slug: 'broadway_and_canyon', name: 'Broadway & Canyon', lat: 40.01650, lon: -105.27970 },
     { slug: 'foothills_and_arapahoe', name: 'Foothills & Arapahoe', lat: 40.01430, lon: -105.22640 },
@@ -248,6 +269,42 @@ async function main() {
     } catch {
       console.log(`  unreachable   ${url}`)
     }
+  }
+
+  try {
+    const res = await fetch(CDOT_API, { headers: { 'User-Agent': UA } })
+    const cams = res.ok ? await res.json() : []
+    const inBox = cams.filter(c =>
+      c.active && c.public && c.views?.[0]?.url &&
+      c.location &&
+      c.location.latitude >= BBOX[0] && c.location.latitude <= BBOX[2] &&
+      c.location.longitude >= BBOX[1] && c.location.longitude <= BBOX[3])
+    console.log(`\n  CDOT: ${cams.length} statewide, ${inBox.length} in the box`)
+    for (const c of inBox) {
+      const url = c.views[0].url
+      try {
+        const r = await fetch(url, { headers: { 'User-Agent': UA } })
+        const body = r.ok ? await r.text() : ''
+        if (!body.startsWith('#EXTM3U') || !/EXT-X-STREAM-INF/.test(body)) {
+          console.log(`  no stream     ${c.id}  ${c.name}`)
+          continue
+        }
+        feeds.push({
+          kind: 'video',
+          lat: +c.location.latitude.toFixed(5),
+          lon: +c.location.longitude.toFixed(5),
+          name: cdotName(c.name),
+          url,
+          operator: c.cameraOwner?.name ?? 'Colorado DOT',
+          lastModified: null, ageHours: 0, live: true,
+        })
+        console.log(`  LIVE    ${c.id}  ${cdotName(c.name)}`)
+      } catch {
+        console.log(`  unreachable   ${c.id}  ${c.name}`)
+      }
+    }
+  } catch {
+    console.log('  CDOT: camera API did not answer; skipping')
   }
 
   const liveN = feeds.filter(f => f.live).length
