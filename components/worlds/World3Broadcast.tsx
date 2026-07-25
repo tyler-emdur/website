@@ -388,6 +388,12 @@ export default function World3Broadcast() {
   const channelStatus = status[channel.id]
   const effectiveLive = dead[channel.id] ? false : (channelStatus?.live ?? true)
   const roomGlow = switching ? 'rgba(20,20,20,0.05)' : SLOT_GLOW[chIdx % SLOT_GLOW.length]
+  // The floor catches the screen. Same per-channel colour as the room glow, but
+  // opaque enough to read as light landing on something rather than as haze —
+  // which is the whole point: change the channel and the room changes with it.
+  const floorPool = switching
+    ? 'rgba(18,18,18,0.05)'
+    : SLOT_GLOW[chIdx % SLOT_GLOW.length].replace(/[\d.]+\)$/, '0.30)')
 
   return (
     <>
@@ -400,6 +406,14 @@ export default function World3Broadcast() {
         display:'flex', alignItems:'center', justifyContent:'center',
         overflow:'hidden',
       }}>
+        {/* The wall behind the set. Barely there, but it is the difference
+            between a dark room and no room: without it the set is a lit object
+            on a void, which is what this world used to be. */}
+        <div style={{
+          position:'absolute', inset:0, pointerEvents:'none',
+          background:'linear-gradient(to bottom, #010101 0%, #050403 46%, #080705 78%, #0a0806 100%)',
+        }} />
+
         {/* Screen glow spreading into room — reacts to channel */}
         <div style={{
           position:'absolute', inset:0, pointerEvents:'none',
@@ -416,6 +430,41 @@ export default function World3Broadcast() {
         <DustParticles />
 
         <HomeButton />
+
+        {/* The set, and the floor it stands on. Floor, seam and contact shadow
+            are positioned off the cabinet itself (top:100% — its base) rather
+            than off the viewport, so the ground meets the set exactly wherever
+            the cabinet ends up sizing at this window. */}
+        <div style={{ position:'relative', display:'flex', flexDirection:'column', alignItems:'center' }}>
+
+          {/* floor, running from the set's base toward the viewer */}
+          <div style={{
+            position:'absolute', top:'100%', left:'50%', transform:'translateX(-50%)',
+            width:'300vw', height:'75vh', pointerEvents:'none',
+            background:[
+              // the channel's light thrown forward onto the floor
+              `radial-gradient(ellipse 26% 74% at 50% 0%, ${floorPool} 0%, transparent 74%)`,
+              // sheen falling off with distance — this is what turns the band
+              // into a plane going away from you
+              'linear-gradient(to bottom, rgba(158,138,92,0.135) 0%, rgba(96,82,52,0.06) 14%, rgba(44,38,24,0.025) 32%, rgba(0,0,0,0) 62%)',
+            ].join(', '),
+            transition:'background 1.2s ease',
+          }} />
+
+          {/* the seam where floor meets wall, just behind the set */}
+          <div style={{
+            position:'absolute', top:'100%', left:'50%', transform:'translateX(-50%)',
+            width:'240vw', height:1, pointerEvents:'none',
+            background:'linear-gradient(to right, transparent 0%, rgba(168,146,96,0.13) 38%, rgba(168,146,96,0.13) 62%, transparent 100%)',
+          }} />
+
+          {/* contact shadow — the thing that stops the set floating */}
+          <div style={{
+            position:'absolute', top:'100%', left:'50%', transform:'translateX(-50%)',
+            marginTop:-12, width:'96%', height:62, pointerEvents:'none',
+            background:'radial-gradient(ellipse 46% 54% at 50% 0%, rgba(0,0,0,0.97) 0%, rgba(0,0,0,0.72) 38%, rgba(0,0,0,0.28) 62%, transparent 82%)',
+            filter:'blur(9px)',
+          }} />
 
         {/* TV cabinet */}
         <div style={{
@@ -611,6 +660,7 @@ export default function World3Broadcast() {
               }} />
             ))}
           </div>
+        </div>
         </div>
 
         <div style={{

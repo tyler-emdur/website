@@ -572,6 +572,64 @@ Features that must never be removed:
 
 # Session History
 
+## 2026-07-24 — World 3 (Broadcast): the set gets a floor to stand on
+
+Objective:
+PLAN.md Session 3 — stop the television floating in a void.
+
+Why:
+Tyler sent a screenshot from a real browser window confirming the one
+compositional reading that survived the bad-tab problem: the set sits in pure
+black, with no surface under it, no wall behind it, and no floor. Galekto's TV
+aesthetic — his reference for this world — works because the CRT's light falls
+on a room. A flickering screen in a void is just a video element.
+
+Brought forward ahead of Session 2 (Warehouse 14 shadows) because this is the
+one world whose diagnosis Tyler had independently confirmed, and because after a
+session of invisible plumbing work the project needed a change you can actually
+see.
+
+Changes Made (all CSS — this world has no three.js, which is also why it is
+verifiable from the automation tab: DOM composites regardless of rAF):
+- components/worlds/World3Broadcast.tsx
+  - A back wall: a faint vertical gradient replacing flat `#030201`. Barely
+    there, but it is the difference between a dark room and no room.
+  - A floor, running from the set's base toward the viewer, with sheen falling
+    off by distance so it reads as a plane going away rather than a band.
+  - The floor/wall seam, lit only across the middle where the screen reaches it.
+  - A contact shadow under the cabinet — the thing that stops the set floating.
+  - `floorPool`: the channel's own colour thrown forward onto the floor, reusing
+    the existing per-channel SLOT_GLOW palette at a readable alpha. **Change the
+    channel and the room changes with it** — verified: CH 23 (Reykjavík) lays a
+    warm pool on the floor, CH 17 (Taipei) a cool blue one.
+
+Notable detail:
+Floor, seam and shadow are positioned off the cabinet (`top: 100%` — its base)
+rather than off the viewport, so the ground meets the set exactly wherever the
+cabinet happens to size at a given window. Anchoring them to viewport
+percentages would have put the seam in the wrong place at most aspect ratios.
+
+Verification:
+- `next build` clean.
+- Production build, screenshotted at two channels; floor, seam and contact
+  shadow all present, and the floor colour tracks the channel.
+- No JS, no new dependencies, no animation added — nothing here can cost frame
+  rate, which sidesteps the measurement problem entirely.
+
+Website Scores:
+- Immersion: +  Atmosphere: +  Cohesion: + (the room now responds to content)
+- Performance: = (static CSS)  Mystery: = (nothing explained)
+
+Recommended Focus For Tomorrow:
+Session 2 (Warehouse 14 light + shadow) still needs a foreground window for its
+frame-time gate. Session 4 (Garage) is in doubt — Tyler reports the Garage
+"looks pretty similar, works fine", so the "it is invisible" reading was
+probably another bad-tab artifact and that session may not need to exist.
+
+Risk Level: Low
+
+---
+
 ## 2026-07-24 (correction, same day) — the "it was never rendering" claim was wrong
 
 Retracting the headline of the entry below. Read this first.
