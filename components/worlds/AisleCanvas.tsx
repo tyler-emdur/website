@@ -1,9 +1,11 @@
 'use client'
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Environment, Lightformer } from '@react-three/drei'
 import {
   MathUtils, Object3D, Color, InstancedMesh, CanvasTexture, Mesh, Group,
-  MeshStandardMaterial, MeshBasicMaterial, PointLight, AmbientLight, Fog, NearestFilter,
+  MeshStandardMaterial, MeshBasicMaterial, PointLight, AmbientLight, DirectionalLight,
+  Fog, NearestFilter,
 } from 'three'
 import { SPACING, RAIL_X, getSlot, type Slot, type Shape } from './aisle-data'
 
@@ -44,6 +46,17 @@ export function zoneAt(idx: number) {
 
 const DECK_DECAY = new Color('#8b9184')
 const DECK_DARK = new Color('#191b1d')
+
+// ── the exposure balance ─────────────────────────────────────────────────────
+// These three trade against each other and there is no way to check them except
+// by looking. AMBIENT and HEMI are shadowless fill; SUN_CAST is the only light
+// that throws a shadow, so the *ratio* of SUN_CAST to the other two is how hard
+// the shadows read. Raising SUN_CAST alone deepens the shadows and brightens the
+// slab; raising AMBIENT alone washes the shadows out. Ambient was 1.55 and hemi
+// 0.7 before the environment map existed to do that job.
+const AMBIENT = 1.24
+const HEMI = 0.5
+const SUN_CAST = 1.75
 
 const FOG_BRIGHT = new Color('#c8ced4')
 const FOG_DECAY = new Color('#79876f')
@@ -271,25 +284,25 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
   return (
     <>
       {/* uprights: the dark green perforated columns */}
-      <instancedMesh ref={structRef} args={[undefined, undefined, STRUCT_MAX]} frustumCulled={false}>
+      <instancedMesh ref={structRef} args={[undefined, undefined, STRUCT_MAX]} frustumCulled={false} castShadow receiveShadow>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial color="#2f5b46" roughness={0.62} metalness={0.35} />
       </instancedMesh>
       {/* load beams: safety orange, the single most recognisable thing in here */}
-      <instancedMesh ref={beamRef} args={[undefined, undefined, BEAM_MAX]} frustumCulled={false}>
+      <instancedMesh ref={beamRef} args={[undefined, undefined, BEAM_MAX]} frustumCulled={false} castShadow receiveShadow>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial color="#d4560f" roughness={0.5} metalness={0.28} />
       </instancedMesh>
-      <instancedMesh ref={boxRef} args={[undefined, undefined, PROD_MAX]} frustumCulled={false}>
+      <instancedMesh ref={boxRef} args={[undefined, undefined, PROD_MAX]} frustumCulled={false} castShadow receiveShadow>
         <boxGeometry args={[0.2, 0.2, 0.2]} />
         <meshStandardMaterial roughness={0.85} metalness={0} />
       </instancedMesh>
-      <instancedMesh ref={canRef} args={[undefined, undefined, PROD_MAX]} frustumCulled={false}>
+      <instancedMesh ref={canRef} args={[undefined, undefined, PROD_MAX]} frustumCulled={false} castShadow receiveShadow>
         <cylinderGeometry args={[0.055, 0.055, 0.2, 10]} />
         <meshStandardMaterial roughness={0.4} metalness={0.6} />
       </instancedMesh>
       {/* reserve pallets, stretch-wrapped */}
-      <instancedMesh ref={palletRef} args={[undefined, undefined, PALLET_MAX]} frustumCulled={false}>
+      <instancedMesh ref={palletRef} args={[undefined, undefined, PALLET_MAX]} frustumCulled={false} castShadow receiveShadow>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial roughness={0.72} metalness={0.05} />
       </instancedMesh>
@@ -324,11 +337,11 @@ function FeaturedItem({ slot }: { slot: Slot }) {
   return (
     <group position={[x, 0, z]}>
       {/* display pedestal */}
-      <mesh position={[0, 0.5, 0]}>
+      <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
         <boxGeometry args={[0.5, 1.0, 0.5]} />
         <meshStandardMaterial color={glows ? '#2a2530' : '#d8d3c8'} roughness={0.85} />
       </mesh>
-      <mesh ref={spin} position={[0, 1.25, 0]} rotation={slot.rotation} scale={slot.scale * 0.9}>
+      <mesh ref={spin} position={[0, 1.25, 0]} rotation={slot.rotation} scale={slot.scale * 0.9} castShadow>
         {shapeGeometry(slot.shape)}
         <meshStandardMaterial
           color={slot.color}
@@ -396,12 +409,12 @@ function Fixture({ index }: { index: number }) {
         <meshStandardMaterial ref={matRef} color="#20242a" emissive={tube} emissiveIntensity={1.2} />
       </mesh>
       {/* reflector housing */}
-      <mesh position={[0, 0.16, 0]}>
+      <mesh position={[0, 0.16, 0]} castShadow>
         <boxGeometry args={[1.3, 0.24, 1.3]} />
         <meshStandardMaterial color="#3a3f45" roughness={0.55} metalness={0.6} />
       </mesh>
       {/* the drop rod up into the dark */}
-      <mesh position={[0, 0.9, 0]}>
+      <mesh position={[0, 0.9, 0]} castShadow>
         <boxGeometry args={[0.05, 1.3, 0.05]} />
         <meshStandardMaterial color="#2b3036" roughness={0.7} metalness={0.5} />
       </mesh>
@@ -457,8 +470,9 @@ function Cart({ index, lean }: { index: number; lean: number }) {
   const z = -index * SPACING
   return (
     <group position={[lean * 1.6, 0, z]} rotation={[0, lean * 0.7, 0]}>
-      {/* basket */}
-      <mesh position={[0, 0.72, 0]} rotation={[0, 0, 0.02]}>
+      {/* basket. The wireframe casts a wire shadow, which is the whole reason
+          a cart left in an aisle reads as abandoned rather than as decoration. */}
+      <mesh position={[0, 0.72, 0]} rotation={[0, 0, 0.02]} castShadow>
         <boxGeometry args={[0.52, 0.34, 0.8]} />
         <meshStandardMaterial color="#6a7076" roughness={0.35} metalness={0.8} wireframe />
       </mesh>
@@ -467,16 +481,16 @@ function Cart({ index, lean }: { index: number; lean: number }) {
         <meshStandardMaterial color="#23262a" roughness={0.6} metalness={0.7} transparent opacity={0.35} />
       </mesh>
       {/* frame + handle */}
-      <mesh position={[0, 0.35, 0]} rotation={[0.5, 0, 0]}>
+      <mesh position={[0, 0.35, 0]} rotation={[0.5, 0, 0]} castShadow>
         <boxGeometry args={[0.04, 0.5, 0.04]} />
         <meshStandardMaterial color="#6a7076" metalness={0.8} roughness={0.35} />
       </mesh>
-      <mesh position={[0, 0.94, 0.42]}>
+      <mesh position={[0, 0.94, 0.42]} castShadow>
         <boxGeometry args={[0.52, 0.035, 0.035]} />
         <meshStandardMaterial color="#8a2f28" roughness={0.5} />
       </mesh>
       {[[-0.2, 0.32], [0.2, 0.32], [-0.2, -0.32], [0.2, -0.32]].map(([wx, wz], i) => (
-        <mesh key={i} position={[wx, 0.06, wz]} rotation={[0, 0, Math.PI / 2]}>
+        <mesh key={i} position={[wx, 0.06, wz]} rotation={[0, 0, Math.PI / 2]} castShadow>
           <cylinderGeometry args={[0.06, 0.06, 0.03, 10]} />
           <meshStandardMaterial color="#111214" roughness={0.9} />
         </mesh>
@@ -540,7 +554,7 @@ function Floor() {
     ref.current.position.z = Math.round(camera.position.z / period) * period
   })
   return (
-    <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+    <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
       <planeGeometry args={[9, 160]} />
       <meshStandardMaterial map={tex} roughness={0.32} metalness={0.08} />
     </mesh>
@@ -596,16 +610,20 @@ function Ceiling() {
 
   return (
     <group ref={ref} position={[0, CEIL_Y + 0.12, 0]}>
+      {/* the deck deliberately does NOT cast. It is a solid plane above every
+          light in the building — shadow-mapping it would put the entire aisle
+          in shadow and nothing else would ever be visible again. The joists
+          below it do cast, which is where the banding on the slab comes from. */}
       <mesh ref={deckRef} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[9, DECK_SPAN * 1.4]} />
         <meshStandardMaterial color="#c2c7cc" roughness={0.95} />
       </mesh>
-      <instancedMesh ref={joistRef} args={[undefined, undefined, JOIST_N]} frustumCulled={false}>
+      <instancedMesh ref={joistRef} args={[undefined, undefined, JOIST_N]} frustumCulled={false} castShadow>
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial color="#aeb4b8" roughness={0.72} metalness={0.35} />
       </instancedMesh>
       {/* sprinkler main. It is red because the code says it is red. */}
-      <mesh position={[2.15, -0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={[2.15, -0.5, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
         <cylinderGeometry args={[0.07, 0.07, DECK_SPAN * 1.4, 8]} />
         <meshStandardMaterial color="#8e2118" roughness={0.55} metalness={0.3} />
       </mesh>
@@ -734,20 +752,30 @@ function Figure() {
 
 // ── atmosphere: fog / light / background track the walker's depth ────────────
 function Atmosphere() {
-  const { scene } = useThree()
+  const { scene, viewport } = useThree()
   const ambientRef = useRef<AmbientLight>(null)
   const p1 = useRef<PointLight>(null)
   const p2 = useRef<PointLight>(null)
   const sun = useRef<PointLight>(null)
+  const caster = useRef<DirectionalLight>(null)
+  const casterTarget = useRef<Object3D>(null)
   const fogRef = useRef<Fog | null>(null)
   const bg = useRef(new Color())
   // whole-corridor brown-out: every so often the power sags and everything dims
   const brown = useRef({ level: 1, until: 0, next: 4 })
+  // One shadow map over an infinite corridor. A high frustum because the light
+  // comes down steeply from above the deck; only ~12 m of width because the
+  // aisle is 9 m and nothing outside it is ever lit.
+  const shadowSize = viewport.dpr > 1.25 ? 2048 : 1024
   useEffect(() => {
     fogRef.current = new Fog('#c8ced4', 10, 46)
     scene.fog = fogRef.current
     return () => { scene.fog = null }
   }, [scene])
+  // a directional light needs somewhere to point, and it has to travel with us
+  useEffect(() => {
+    if (caster.current && casterTarget.current) caster.current.target = casterTarget.current
+  }, [])
   useFrame(({ camera, clock }) => {
     const idx = Math.max(0, -camera.position.z / SPACING)
     const { flicker, decay, dark } = zoneAt(idx)
@@ -776,7 +804,7 @@ function Atmosphere() {
       bg.current.copy(fog.color).multiplyScalar(0.55 + bl * 0.45)
       scene.background = bg.current
     }
-    if (ambientRef.current) ambientRef.current.intensity = (1.55 - decay * 0.62 - dark * 0.92) * (0.4 + bl * 0.6)
+    if (ambientRef.current) ambientRef.current.intensity = (AMBIENT - decay * 0.5 - dark * 0.74) * (0.4 + bl * 0.6)
     // two pooled lights ride along near the closest fixtures
     const flickMul = flicker > 0.05 && Math.sin(t * 17.3) * Math.sin(t * 5.1) < -0.75 ? 0.28 : 1
     const zBase = Math.round(camera.position.z / (SPACING * FIXTURE_EVERY)) * SPACING * FIXTURE_EVERY
@@ -798,15 +826,103 @@ function Atmosphere() {
       sun.current.position.set(0, CEIL_Y - 0.6, zBase - SPACING * (FIXTURE_EVERY / 2))
       sun.current.intensity = Math.max(0, 4.6 - decay * 1.8 - dark * 4.6)
     }
+
+    // The one light that casts. It rides the walker, comes down steeply from
+    // above the deck, and is the same light as the skylights — so it dies with
+    // them, and the far end of the aisle has no shadows in it at all, because
+    // there is nothing left up there to make one.
+    const c = caster.current
+    const ct = casterTarget.current
+    if (c && ct) {
+      const lit = Math.max(0, 1 - decay * 0.42 - dark * 1.0)
+      // stop paying for a shadow pass once nothing is casting one
+      c.castShadow = lit > 0.02
+      c.intensity = lit * SUN_CAST * (0.55 + bl * 0.45)
+      c.color.set(decay > 0.4 ? '#e8f0dc' : '#eaf1fb')
+      const cz = camera.position.z
+      ct.position.set(0, 0, cz - 9)
+      ct.updateMatrixWorld()
+      c.position.set(3.4, CEIL_Y + 5.6, cz - 3.2)
+    }
+
+    // reflections fade with the building. Metal in the dark end is just dark.
+    scene.environmentIntensity = Math.max(0.04, (0.62 - decay * 0.26 - dark * 0.5)) * bl
   })
   return (
     <>
-      <ambientLight ref={ambientRef} intensity={1.55} color="#e6ebf0" />
-      <hemisphereLight args={['#f2f6f9', '#4a463c', 0.7]} />
+      <ambientLight ref={ambientRef} intensity={AMBIENT} color="#e6ebf0" />
+      <hemisphereLight args={['#f2f6f9', '#4a463c', HEMI]} />
       <pointLight ref={p1} intensity={5.2} distance={22} decay={1.35} />
       <pointLight ref={p2} intensity={4.0} distance={22} decay={1.35} />
       <pointLight ref={sun} color="#e4edf8" intensity={4.6} distance={20} decay={1.25} />
+      <object3D ref={casterTarget} />
+      <directionalLight
+        ref={caster}
+        castShadow
+        intensity={2.1}
+        color="#eaf1fb"
+        shadow-mapSize-width={shadowSize}
+        shadow-mapSize-height={shadowSize}
+        shadow-camera-left={-6.5}
+        shadow-camera-right={6.5}
+        shadow-camera-top={18}
+        shadow-camera-bottom={-18}
+        shadow-camera-near={0.5}
+        shadow-camera-far={42}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.022}
+      />
+      <AisleEnvironment />
     </>
+  )
+}
+
+// ── what the steel has to look at ────────────────────────────────────────────
+// Every metal surface in here was already set to metalness 0.35–0.8 and had
+// nothing to reflect, which renders as grey plastic — a mirror in an empty room
+// is just grey. This is the room: a long bright strip overhead where the deck
+// and the skylights are, two dim strips down the sides for the racking, and
+// black underneath. Rendered once (`frames={1}`), no HDR fetch, no CSP concern.
+function AisleEnvironment() {
+  return (
+    <Environment resolution={64} frames={1}>
+      <color attach="background" args={['#05060a']} />
+      {/* the deck: one long slot of daylight running the length of the aisle */}
+      <Lightformer
+        form="rect"
+        intensity={2.6}
+        color="#eef4fb"
+        position={[0, 9, 0]}
+        rotation={[Math.PI / 2, 0, 0]}
+        scale={[3.2, 34, 1]}
+      />
+      {/* the two rows of racking, catching a little of it */}
+      <Lightformer
+        form="rect"
+        intensity={0.34}
+        color="#9aa6a0"
+        position={[-5.4, 3, 0]}
+        rotation={[0, Math.PI / 2, 0]}
+        scale={[26, 7, 1]}
+      />
+      <Lightformer
+        form="rect"
+        intensity={0.34}
+        color="#9aa6a0"
+        position={[5.4, 3, 0]}
+        rotation={[0, -Math.PI / 2, 0]}
+        scale={[26, 7, 1]}
+      />
+      {/* the slab. Sealed concrete bounces, but it bounces grey. */}
+      <Lightformer
+        form="rect"
+        intensity={0.16}
+        color="#8e8e8b"
+        position={[0, -1, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        scale={[8, 30, 1]}
+      />
+    </Environment>
   )
 }
 
@@ -985,6 +1101,7 @@ function Scene({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => vo
 export default function AisleCanvas({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => void }) {
   return (
     <Canvas
+      shadows="soft"
       camera={{ position: [0, 1.55, 0], fov: 55 }}
       dpr={[1, 1.5]}
       gl={{ antialias: true, alpha: false }}
