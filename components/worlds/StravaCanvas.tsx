@@ -1,8 +1,8 @@
 'use client'
 import { Suspense, useMemo, useRef, useEffect } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, Text } from '@react-three/drei'
-import { BufferGeometry, Float32BufferAttribute, PlaneGeometry, Points, ShaderMaterial, AdditiveBlending, Color, Vector3 } from 'three'
+import { OrbitControls } from '@react-three/drei'
+import { BufferGeometry, Float32BufferAttribute, PlaneGeometry, Points, PointsMaterial, ShaderMaterial, AdditiveBlending, Color, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { SCALE, GEO_RADIUS_WORLD } from '@/lib/geo'
 
@@ -167,6 +167,7 @@ function GhostRunner({ activity, terrain, minElev, lift, maxHeight }: { activity
   const SAMPLES_PER_SEC = 9   // a patient jog, not a racer
   const headGeoRef = useRef<Points>(null)
   const tailGeoRef = useRef<Points>(null)
+  const startMatRef = useRef<PointsMaterial>(null)
   const progress = useRef(0)
 
   const reduced = useMemo(
@@ -196,6 +197,15 @@ function GhostRunner({ activity, terrain, minElev, lift, maxHeight }: { activity
     return g
   }, [])
 
+  // Where the run began. Invisible while the ghost is standing on it, and it
+  // brightens as the ghost gets further round the loop — so the mark reads as a
+  // place someone left from rather than a pin dropped on a map. No label.
+  const startGeo = useMemo(() => {
+    const g = new BufferGeometry()
+    g.setAttribute('position', new Float32BufferAttribute(new Float32Array([route[0], route[1], route[2]]), 3))
+    return g
+  }, [route])
+
   const tailGeo = useMemo(() => {
     const g = new BufferGeometry()
     g.setAttribute('position', new Float32BufferAttribute(new Float32Array(TAIL * 3), 3))
@@ -212,7 +222,7 @@ function GhostRunner({ activity, terrain, minElev, lift, maxHeight }: { activity
     return g
   }, [])
 
-  useEffect(() => () => { headGeo.dispose(); tailGeo.dispose() }, [headGeo, tailGeo])
+  useEffect(() => () => { headGeo.dispose(); tailGeo.dispose(); startGeo.dispose() }, [headGeo, tailGeo, startGeo])
 
   // Wrapped, linearly-interpolated sample at a float index — so the loop seams smoothly.
   const sampleAt = useMemo(() => {
@@ -252,12 +262,22 @@ function GhostRunner({ activity, terrain, minElev, lift, maxHeight }: { activity
     if (reduced) return
     progress.current += Math.min(dt, 0.05) * SAMPLES_PER_SEC
     writeAt(progress.current)
+    // Distance around the loop from the start, as a fraction, folded so the
+    // mark fades back out on the approach as well as in on the departure.
+    if (startMatRef.current) {
+      const frac = ((progress.current % count) + count) % count / count
+      const away = Math.min(frac / 0.18, (1 - frac) / 0.18, 1)
+      startMatRef.current.opacity = Math.max(0, away) * 0.5
+    }
   })
 
   if (count < 8) return null
 
   return (
     <group renderOrder={2}>
+      <points geometry={startGeo}>
+        <pointsMaterial ref={startMatRef} size={4} color="#7fb2ff" transparent opacity={0} sizeAttenuation={false} blending={AdditiveBlending} depthWrite={false} depthTest={false} />
+      </points>
       <points ref={tailGeoRef} geometry={tailGeo}>
         <pointsMaterial size={3.2} vertexColors transparent opacity={0.9} sizeAttenuation={false} blending={AdditiveBlending} depthWrite={false} depthTest={false} />
       </points>
@@ -268,57 +288,7 @@ function GhostRunner({ activity, terrain, minElev, lift, maxHeight }: { activity
   )
 }
 
-// Fakes an extruded 3D block out of flat SDF text (cheap, GPU-safe) by stacking many copies
-// a hair's-width apart in Z with a front-to-back color gradient — a solid-looking block from any
-// angle without the heavy CPU-side geometry a true extruded font (Text3D) generates per glyph.
-function ExtrudedTextLine({ text, y, size }: { text: string; y: number; size: number }) {
-  const LAYERS = 10
-  const stepDepth = size * 0.05
-  const front = new Color('#f5f8fc')
-  const back = new Color('#7a3312')
-
-  return (
-    <group position={[0, y, 0]}>
-      {Array.from({ length: LAYERS }).map((_, i) => {
-        const t = i / (LAYERS - 1)
-        const col = front.clone().lerp(back, t)
-        return (
-          <Text
-            key={i}
-            position={[0, 0, -i * stepDepth]}
-            fontSize={size}
-            color={col}
-            anchorX="center"
-            anchorY="middle"
-            letterSpacing={0.02}
-            outlineWidth={i === 0 ? size * 0.02 : 0}
-            outlineColor="#FC4C02"
-          >
-            {text}
-          </Text>
-        )
-      })}
-    </group>
-  )
-}
-
-function SkyText({ radius, coveragePct }: { radius: number; coveragePct: number | null }) {
-  const size = radius * 0.1
-  const y = radius * 0.9
-  const z = -radius * 0.2
-
-  return (
-    <group position={[0, y, z]}>
-      <ExtrudedTextLine text="TYLER STRAVA" y={size * 0.65} size={size} />
-      <ExtrudedTextLine text="RUN MAP" y={-size * 0.65} size={size} />
-      {coveragePct !== null && (
-        <ExtrudedTextLine text={`${coveragePct}% OF BOULDER RUN`} y={-size * 1.55} size={size * 0.4} />
-      )}
-    </group>
-  )
-}
-
-function Scene({ activities, terrain, coveragePct }: { activities: RouteActivity[]; terrain: TerrainData; coveragePct: number | null }) {
+function Scene({ activities, terrain }: { activities: RouteActivity[]; terrain: TerrainData }) {
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const minElev = useMemo(() => Math.min(...terrain.elevations), [terrain])
   // Scale the lift with the terrain's actual relief range (not a fixed constant) so it stays
@@ -342,25 +312,21 @@ function Scene({ activities, terrain, coveragePct }: { activities: RouteActivity
 
   return (
     <>
-      <color attach="background" args={['#050506']} />
-      <fog attach="fog" args={['#050506', GEO_RADIUS_WORLD * 2.2, GEO_RADIUS_WORLD * 5]} />
       <TerrainMesh terrain={terrain} minElev={minElev} />
       <RouteCloud activities={activities} terrain={terrain} minElev={minElev} lift={routeLift} maxHeight={routeMaxHeight} />
       {ghost && (
         <GhostRunner activity={ghost} terrain={terrain} minElev={minElev} lift={routeLift} maxHeight={routeMaxHeight} />
       )}
-      {/* drei's <Text> suspends while its font loads — isolate it so a slow
-          font fetch can't hold the terrain and routes off-screen */}
-      <Suspense fallback={null}>
-        <SkyText radius={GEO_RADIUS_WORLD} coveragePct={coveragePct} />
-      </Suspense>
       <OrbitControls
         ref={controlsRef}
         target={[0, 0, 0]}
         enableDamping
         dampingFactor={0.08}
         minDistance={GEO_RADIUS_WORLD * 0.15}
-        maxDistance={GEO_RADIUS_WORLD * 3}
+        // The authored opening shot sits at ~3.06 radii out; a 3.0 cap silently
+        // clamped it on the first controls update, so the first frame was never
+        // quite the framing this file asks for.
+        maxDistance={GEO_RADIUS_WORLD * 3.4}
         maxPolarAngle={Math.PI * 0.49}
         minPolarAngle={0.05}
       />
@@ -368,7 +334,15 @@ function Scene({ activities, terrain, coveragePct }: { activities: RouteActivity
   )
 }
 
-export default function StravaCanvas({ activities, terrain, coveragePct = null }: { activities: RouteActivity[]; terrain: TerrainData; coveragePct?: number | null }) {
+// The canvas mounts unconditionally and the survey drops in when it lands.
+// It used to mount only once `terrain` had arrived, which raced R3F's own
+// container measurement: mounting into a commit that was still settling made
+// react-use-measure report 0x0, and R3F then never initialized at all — a live,
+// non-lost WebGL context that never rendered a frame and never mounted a single
+// child. Silent, no console error, and it survived until any resize kicked the
+// ResizeObserver. Mounting up-front (the same shape World 14 uses) removes the
+// race entirely, and doubles as the fix for terrain no longer gating first paint.
+export default function StravaCanvas({ activities, terrain }: { activities: RouteActivity[]; terrain: TerrainData | null }) {
   const camDistance = (GEO_RADIUS_WORLD * 1.3) / Math.tan((FOV / 2) * (Math.PI / 180))
 
   return (
@@ -377,7 +351,9 @@ export default function StravaCanvas({ activities, terrain, coveragePct = null }
       dpr={[1, 1.5]}
       gl={{ antialias: true, alpha: false }}
     >
-      <Scene activities={activities} terrain={terrain} coveragePct={coveragePct} />
+      <color attach="background" args={['#050506']} />
+      <fog attach="fog" args={['#050506', GEO_RADIUS_WORLD * 2.2, GEO_RADIUS_WORLD * 5]} />
+      {terrain && <Scene activities={activities} terrain={terrain} />}
     </Canvas>
   )
 }

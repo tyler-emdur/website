@@ -572,6 +572,92 @@ Features that must never be removed:
 
 # Session History
 
+## 2026-07-24 — World 2 (Explorer): it was never rendering
+
+Objective:
+Session 1 of PLAN.md — stop World 2 being the worst experience on the site.
+
+Why:
+Walking all ten worlds against Tyler's inspiration sheet, World 2 was the only
+one that was actually broken rather than merely thin. It sat on "SURVEYING
+BOULDER…" for ~20s and then showed a black screen with a stats panel in the
+corner. Scrolling or dragging would sometimes bring the map up, which is what
+disguised it as a framing problem.
+
+Things Discovered (the real bug, and it is not what it looked like):
+The canvas was never initializing at all. `<StravaCanvas>` was mounted
+conditionally — `{!loading && configured && terrain && <StravaCanvas/>}` — so it
+entered the tree in a commit that was still settling, R3F's `react-use-measure`
+read the container as 0x0, and R3F then never completed initialization: a live,
+non-lost WebGL context, correctly sized drawing buffer, and not one frame ever
+rendered, not one child ever mounted. Silent — no console error. Proven by
+dispatching a bare `window.resize`, which kicked the ResizeObserver and brought
+the entire scene up instantly.
+
+This is the same silent R3F failure logged on 2026-07-16/17 for the Garage
+(two simultaneous canvases). Different trigger, same signature. Worth treating
+as a standing rule for this codebase: **mount R3F canvases unconditionally and
+let them render an empty scene, never gate them on async data.** World 14 does
+it that way, which is why World 14 never had this.
+
+Second discovery, also contrary to expectation: the ~20s wait was NOT
+street-coverage.json. That file is 3.8MB raw but serves gzipped in ~150ms. The
+wait was `/api/strava` — 23ms warm, but ~21s on a cold `unstable_cache` miss
+(OAuth refresh + 6 sequential Strava pages, revalidated 6-hourly). So roughly
+one visitor every six hours paid a 21-second black screen, and terrain.json —
+8kB, 40ms, and the thing that actually makes this a place — sat downloaded and
+unused inside the same `Promise.all` the whole time.
+
+Changes Made:
+- components/worlds/World2Explorer.tsx
+  - `<StravaCanvas>` mounts unconditionally, first in the DOM, in a z-index 0
+    wrapper so the HUD overlays keep painting above it.
+  - One `Promise.all` split into three independent loads: terrain (draws the
+    ground immediately), strava (routes + stats arrive when they arrive),
+    coverage (one stat, fills in late). Replaced the single `loading` flag with
+    `terrainLoaded` / `stravaLoaded`.
+  - "SURVEYING BOULDER" now only covers the gap before the ground lands.
+- components/worlds/StravaCanvas.tsx
+  - `terrain` is now nullable; background + fog render always, the scene when
+    terrain exists.
+  - Removed `SkyText` / `ExtrudedTextLine` — the "TYLER STRAVA / RUN MAP /
+    66.5% OF BOULDER RUN" floating title card. It was the most portfolio-shaped
+    object on the site (non-negotiable #1) and the corner panel already carries
+    the number honestly and quietly.
+  - OrbitControls `maxDistance` 3.0 → 3.4 radii. The authored opening shot sits
+    at ~3.06 radii, so the old cap silently clamped the first frame to a
+    framing this file never asked for.
+
+Atmospheric Details Added (Delight Rule):
+- The ghost runner now has a start marker: a small cool point at the first
+  sample of the route it retraces, invisible while the ghost is standing on it
+  and brightening as the ghost gets further round the loop, then fading again on
+  the approach. No label. It reads as a place someone left from. Stays dark
+  under prefers-reduced-motion, where the ghost is parked at the start anyway.
+
+Verification:
+- `next build` clean.
+- Production build (`next start`), fresh tab, no resize: world renders on its
+  own. Rendered by ~2.5s from navigation start; all network complete at 369ms
+  and the route geometry build measured at 21ms for 367 activities / 27,795
+  points, so the remainder is WebGL init. (Screenshot-based timing carries
+  ~±0.5s of tooling latency — treat 1–2s as approximate, not instrumented.)
+- Warm `/api/strava` 23ms, cold 20.8s — confirmed the cache works and that the
+  cold miss no longer holds the ground hostage.
+- No console errors; orbit/damping unchanged; stats panel and coverage stat
+  both present and correctly layered above the canvas.
+
+Website Scores:
+- Immersion: + (a world that renders at all)  Polish: +  Performance: +
+- Originality: + (title card gone)  Mystery: = (start marker adds, explains nothing)
+
+Recommended Focus For Tomorrow:
+PLAN.md Session 2 — the light and shadow pass in Warehouse 14.
+
+Risk Level: Low
+
+---
+
 ## 2026-07-16 — The World That Isn't (World 1 · Universe)
 
 Objective:

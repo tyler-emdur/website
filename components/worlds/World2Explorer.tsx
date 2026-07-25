@@ -44,48 +44,81 @@ interface StreetCoverageResponse {
 
 export default function World2Explorer() {
   const [state, setState] = useState<{
-    loading: boolean
+    terrainLoaded: boolean
+    stravaLoaded: boolean
     configured: boolean
     activities: RouteActivity[]
     stats: Stats | null
     terrain: TerrainData | null
     coverage: StreetCoverageResponse | null
-  }>({ loading: true, configured: true, activities: [], stats: null, terrain: null, coverage: null })
+  }>({ terrainLoaded: false, stravaLoaded: false, configured: true, activities: [], stats: null, terrain: null, coverage: null })
 
+  // Three independent loads, fastest-first, because they have wildly different
+  // costs and only one of them is the world.
+  //
+  //   terrain.json        8kB, ~40ms   — the ground. This IS the place.
+  //   /api/strava         1.1MB        — 23ms warm, but ~21s on a cold cache
+  //                                      miss (OAuth refresh + 6 sequential
+  //                                      Strava pages, revalidated 6-hourly).
+  //   street-coverage     3.8MB raw    — ~150ms gzipped; feeds one line of text.
+  //
+  // These used to share one Promise.all, so every visitor waited on the slowest
+  // — and whoever arrived first after a revalidation stared at a black screen
+  // for twenty seconds while the ground sat there already downloaded.
   useEffect(() => {
     let cancelled = false
-    Promise.all([
-      fetch('/api/strava').then(r => r.json()) as Promise<StravaResponse>,
-      // terrain is baked at build time (scripts/bake-terrain.mjs) — static, CDN-cached
-      fetch('/terrain.json').then(r => r.json()) as Promise<TerrainResponse>,
-      // street coverage is baked periodically (scripts/street-coverage/*) — static, CDN-cached.
-      // Optional: older deploys or a not-yet-baked file simply omit the stat.
-      fetch('/street-coverage.json').then(r => (r.ok ? r.json() : null)).catch(() => null) as Promise<StreetCoverageResponse | null>,
-    ])
-      .then(([strava, terrain, coverage]) => {
+
+    // terrain is baked at build time (scripts/bake-terrain.mjs) — static, CDN-cached
+    ;(fetch('/terrain.json').then(r => r.json()) as Promise<TerrainResponse>)
+      .then(terrain => {
         if (cancelled) return
-        setState({
-          loading: false,
-          configured: strava.configured && terrain.configured && terrain.elevations.length > 0,
-          activities: strava.activities ?? [],
-          stats: strava.stats ?? null,
-          terrain: terrain.elevations.length > 0
+        setState(s => ({
+          ...s,
+          terrainLoaded: true,
+          terrain: terrain.configured && terrain.elevations.length > 0
             ? { resolution: terrain.resolution, radius: terrain.radius, elevations: terrain.elevations }
             : null,
-          coverage,
-        })
+        }))
       })
-      .catch(() => {
-        if (!cancelled) setState(s => ({ ...s, loading: false, configured: false }))
+      .catch(() => { if (!cancelled) setState(s => ({ ...s, terrainLoaded: true })) })
+
+    ;(fetch('/api/strava').then(r => r.json()) as Promise<StravaResponse>)
+      .then(strava => {
+        if (cancelled) return
+        setState(s => ({
+          ...s,
+          stravaLoaded: true,
+          configured: strava.configured,
+          activities: strava.activities ?? [],
+          stats: strava.stats ?? null,
+        }))
       })
+      .catch(() => { if (!cancelled) setState(s => ({ ...s, stravaLoaded: true, configured: false })) })
+
+    // street coverage is baked periodically (scripts/street-coverage/*) — static,
+    // CDN-cached. Optional: older deploys or a not-yet-baked file simply omit the
+    // stat, and it fills in whenever it arrives.
+    ;(fetch('/street-coverage.json')
+      .then(r => (r.ok ? r.json() : null))
+      .catch(() => null) as Promise<StreetCoverageResponse | null>)
+      .then(coverage => { if (!cancelled) setState(s => ({ ...s, coverage })) })
+
     return () => { cancelled = true }
   }, [])
 
   return (
     <div data-world="2" style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#050506' }}>
+      {/* Mounted up-front and never gated on the data — see the note on
+          StravaCanvas. Gating it is what stalled R3F's container measurement and
+          left the world as a permanently black canvas. It sits first in the DOM
+          at z-index 0 so the overlays below keep painting over it. */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+        <StravaCanvas activities={state.activities} terrain={state.terrain} />
+      </div>
+
       <HomeButton />
 
-      {!state.loading && state.configured && state.stats && (
+      {state.stravaLoaded && state.configured && state.stats && (
         <div style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 20,
           fontFamily: '"Space Mono", monospace', fontSize: 10, lineHeight: 1.8,
@@ -113,12 +146,11 @@ export default function World2Explorer() {
         </div>
       )}
 
-      {/* street-coverage.json is a few hundred KB even compressed, and the
-          terrain can't draw until it lands. Without this the world is just a
-          black rectangle for the whole download and reads as broken. */}
-      {state.loading && (
+      {/* Only covers the gap before the ground lands — ~40ms now that it no
+          longer waits on Strava. The routes drop in afterwards, on their own. */}
+      {!state.terrainLoaded && (
         <div style={{
-          position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'fixed', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: '"Space Mono", monospace', color: 'rgba(255,255,255,0.35)', fontSize: 11,
           letterSpacing: 2, textTransform: 'uppercase',
         }}>
@@ -126,17 +158,13 @@ export default function World2Explorer() {
         </div>
       )}
 
-      {!state.loading && !state.configured && (
+      {state.stravaLoaded && !state.configured && (
         <div style={{
-          position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'fixed', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: '"Space Mono", monospace', color: 'rgba(255,255,255,0.4)', fontSize: 12,
         }}>
           strava not connected — nothing to show yet
         </div>
-      )}
-
-      {!state.loading && state.configured && state.terrain && (
-        <StravaCanvas activities={state.activities} terrain={state.terrain} coveragePct={state.coverage?.combined.pct ?? null} />
       )}
     </div>
   )
