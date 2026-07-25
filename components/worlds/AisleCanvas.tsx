@@ -1,11 +1,10 @@
 'use client'
 import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Environment, Lightformer } from '@react-three/drei'
+import { Canvas, useFrame, useThree, advance } from '@react-three/fiber'
 import {
   MathUtils, Object3D, Color, InstancedMesh, CanvasTexture, Mesh, Group,
   MeshStandardMaterial, MeshBasicMaterial, PointLight, AmbientLight, DirectionalLight,
-  Fog, NearestFilter,
+  Fog, NearestFilter, EquirectangularReflectionMapping, SRGBColorSpace,
 } from 'three'
 import { SPACING, RAIL_X, getSlot, type Slot, type Shape } from './aisle-data'
 
@@ -84,6 +83,54 @@ const PRINTED = [
 // stretch wrap over a pallet is not grey, it is a cloudy near-white
 const WRAP = ['#dfe3dd', '#d6dbd6', '#e6e9e2']
 
+// ── what a case actually looks like ──────────────────────────────────────────
+// Every case in here was a flat solid colour, and a wall of untextured lambert
+// boxes is the single loudest "this was generated" signal in the frame. A real
+// shipping case has a tape seam up the middle, the flap edges either side of it,
+// a printed panel, and corrugation showing at the cut edges.
+//
+// Kept near-white on purpose: it multiplies against the per-instance colour
+// that already carries the cardboard/printed palette, so one texture serves
+// every case in the aisle without touching the colour logic.
+function caseTexture() {
+  const cv = document.createElement('canvas')
+  cv.width = 128; cv.height = 128
+  const cx = cv.getContext('2d')!
+  cx.fillStyle = '#ffffff'
+  cx.fillRect(0, 0, 128, 128)
+  // corrugation: fine vertical fluting, only just visible
+  for (let x = 0; x < 128; x += 2) {
+    cx.fillStyle = `rgba(0,0,0,${0.018 + (x % 4 === 0 ? 0.012 : 0)})`
+    cx.fillRect(x, 0, 1, 128)
+  }
+  // the flaps: two seams running the height, either side of centre
+  cx.fillStyle = 'rgba(0,0,0,0.10)'
+  cx.fillRect(30, 0, 2, 128)
+  cx.fillRect(96, 0, 2, 128)
+  // packing tape up the middle — lighter and shinier than the board
+  cx.fillStyle = 'rgba(255,255,255,0.30)'
+  cx.fillRect(56, 0, 17, 128)
+  cx.fillStyle = 'rgba(0,0,0,0.13)'
+  cx.fillRect(55, 0, 1, 128)
+  cx.fillRect(73, 0, 1, 128)
+  // the printed panel: a block and two rules, no legible text at this size
+  cx.fillStyle = 'rgba(0,0,0,0.11)'
+  cx.fillRect(38, 40, 52, 22)
+  cx.fillStyle = 'rgba(0,0,0,0.07)'
+  cx.fillRect(38, 70, 52, 4)
+  cx.fillRect(38, 78, 34, 4)
+  // a stencilled handling mark, off to one side
+  cx.fillStyle = 'rgba(0,0,0,0.09)'
+  cx.fillRect(104, 44, 14, 14)
+  // wear along the bottom edge, where cases get dragged
+  for (let i = 0; i < 40; i++) {
+    cx.fillStyle = `rgba(0,0,0,${0.03 + Math.random() * 0.05})`
+    cx.fillRect(Math.random() * 128, 118 + Math.random() * 10, 2 + Math.random() * 9, 1 + Math.random() * 2)
+  }
+  const t = new CanvasTexture(cv)
+  return t
+}
+
 // ── canvas-texture text sprites (no troika) ──────────────────────────────────
 function makeLabelTexture(lines: { text: string; size: number; color: string }[], bg: string | null, w = 256, h = 128) {
   const cv = document.createElement('canvas')
@@ -131,6 +178,9 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
   const boxRef = useRef<InstancedMesh>(null)
   const canRef = useRef<InstancedMesh>(null)
   const palletRef = useRef<InstancedMesh>(null)
+  // one texture for every case in the aisle — it multiplies against the
+  // per-instance colour, so the cardboard/printed palette still does the work
+  const caseTex = useMemo(caseTexture, [])
 
   const STRUCT_MAX = 2 * (WINDOW_AHEAD + WINDOW_BEHIND + 2) * 8
   const PROD_MAX = 2 * (WINDOW_AHEAD + WINDOW_BEHIND + 2) * 10
@@ -295,7 +345,7 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
       </instancedMesh>
       <instancedMesh ref={boxRef} args={[undefined, undefined, PROD_MAX]} frustumCulled={false} castShadow receiveShadow>
         <boxGeometry args={[0.2, 0.2, 0.2]} />
-        <meshStandardMaterial roughness={0.85} metalness={0} />
+        <meshStandardMaterial map={caseTex} roughness={0.85} metalness={0} />
       </instancedMesh>
       <instancedMesh ref={canRef} args={[undefined, undefined, PROD_MAX]} frustumCulled={false} castShadow receiveShadow>
         <cylinderGeometry args={[0.055, 0.055, 0.2, 10]} />
@@ -304,7 +354,7 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
       {/* reserve pallets, stretch-wrapped */}
       <instancedMesh ref={palletRef} args={[undefined, undefined, PALLET_MAX]} frustumCulled={false} castShadow receiveShadow>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial roughness={0.72} metalness={0.05} />
+        <meshStandardMaterial map={caseTex} roughness={0.72} metalness={0.05} />
       </instancedMesh>
     </>
   )
@@ -768,7 +818,7 @@ function Atmosphere() {
   // aisle is 9 m and nothing outside it is ever lit.
   const shadowSize = viewport.dpr > 1.25 ? 2048 : 1024
   useEffect(() => {
-    fogRef.current = new Fog('#c8ced4', 10, 46)
+    fogRef.current = new Fog('#c8ced4', 16, 62)
     scene.fog = fogRef.current
     return () => { scene.fog = null }
   }, [scene])
@@ -799,8 +849,13 @@ function Atmosphere() {
     const fog = fogRef.current
     if (fog) {
       fog.color.copy(FOG_BRIGHT).lerp(FOG_DECAY, decay).lerp(FOG_DARK, dark)
-      fog.near = 10 - dark * 7
-      fog.far = 46 - decay * 12 - dark * 22
+      // The haze used to start at 10 m and close out at 46, which whited the
+      // aisle out well before the point of the world — that it does not end —
+      // had a chance to land. Pushed back to 16/62, which is exactly the depth
+      // of geometry that gets generated (WINDOW_AHEAD × SPACING), so the aisle
+      // now fades out precisely where it stops being built.
+      fog.near = 16 - dark * 11
+      fog.far = 62 - decay * 16 - dark * 30
       bg.current.copy(fog.color).multiplyScalar(0.55 + bl * 0.45)
       scene.background = bg.current
     }
@@ -878,51 +933,147 @@ function Atmosphere() {
 }
 
 // ── what the steel has to look at ────────────────────────────────────────────
-// Every metal surface in here was already set to metalness 0.35–0.8 and had
-// nothing to reflect, which renders as grey plastic — a mirror in an empty room
-// is just grey. This is the room: a long bright strip overhead where the deck
-// and the skylights are, two dim strips down the sides for the racking, and
-// black underneath. Rendered once (`frames={1}`), no HDR fetch, no CSP concern.
+// The first version of this used drei's <Environment> with <Lightformer>
+// children, and it was wrong twice. It cost load time for a cube-camera render
+// and an extra module, and it made the picture *worse*: measured against
+// production, it lifted the rack interiors from luminance 109 to 133, filling
+// in the one region that needed to get darker.
+//
+// The deeper mistake was thinking metal needs something bright to reflect. It
+// needs something *dark* — a mirror in a uniformly bright room renders as
+// uniform brightness, which is exactly the grey plastic it was meant to fix.
+//
+// So: hand-rolled equirectangular map, 128×64 of canvas, no new import and
+// nothing to download. Bright overhead where the deck and skylights are, and
+// genuinely dark across the ±X horizon where the backs of the racking are, so
+// steel picks up a hard light-to-dark edge as it turns.
+function aisleEnvMap() {
+  const cv = document.createElement('canvas')
+  cv.width = 128; cv.height = 64
+  const cx = cv.getContext('2d')!
+  for (let y = 0; y < 64; y++) {
+    const v = y / 63                                 // 0 = straight up, 1 = straight down
+    for (let x = 0; x < 128; x++) {
+      // azimuth: 0 and 0.5 look down the aisle, 0.25 and 0.75 look into the racks
+      const az = x / 128
+      const downAisle = Math.abs(Math.cos(az * Math.PI * 2))   // 1 along ±Z, 0 along ±X
+      let r: number, g: number, b: number
+      if (v < 0.30) {
+        // the deck and the skylights
+        const t = v / 0.30
+        r = 238 - t * 26; g = 244 - t * 24; b = 251 - t * 20
+      } else if (v < 0.60) {
+        // the horizon. Down the aisle it is bright haze; into the racks it is
+        // the back of the next aisle's pallets, and that is nearly black.
+        const t = (v - 0.30) / 0.30
+        const lit = downAisle * (1 - t * 0.45)
+        r = 26 + lit * 170; g = 28 + lit * 176; b = 32 + lit * 184
+      } else {
+        // the slab: bounces, but bounces grey, and darker under the racks
+        const t = (v - 0.60) / 0.40
+        const f = (0.32 + downAisle * 0.24) * (1 - t * 0.55)
+        r = 250 * f; g = 250 * f; b = 246 * f
+      }
+      cx.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`
+      cx.fillRect(x, y, 1, 1)
+    }
+  }
+  const t = new CanvasTexture(cv)
+  t.mapping = EquirectangularReflectionMapping
+  t.colorSpace = SRGBColorSpace
+  return t
+}
+
 function AisleEnvironment() {
+  const { scene } = useThree()
+  useEffect(() => {
+    const tex = aisleEnvMap()
+    scene.environment = tex
+    return () => { scene.environment = null; tex.dispose() }
+  }, [scene])
+  return null
+}
+
+// ── the far side of the building ─────────────────────────────────────────────
+// This is the one that mattered. The racking had no back: you could see bright
+// fog straight through the shelves on both sides, so every gap in the geometry
+// was a hole onto a white void, and the aisle read as a diagram floating in
+// nothing rather than a corridor inside a building.
+//
+// Measured, the frame had only 4% of its pixels below luminance 32. A club
+// store is back-to-back racking — what is actually behind the pick face is the
+// *back* of the next aisle's pallets, in the dark, because nothing lights the
+// gap between two racks. That is where all the missing black comes from.
+const BACK_X = AISLE_HALF + 0.1 + BAY_DEPTH + 0.12
+
+function rackBackTexture() {
+  const cv = document.createElement('canvas')
+  cv.width = 128; cv.height = 256
+  const cx = cv.getContext('2d')!
+  cx.fillStyle = '#141618'
+  cx.fillRect(0, 0, 128, 256)
+  // v runs 0 at the top of the rack to 1 at the slab
+  const levelV = BEAM_YS.map(y => 1 - y / RACK_H)
+  for (const lv of levelV) {
+    const y = lv * 256
+    // the underside of each beam level: the darkest line in the picture
+    cx.fillStyle = 'rgba(0,0,0,0.55)'
+    cx.fillRect(0, y - 3, 128, 8)
+    // pallet backs sitting on it, catching the faintest spill from the aisle
+    for (let i = 0; i < 3; i++) {
+      const h = 26 + Math.random() * 22
+      if (Math.random() < 0.22) continue          // a gap where one got pulled
+      cx.fillStyle = `rgba(${58 + Math.random() * 26 | 0},${52 + Math.random() * 22 | 0},44,0.85)`
+      cx.fillRect(i * 43 + 2, y - h - 3, 39, h)
+    }
+    // the beam's own front edge, barely lit
+    cx.fillStyle = 'rgba(150,92,44,0.16)'
+    cx.fillRect(0, y - 1, 128, 3)
+  }
+  // uprights of the far rack, silhouetted
+  cx.fillStyle = 'rgba(0,0,0,0.4)'
+  for (let i = 0; i <= 3; i++) cx.fillRect(i * 42, 0, 5, 256)
+  const t = new CanvasTexture(cv)
+  t.wrapS = t.wrapT = 1000
+  t.repeat.set(24, 1)
+  return t
+}
+
+function RackBacks() {
+  const ref = useRef<Group>(null)
+  const matsRef = useRef<MeshStandardMaterial[]>([])
+  const tex = useMemo(rackBackTexture, [])
+  useFrame(({ camera }) => {
+    const g = ref.current
+    if (!g) return
+    const period = SPACING * 2
+    g.position.z = Math.round(camera.position.z / period) * period
+    const idx = Math.max(0, -camera.position.z / SPACING)
+    const { decay, dark } = zoneAt(idx)
+    // it never brightens, it only goes further out
+    for (const m of matsRef.current) {
+      if (m) m.color.setScalar(1 - decay * 0.25 - dark * 0.45)
+    }
+  })
   return (
-    <Environment resolution={64} frames={1}>
-      <color attach="background" args={['#05060a']} />
-      {/* the deck: one long slot of daylight running the length of the aisle */}
-      <Lightformer
-        form="rect"
-        intensity={2.6}
-        color="#eef4fb"
-        position={[0, 9, 0]}
-        rotation={[Math.PI / 2, 0, 0]}
-        scale={[3.2, 34, 1]}
-      />
-      {/* the two rows of racking, catching a little of it */}
-      <Lightformer
-        form="rect"
-        intensity={0.34}
-        color="#9aa6a0"
-        position={[-5.4, 3, 0]}
-        rotation={[0, Math.PI / 2, 0]}
-        scale={[26, 7, 1]}
-      />
-      <Lightformer
-        form="rect"
-        intensity={0.34}
-        color="#9aa6a0"
-        position={[5.4, 3, 0]}
-        rotation={[0, -Math.PI / 2, 0]}
-        scale={[26, 7, 1]}
-      />
-      {/* the slab. Sealed concrete bounces, but it bounces grey. */}
-      <Lightformer
-        form="rect"
-        intensity={0.16}
-        color="#8e8e8b"
-        position={[0, -1, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        scale={[8, 30, 1]}
-      />
-    </Environment>
+    <group ref={ref}>
+      {[-1, 1].map((side, i) => (
+        <mesh
+          key={side}
+          position={[side * BACK_X, RACK_H / 2, 0]}
+          rotation={[0, side > 0 ? -Math.PI / 2 : Math.PI / 2, 0]}
+          receiveShadow
+        >
+          <planeGeometry args={[160, RACK_H]} />
+          <meshStandardMaterial
+            ref={(m: MeshStandardMaterial) => { if (m) matsRef.current[i] = m }}
+            map={tex}
+            roughness={0.92}
+            metalness={0}
+          />
+        </mesh>
+      ))}
+    </group>
   )
 }
 
@@ -1077,6 +1228,22 @@ function SlotWindow() {
 
 function Scene({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => void }) {
   const lastIndexRef = useRef(-1)
+  // Dev-only probe. Three wrong diagnoses on this site came from the same
+  // cause: an automation tab runs with visibilityState "hidden", where
+  // requestAnimationFrame is paused (measured: 0 frames in 3.3 s) and R3F
+  // never mounts because its ResizeObserver is starved. So a black screenshot
+  // there means nothing, and frame rate cannot be measured there at all.
+  //
+  // This exposes the renderer so a frame can be stepped by hand and the pixels
+  // read back as numbers instead of guessed at from a screenshot. It still
+  // needs the window focused for R3F to mount in the first place.
+  //   localStorage.setItem('te-return-world','14'); location.reload()
+  //   __aisle.advance(performance.now()); __aisle.st.gl.domElement.toDataURL()
+  const st = useThree()
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return
+    ;(window as unknown as Record<string, unknown>).__aisle = { st, advance }
+  }, [st])
   const handleDistance = useCallback((d: number) => {
     const idx = Math.round(d / SPACING)
     if (idx !== lastIndexRef.current) {
@@ -1090,6 +1257,7 @@ function Scene({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => vo
       <Atmosphere />
       <Rig onDistance={handleDistance} />
       <Floor />
+      <RackBacks />
       <Ceiling />
       <ExitSign />
       <Figure />
