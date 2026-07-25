@@ -125,19 +125,35 @@ anything. Adding shadow and reflection multiplies work that already exists.
    dark below. No network fetch, no HDR asset, no CSP concern. This is what
    turns the metalness values already set on the racking and the shelf posts
    into actual metal.
-5. **Fix the controls overlay.** It currently never dismisses — after twenty
-   scroll ticks it is still parked over the vanishing point, which is the entire
-   composition of a world called "it doesn't end." Fade it out on first
-   movement.
+5. ~~**Fix the controls overlay.**~~ **RETRACTED — not a bug.** The overlay is
+   gated on `hasMoved` (`World14Aisle.tsx:296`) and dismisses correctly on a
+   real wheel or keydown; verified by dispatching both. The original observation
+   came from a browser-automation tab running with
+   `document.visibilityState === "hidden"`, where synthesized scrolls moved the
+   camera but the overlay state did not settle. Nothing to fix here.
 
-**Risks:** Medium, and entirely about frame rate. Mitigation: measure before and
-after on a mid-range device, gate shadow resolution on `dpr`, and be willing to
-ship contact shadows + env map alone (items 3–4) if the shadow-casting light
-costs more than it returns. Items 3–5 are safe independent of item 2.
+**Risks:** Medium, and entirely about frame rate.
 
-**Done when:** Frame time no worse than +15% on the baseline device; boxes cast
-shadows on the floor; racking reads as painted steel; the vanishing point is
-never occluded.
+**Blocker on the acceptance gate — read before starting.** Frame time cannot be
+measured from the browser-automation environment: the tab runs with
+`document.visibilityState === "hidden"`, which throttles or pauses
+`requestAnimationFrame`, so any FPS number collected there is meaningless. What
+*can* be verified from here is correctness (shadows land where they should) and
+`renderer.info` — draw calls, triangles, programs, and the shadow-map render
+count, which are the things the change actually moves.
+
+So the gate splits in two:
+- **Verifiable by me:** visual correctness, plus `renderer.info` deltas before
+  and after.
+- **Needs Tyler's machine:** the actual frame-time budget.
+
+Mitigation regardless: gate shadow resolution on `dpr`, and be willing to ship
+contact shadows + env map alone (items 3–4) if the shadow-casting light costs
+more than it returns. Items 3–4 are safe independent of item 2.
+
+**Done when:** boxes cast shadows on the floor; racking reads as painted steel;
+`renderer.info` draw calls up by no more than one shadow pass; and frame time
+confirmed acceptable on a real foreground window.
 
 ---
 
@@ -254,7 +270,7 @@ These matter but are downstream of the sessions above.
 | Metalness with no env map | `AisleCanvas.tsx:463,472` — metalness 0.8, no `<Environment>` in any scene |
 | ~~Explorer blocks on 3.8 MB~~ — **wrong**, see Session 1 | street-coverage.json serves gzipped in ~150 ms. The real blocker was `/api/strava`: 20.8 s cold, 23 ms warm |
 | ~~Explorer opens on empty space~~ — **wrong**, see Session 1 | The canvas never initialized. `window.dispatchEvent(new Event('resize'))` brought the entire scene up instantly |
+| ~~Warehouse controls overlay never dismisses~~ — **retracted** | Gated on `hasMoved`, `World14Aisle.tsx:296`; dismisses correctly on a dispatched wheel or keydown. Artifact of a hidden automation tab |
 | Hub camera never rotates | `CameraRig.tsx:124-136` |
 | Front-door chunks load after commit | `UniverseRoot.tsx:14`, `dynamic(..., { ssr: false })` with no `loading`; chunks 504K + 376K + 352K |
 | Portal completion is untimed to readiness | `world-store.ts:130-140`, `PortalTransition.tsx` — every variant calls `onDone` from a `setTimeout` |
-| Warehouse controls overlay never dismisses | Observed after 20+ scroll ticks, still over the vanishing point |

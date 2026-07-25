@@ -647,6 +647,19 @@ Verification:
 - No console errors; orbit/damping unchanged; stats panel and coverage stat
   both present and correctly layered above the canvas.
 
+Caveat on the verification environment (found late, worth recording):
+The browser-automation tab runs with `document.visibilityState === "hidden"`,
+which throttles `requestAnimationFrame` and makes frame-timing measurements from
+there worthless. It also produced one false finding this session — a claim that
+World 14's controls overlay never dismisses, which is untrue: it is gated on
+`hasMoved` and dismisses correctly on a real wheel or keydown. The World 2 stall
+itself is not an artifact — `useEffect` runs regardless of visibility, the probe
+effect never fired across repeated loads and a fresh tab, and Worlds 1/6/14
+initialize fine under identical conditions. What separates World 2 is the late
+conditional mount, and mounting unconditionally makes it behave like the worlds
+that already work. Frame-time verification for future sessions has to happen in
+a real foreground window.
+
 Website Scores:
 - Immersion: + (a world that renders at all)  Polish: +  Performance: +
 - Originality: + (title card gone)  Mystery: = (start marker adds, explains nothing)
