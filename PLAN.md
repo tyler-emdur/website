@@ -70,14 +70,14 @@ Shipped. Full write-up in PROGRESS.md. **Two of the three diagnoses in the
 original draft of this session were wrong, and the real bug was worse:**
 
 - **Planned:** "the opening camera is framed on empty space."
-  **Actual:** the canvas was never initializing at all. Mounting
-  `<StravaCanvas>` conditionally on loaded data raced R3F's container
-  measurement — `react-use-measure` read 0×0 and R3F never completed init.
-  Live WebGL context, correct drawing buffer, zero frames, zero children
-  mounted, no console error. A bare `window.resize` brought the whole scene up.
-  Same silent R3F signature as the Garage incident of 2026-07-16/17.
-  **Standing rule for this codebase: mount R3F canvases unconditionally and let
-  them render an empty scene. Never gate a Canvas on async data.**
+  **First conclusion — also wrong, retracted:** "the canvas never initializes
+  because it is mounted conditionally." A mount probe proved otherwise: R3F
+  fails to mount children in the automation tab with *or* without the change.
+  The real cause was the environment — `visibilityState: "hidden"` pauses
+  `requestAnimationFrame` entirely (0 frames in 4s) and starves ResizeObserver,
+  so R3F never initializes. Worlds 1/6/14 only looked healthy because I clicked
+  or scrolled in them first. **World 2 was most likely never broken for real
+  visitors.** Full write-up in PROGRESS.md.
 - **Planned:** "the 3.8 MB street-coverage.json blocks first paint."
   **Actual:** it serves gzipped in ~150 ms and was never the problem. The wait
   was `/api/strava` — 23 ms warm, ~21 s on a cold `unstable_cache` miss. So one
@@ -87,15 +87,19 @@ original draft of this session were wrong, and the real bug was worse:**
   portfolio-shaped object on the site and is gone; the ghost runner now has a
   start marker that brightens as it gets further round the loop.
 
-Delivered: canvas mounts unconditionally at z-index 0; one `Promise.all` split
-into three independent loads; title card removed; start marker added;
-OrbitControls `maxDistance` raised so the authored opening shot is no longer
-silently clamped.
+Delivered, and what each is actually worth:
 
-**Measured:** renders unaided in a fresh tab on a production build, ~2.5 s from
-navigation start (network complete at 369 ms; route geometry build 21 ms for 367
-activities / 27,795 points; remainder is WebGL init). Screenshot-based timing
-carries ~±0.5 s of tooling latency — approximate, not instrumented.
+| Change | Verified how | Real? |
+|---|---|---|
+| `Promise.all` split into three independent loads | `curl` server-side: strava 20.8 s cold / 23 ms warm; terrain 8 kB, 40 ms | **Yes** — the 20 s wait was genuine |
+| Title card removed | Code + non-negotiable #1 | **Yes** |
+| Ghost start marker | Code | **Yes** (delight detail) |
+| `maxDistance` 3.0 → 3.4 radii | Arithmetic: opening shot sits at 3.06 | **Yes** |
+| Terrain vs Strava failure states split | Code review caught that I had deleted one | **Yes** |
+| Canvas mounts unconditionally | — | **Downgraded**: consistency + load-ordering, not a bug fix |
+
+**No rendering-performance or time-to-first-frame number from this session should
+be trusted.** They were all taken in a tab where rAF was paused.
 
 ---
 
@@ -269,8 +273,16 @@ These matter but are downstream of the sessions above.
 | No shadows anywhere | No `castShadow`/`receiveShadow`/`shadows` in `AisleCanvas.tsx`; `GarageScene.tsx:213` sets `shadows={false}` |
 | Metalness with no env map | `AisleCanvas.tsx:463,472` — metalness 0.8, no `<Environment>` in any scene |
 | ~~Explorer blocks on 3.8 MB~~ — **wrong**, see Session 1 | street-coverage.json serves gzipped in ~150 ms. The real blocker was `/api/strava`: 20.8 s cold, 23 ms warm |
-| ~~Explorer opens on empty space~~ — **wrong**, see Session 1 | The canvas never initialized. `window.dispatchEvent(new Event('resize'))` brought the entire scene up instantly |
-| ~~Warehouse controls overlay never dismisses~~ — **retracted** | Gated on `hasMoved`, `World14Aisle.tsx:296`; dismisses correctly on a dispatched wheel or keydown. Artifact of a hidden automation tab |
+| ~~Explorer opens on empty space~~ / ~~canvas never initializes~~ — **both retracted** | Automation tab is `visibilityState: "hidden"`; rAF measured at **0 frames in 4 s**. Every 3D world is black there until an input forces a rendering step |
+| ~~Warehouse controls overlay never dismisses~~ — **retracted** | Gated on `hasMoved`, `World14Aisle.tsx:296`; dismisses correctly on a dispatched wheel or keydown. Same artifact |
+
+**Standing caveat for this whole document:** every visual judgement below about a
+3D world (Garage "invisible", Broadcast "a TV in a void", Explorer "a blob in
+black") was formed from screenshots taken in that same hidden tab, where a world
+may render one forced frame and then freeze. The *compositional* readings still
+hold — geometry and layout do not change with frame rate — but any claim about
+brightness, animation, or lighting in Worlds 3 and 6 needs re-checking in a real
+window before Sessions 3 and 4 are worth starting.
 | Hub camera never rotates | `CameraRig.tsx:124-136` |
 | Front-door chunks load after commit | `UniverseRoot.tsx:14`, `dynamic(..., { ssr: false })` with no `loading`; chunks 504K + 376K + 352K |
 | Portal completion is untimed to readiness | `world-store.ts:130-140`, `PortalTransition.tsx` — every variant calls `onDone` from a `setTimeout` |

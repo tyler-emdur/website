@@ -572,7 +572,52 @@ Features that must never be removed:
 
 # Session History
 
-## 2026-07-24 — World 2 (Explorer): it was never rendering
+## 2026-07-24 (correction, same day) — the "it was never rendering" claim was wrong
+
+Retracting the headline of the entry below. Read this first.
+
+The claim was that mounting `<StravaCanvas>` conditionally stalled R3F's
+container measurement and left World 2 permanently black. It does not. After
+shipping the "fix", a mount probe inside the Canvas showed R3F **still** not
+mounting its children under identical conditions — the stall reproduces with and
+without the change, so the conditional mount was never the cause.
+
+The actual cause was the verification environment. The browser-automation tab
+runs with `document.visibilityState === "hidden"`, where `requestAnimationFrame`
+is fully paused (measured: 0 frames in 4s) and no rendering steps run, so
+ResizeObserver never delivers its first callback and R3F never initializes.
+Worlds 1, 6 and 14 appeared to work only because I clicked or scrolled in them
+first, which forces a rendering step; World 2 was the one world I loaded and
+passively waited on. All four use the identical
+`dynamic(..., { ssr: false })` pattern — there was never a difference between them.
+
+**World 2 was most likely never broken for real visitors.** A foreground tab runs
+the rendering pipeline, ResizeObserver fires, R3F initializes normally.
+
+What survives from that session, all of it verified independently of the browser:
+- The load split. `/api/strava` measured server-side with curl at **20.8s cold /
+  23ms warm**; terrain.json is 8kB/40ms and was sharing an await with it. Real,
+  and the reason the 20s "SURVEYING BOULDER" was genuine.
+- Removing the "TYLER STRAVA / RUN MAP" title card (non-negotiable #1).
+- The ghost runner's start marker.
+- The OrbitControls `maxDistance` clamp — pure arithmetic, 3.06 vs 3.0 radii.
+- Splitting the terrain and Strava failure states apart.
+
+What was downgraded, not reverted:
+- Mounting the canvas unconditionally. Kept, because it is how the other three
+  worlds do it and because it genuinely stops the ground being gated behind a
+  slow fetch — but it is a consistency and load-ordering change, **not** a bug
+  fix, and the code comments have been rewritten to stop asserting otherwise.
+
+Lesson for this project, worth more than the session was:
+**A black WebGL canvas in the automation tab means nothing.** Every 3D world
+looks broken there until something forces a rendering step. Verify 3D worlds in
+a real foreground window, or verify them by mechanisms that do not depend on
+painting at all (server timings, effect probes, `next build`).
+
+---
+
+## 2026-07-24 — World 2 (Explorer): it was never rendering ⚠️ HEADLINE RETRACTED, see above
 
 Objective:
 Session 1 of PLAN.md — stop World 2 being the worst experience on the site.

@@ -108,10 +108,9 @@ export default function World2Explorer() {
 
   return (
     <div data-world="2" style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#050506' }}>
-      {/* Mounted up-front and never gated on the data — see the note on
-          StravaCanvas. Gating it is what stalled R3F's container measurement and
-          left the world as a permanently black canvas. It sits first in the DOM
-          at z-index 0 so the overlays below keep painting over it. */}
+      {/* Mounted up-front so the ground is never gated behind a slow fetch, and
+          first in the DOM at z-index 0 so the overlays below keep painting over
+          it. Matches how worlds 1/6/14 mount their canvases. */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
         <StravaCanvas activities={state.activities} terrain={state.terrain} />
       </div>

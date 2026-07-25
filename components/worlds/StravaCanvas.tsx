@@ -334,14 +334,13 @@ function Scene({ activities, terrain }: { activities: RouteActivity[]; terrain: 
   )
 }
 
-// The canvas mounts unconditionally and the survey drops in when it lands.
-// It used to mount only once `terrain` had arrived, which raced R3F's own
-// container measurement: mounting into a commit that was still settling made
-// react-use-measure report 0x0, and R3F then never initialized at all — a live,
-// non-lost WebGL context that never rendered a frame and never mounted a single
-// child. Silent, no console error, and it survived until any resize kicked the
-// ResizeObserver. Mounting up-front (the same shape World 14 uses) removes the
-// race entirely, and doubles as the fix for terrain no longer gating first paint.
+// The canvas mounts unconditionally and the survey drops in when it lands, so
+// the ground is never gated behind a slow fetch. (It previously only mounted
+// once `terrain` had arrived — see World2Explorer for why that mattered: the
+// terrain was sharing an await with a Strava call that can take ~21s cold.)
+//
+// `terrain` is nullable rather than the canvas being conditional. Background and
+// fog render either way, so the world is the right colour before it has a shape.
 export default function StravaCanvas({ activities, terrain }: { activities: RouteActivity[]; terrain: TerrainData | null }) {
   const camDistance = (GEO_RADIUS_WORLD * 1.3) / Math.tan((FOV / 2) * (Math.PI / 180))
 
