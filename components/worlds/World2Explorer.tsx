@@ -145,8 +145,26 @@ export default function World2Explorer() {
         </div>
       )}
 
-      {/* Only covers the gap before the ground lands — ~40ms now that it no
-          longer waits on Strava. The routes drop in afterwards, on their own. */}
+      {/* The trace can take ~17s on a cold Strava cache. Splitting the loads got
+          the ground up in 40ms, but it also meant that whole wait happened under
+          a world that looked finished and empty — no routes, no stats, and
+          nothing saying otherwise, which reads more broken than the old blocking
+          loader did. So the ground comes up straight away AND the wait is still
+          admitted to, quietly, where the stats will land. */}
+      {state.terrainLoaded && state.terrain && !state.stravaLoaded && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 20,
+          fontFamily: '"Space Mono", monospace', fontSize: 10, lineHeight: 1.8,
+          color: 'rgba(255,255,255,0.4)', textAlign: 'right',
+          border: '1px solid rgba(252,76,2,0.15)', padding: '10px 16px',
+          background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)',
+          letterSpacing: 1, textTransform: 'uppercase',
+        }}>
+          <span className="w2-surveying">reading the trace</span>
+        </div>
+      )}
+
+      {/* Only covers the gap before the ground lands — ~40ms now. */}
       {!state.terrainLoaded && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
