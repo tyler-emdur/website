@@ -158,12 +158,28 @@ export default function World2Explorer() {
         </div>
       )}
 
-      {state.stravaLoaded && !state.configured && (
+      {/* Two distinct failures, each said honestly. Splitting the loads split
+          the error states with them: `configured` used to fold the terrain and
+          the Strava connection together, so a missing ground reported itself as
+          a missing Strava account. Now a failed terrain fetch says so, instead
+          of leaving a black canvas with a stats panel and no explanation —
+          which is the exact failure this session set out to remove. */}
+      {state.terrainLoaded && !state.terrain && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontFamily: '"Space Mono", monospace', color: 'rgba(255,255,255,0.4)', fontSize: 12,
         }}>
-          strava not connected — nothing to show yet
+          terrain unavailable — nothing to stand on yet
+        </div>
+      )}
+
+      {state.terrainLoaded && state.terrain && state.stravaLoaded && !state.configured && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+          paddingTop: 40, pointerEvents: 'none',
+          fontFamily: '"Space Mono", monospace', color: 'rgba(255,255,255,0.4)', fontSize: 12,
+        }}>
+          strava not connected — no routes on the ground
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 'use client'
-import { Suspense, useMemo, useRef, useEffect } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { BufferGeometry, Float32BufferAttribute, PlaneGeometry, Points, PointsMaterial, ShaderMaterial, AdditiveBlending, Color, Vector3 } from 'three'
