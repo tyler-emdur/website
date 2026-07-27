@@ -4,22 +4,30 @@ import WorldManager from '@/components/worlds/WorldManager'
 import FrontDoor from '@/components/FrontDoor'
 
 export default function Home() {
-  const [showFrontDoor, setShowFrontDoor] = useState<boolean | null>(null)
+  const [phase, setPhase] = useState<'loading' | 'front-door' | 'entering' | 'world'>('loading')
 
   useEffect(() => {
     try {
-      setShowFrontDoor(sessionStorage.getItem('te-front-door-seen') !== '1')
+      setPhase(sessionStorage.getItem('te-front-door-seen') !== '1' ? 'front-door' : 'world')
     } catch {
-      setShowFrontDoor(false)
+      setPhase('world')
     }
   }, [])
 
-  const dismiss = () => {
+  const startEnter = () => {
     try { sessionStorage.setItem('te-front-door-seen', '1') } catch {}
-    setShowFrontDoor(false)
+    setPhase('entering')
   }
 
-  if (showFrontDoor === null) return null
-  if (showFrontDoor) return <FrontDoor onEnter={dismiss} />
-  return <WorldManager />
+  const finishEnter = () => setPhase('world')
+
+  if (phase === 'loading') return null
+  return (
+    <>
+      {phase !== 'front-door' && <WorldManager />}
+      {(phase === 'front-door' || phase === 'entering') && (
+        <FrontDoor onEnter={startEnter} onDone={finishEnter} />
+      )}
+    </>
+  )
 }
