@@ -1266,15 +1266,37 @@ function Scene({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => vo
   )
 }
 
+// The first frame is the expensive one — every procedural texture in the
+// aisle gets drawn on the CPU and every shader gets compiled right before it.
+// Mounting the canvas at full opacity means that cost shows up as a visible
+// pop the instant the chunk loads. Firing on the second rendered frame
+// (rather than onCreated, which lands before that work is done) and fading
+// in from there turns the pop into a fade — the janky frame happens while
+// invisible instead of on screen.
+function ReadySignal({ onReady }: { onReady: () => void }) {
+  const firedRef = useRef(false)
+  const frameRef = useRef(0)
+  useFrame(() => {
+    if (firedRef.current) return
+    frameRef.current += 1
+    if (frameRef.current >= 2) { firedRef.current = true; onReady() }
+  })
+  return null
+}
+
 export default function AisleCanvas({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => void }) {
+  const [ready, setReady] = useState(false)
   return (
-    <Canvas
-      shadows="soft"
-      camera={{ position: [0, 1.55, 0], fov: 55 }}
-      dpr={[1, 1.5]}
-      gl={{ antialias: true, alpha: false }}
-    >
-      <Scene onCenterIndexChange={onCenterIndexChange} />
-    </Canvas>
+    <div style={{ position: 'absolute', inset: 0, opacity: ready ? 1 : 0, transition: 'opacity 420ms ease' }}>
+      <Canvas
+        shadows="soft"
+        camera={{ position: [0, 1.55, 0], fov: 55 }}
+        dpr={[1, 1.5]}
+        gl={{ antialias: true, alpha: false }}
+      >
+        <ReadySignal onReady={() => setReady(true)} />
+        <Scene onCenterIndexChange={onCenterIndexChange} />
+      </Canvas>
+    </div>
   )
 }
