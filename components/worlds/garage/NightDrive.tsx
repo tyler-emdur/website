@@ -2,6 +2,7 @@
 import { useRef, useEffect, useState } from 'react'
 import type { RadioStation } from '@/app/api/radio/route'
 import type { RadioStatus } from './live-radio'
+import { useIsTouchDevice } from '@/lib/use-touch-device'
 
 // The drive. A 2D-canvas night highway out of the garage, rendered with a real
 // perspective camera: you sit in the right lane at eye height, low beams reach
@@ -91,6 +92,7 @@ const Z_FAR = 420
 
 export default function NightDrive({ freq, station, status, onSeek, onExit, onLongDrive }: NightDriveProps) {
   const tuned = status === 'live' || status === 'tuning'
+  const isTouch = useIsTouchDevice()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wheelRef = useRef<HTMLDivElement>(null)
   const [signIdx, setSignIdx] = useState(0)
@@ -798,6 +800,20 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
             </div>
             <div style={{ fontSize: 6, letterSpacing: '0.25em', color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>MILES</div>
           </div>
+          {isTouch && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, pointerEvents: 'auto', paddingBottom: 6 }}>
+              <button
+                onClick={() => { speedRef.current = Math.min(90, speedRef.current + 4) }}
+                style={driveBtn}
+                aria-label="speed up"
+              >▲</button>
+              <button
+                onClick={() => { speedRef.current = Math.max(35, speedRef.current - 4) }}
+                style={driveBtn}
+                aria-label="slow down"
+              >▼</button>
+            </div>
+          )}
         </div>
 
         {/* radio head unit — the live station rides along */}
@@ -821,8 +837,13 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }}>
             {station ? `${flag(station.country)} ${station.name}${station.city ? ` · ${station.city}` : ''}` : '— between stations —'}
           </div>
-          <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.1em' }}>
-            ← → seek stations
+          <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {isTouch ? (
+              <>
+                <button onClick={() => onSeek(-1)} style={{ ...driveBtn, width: 'auto', height: 'auto', padding: '4px 9px' }} aria-label="seek previous station">◀ SEEK</button>
+                <button onClick={() => onSeek(1)} style={{ ...driveBtn, width: 'auto', height: 'auto', padding: '4px 9px' }} aria-label="seek next station">SEEK ▶</button>
+              </>
+            ) : '← → seek stations'}
           </div>
         </div>
       </div>
@@ -847,4 +868,11 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
       </div>
     </div>
   )
+}
+
+const driveBtn: React.CSSProperties = {
+  width: 30, height: 24, fontFamily: '"Space Mono", monospace', fontSize: 10,
+  color: 'rgba(255,235,205,0.7)', background: 'rgba(0,0,0,0.5)',
+  border: '1px solid rgba(255,235,205,0.25)', borderRadius: 4, cursor: 'pointer',
+  touchAction: 'manipulation',
 }

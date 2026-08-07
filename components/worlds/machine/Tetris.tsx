@@ -1,5 +1,6 @@
 'use client'
 import { useRef, useEffect, useState, useCallback } from 'react'
+import { useIsTouchDevice } from '@/lib/use-touch-device'
 
 // ── 40 LINE SPRINT ───────────────────────────────────────────────────────────
 // Clear forty lines as fast as you can. That is the whole game.
@@ -81,6 +82,7 @@ interface Active { p: Piece; m: number[][]; x: number; y: number; r: number }
 
 export default function Tetris({ onWin }: { onWin?: (ms: number) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const isTouch = useIsTouchDevice()
   const [lines, setLines] = useState(40)
   const [elapsed, setElapsed] = useState(0)
   const [done, setDone] = useState<null | number>(null)
@@ -420,19 +422,65 @@ export default function Tetris({ onWin }: { onWin?: (ms: number) => void }) {
 
   return (
     <div style={{ background: '#000', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 8 }}>
-        <canvas ref={canvasRef} style={{ display: 'block' }} />
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 8, minHeight: 0 }}>
+        <canvas ref={canvasRef} style={{ display: 'block', maxHeight: '100%', maxWidth: '100%' }} />
       </div>
       <div style={{
         fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'rgba(255,255,255,0.4)',
-        textAlign: 'center', padding: '0 0 8px',
+        textAlign: 'center', padding: '0 0 8px', flexShrink: 0,
       }}>
         {done !== null
           ? <span style={{ color: '#6aab35' }}>40 LINES — {secs(done)}</span>
           : dead
             ? <span style={{ color: '#c0392b' }}>TOPPED OUT — F4</span>
-            : <>{secs(elapsed)} · {lines} left · ←→ move · ↑/X rot · Z ccw · SPACE drop · C hold</>}
+            : isTouch
+              ? <>{secs(elapsed)} · {lines} left</>
+              : <>{secs(elapsed)} · {lines} left · ←→ move · ↑/X rot · Z ccw · SPACE drop · C hold</>}
       </div>
+      {isTouch && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 8px 8px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <TetrisKey label="◀" keyName="ArrowLeft" />
+            <TetrisKey label="▼" keyName="ArrowDown" />
+            <TetrisKey label="▶" keyName="ArrowRight" />
+            <TetrisKey label="⟳ ROT" keyName="ArrowUp" />
+          </div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <TetrisKey label="⟲ CCW" keyName="z" />
+            <TetrisKey label="HOLD" keyName="c" />
+            <TetrisKey label="DROP" keyName=" " />
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+function dispatchTetrisKey(type: 'keydown' | 'keyup', key: string) {
+  window.dispatchEvent(new KeyboardEvent(type, { key, bubbles: true, cancelable: true }))
+}
+
+// Fires synthetic keydown/keyup at window rather than reimplementing the
+// input path — the game's DAS/ARR repeat, lock-delay resets and one-shot
+// actions (rotate/hold/hard-drop) all key off the same listener a real
+// keyboard drives, so holding one of these buttons behaves identically to
+// holding the arrow key.
+function TetrisKey({ label, keyName }: { label: string; keyName: string }) {
+  const down = (e: React.PointerEvent) => { e.preventDefault(); dispatchTetrisKey('keydown', keyName) }
+  const up = (e: React.PointerEvent) => { e.preventDefault(); dispatchTetrisKey('keyup', keyName) }
+  return (
+    <button
+      onPointerDown={down}
+      onPointerUp={up}
+      onPointerLeave={up}
+      onPointerCancel={up}
+      onContextMenu={e => e.preventDefault()}
+      style={{
+        flex: 1, height: 34, fontFamily: 'ui-monospace, monospace', fontSize: 11,
+        color: 'rgba(255,255,255,0.75)', background: 'rgba(255,255,255,0.08)',
+        border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, cursor: 'pointer',
+        touchAction: 'none', userSelect: 'none',
+      }}
+    >{label}</button>
   )
 }

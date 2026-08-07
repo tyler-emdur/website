@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import HomeButton from './HomeButton'
 import { useWorldStore } from '@/lib/world-store'
 import { getSlot, getSpecial, loadBasket, addToBasket, type BasketEntry } from './aisle-data'
+import { useIsTouchDevice } from '@/lib/use-touch-device'
 
 const AisleCanvas = dynamic(() => import('./AisleCanvas'), { ssr: false })
 
@@ -120,6 +121,7 @@ const PA_LINES: { at: number; text: string }[] = [
 
 export default function World14Aisle() {
   const store = useWorldStore()
+  const isTouch = useIsTouchDevice()
   const [centerIndex, setCenterIndex] = useState(0)
   const [hasMoved, setHasMoved] = useState(false)
   const [basket, setBasket] = useState<BasketEntry[]>([])
@@ -185,11 +187,14 @@ export default function World14Aisle() {
       if (e.key.toLowerCase() === 'c') checkout()
     }
     const onWheel = () => { setHasMoved(true); startAmbience() }
+    const onPointer = () => { setHasMoved(true); startAmbience() }
     window.addEventListener('keydown', onKey)
     window.addEventListener('wheel', onWheel, { passive: true })
+    window.addEventListener('pointerdown', onPointer)
     return () => {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('pointerdown', onPointer)
     }
   }, [takeItem, startAmbience, checkout])
 
@@ -256,7 +261,7 @@ export default function World14Aisle() {
             padding: '5px 9px', background: 'rgba(6,6,10,0.6)',
           }}
         >
-          ◇ CHECK OUT · [C]
+          ◇ CHECK OUT{isTouch ? '' : ' · [C]'}
         </div>
       </div>
 
@@ -301,11 +306,22 @@ export default function World14Aisle() {
           background: 'rgba(6,6,10,0.55)', padding: '14px 22px', backdropFilter: 'blur(4px)',
           textShadow: '0 1px 3px rgba(0,0,0,0.9)',
         }}>
-          W / S · ↑ / ↓ · scroll &nbsp;—&nbsp; walk the aisle<br />
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>
-            move the mouse to look · E — take an item<br />
-            hold SHIFT to look behind you
-          </span>
+          {isTouch ? (
+            <>
+              hold ▲ / ▼ &nbsp;—&nbsp; walk the aisle<br />
+              <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>
+                drag to look around · tap TAKE IT to grab an item
+              </span>
+            </>
+          ) : (
+            <>
+              W / S · ↑ / ↓ · scroll &nbsp;—&nbsp; walk the aisle<br />
+              <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>
+                move the mouse to look · E — take an item<br />
+                hold SHIFT to look behind you
+              </span>
+            </>
+          )}
         </div>
       )}
 
@@ -335,9 +351,10 @@ export default function World14Aisle() {
             style={{
               fontSize: 8, marginTop: 6, letterSpacing: '0.15em', cursor: inBasket ? 'default' : 'pointer',
               color: inBasket ? 'rgba(246,198,106,0.5)' : 'rgba(255,255,255,0.35)',
+              padding: isTouch ? '6px 0' : 0,
             }}
           >
-            {inBasket ? '◆ IN YOUR BASKET' : '[E] TAKE IT'}
+            {inBasket ? '◆ IN YOUR BASKET' : isTouch ? 'TAKE IT' : '[E] TAKE IT'}
           </div>
         )}
       </div>

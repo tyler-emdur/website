@@ -7,6 +7,7 @@ import {
   Fog, NearestFilter, EquirectangularReflectionMapping, SRGBColorSpace,
 } from 'three'
 import { SPACING, RAIL_X, getSlot, type Slot, type Shape } from './aisle-data'
+import { useIsTouchDevice } from '@/lib/use-touch-device'
 
 // The Endless Aisle: an actual supermarket at closing time. Fluorescent
 // fixtures, steel pallet racking stacked past the light, sealed concrete slab.
@@ -1078,7 +1079,10 @@ function RackBacks() {
 }
 
 // ── movement ─────────────────────────────────────────────────────────────────
-function Rig({ onDistance }: { onDistance: (d: number) => void }) {
+function Rig({ onDistance, touchMoveRef }: {
+  onDistance: (d: number) => void
+  touchMoveRef: React.MutableRefObject<{ forward: boolean; backward: boolean }>
+}) {
   const { camera } = useThree()
   const distanceRef = useRef(0)
   const velocityRef = useRef(0)
@@ -1125,8 +1129,8 @@ function Rig({ onDistance }: { onDistance: (d: number) => void }) {
   useFrame((_, rawDelta) => {
     const delta = Math.min(rawDelta, 0.05)
     const k = keysRef.current
-    const forward = (k['w'] || k['arrowup']) ? 1 : 0
-    const backward = (k['s'] || k['arrowdown']) ? 1 : 0
+    const forward = (k['w'] || k['arrowup'] || touchMoveRef.current.forward) ? 1 : 0
+    const backward = (k['s'] || k['arrowdown'] || touchMoveRef.current.backward) ? 1 : 0
     const input = forward - backward
 
     if (input !== 0) {
@@ -1226,7 +1230,10 @@ function SlotWindow() {
   )
 }
 
-function Scene({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => void }) {
+function Scene({ onCenterIndexChange, touchMoveRef }: {
+  onCenterIndexChange: (i: number) => void
+  touchMoveRef: React.MutableRefObject<{ forward: boolean; backward: boolean }>
+}) {
   const lastIndexRef = useRef(-1)
   // Dev-only probe. Three wrong diagnoses on this site came from the same
   // cause: an automation tab runs with visibilityState "hidden", where
@@ -1255,7 +1262,7 @@ function Scene({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => vo
   return (
     <>
       <Atmosphere />
-      <Rig onDistance={handleDistance} />
+      <Rig onDistance={handleDistance} touchMoveRef={touchMoveRef} />
       <Floor />
       <RackBacks />
       <Ceiling />
@@ -1286,8 +1293,13 @@ function ReadySignal({ onReady }: { onReady: () => void }) {
 
 export default function AisleCanvas({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => void }) {
   const [ready, setReady] = useState(false)
+  const isTouch = useIsTouchDevice()
+  const touchMoveRef = useRef({ forward: false, backward: false })
   return (
-    <div style={{ position: 'absolute', inset: 0, opacity: ready ? 1 : 0, transition: 'opacity 420ms ease' }}>
+    <div style={{
+      position: 'absolute', inset: 0, opacity: ready ? 1 : 0, transition: 'opacity 420ms ease',
+      touchAction: 'none',
+    }}>
       <Canvas
         shadows="soft"
         camera={{ position: [0, 1.55, 0], fov: 55 }}
@@ -1295,8 +1307,36 @@ export default function AisleCanvas({ onCenterIndexChange }: { onCenterIndexChan
         gl={{ antialias: true, alpha: false }}
       >
         <ReadySignal onReady={() => setReady(true)} />
-        <Scene onCenterIndexChange={onCenterIndexChange} />
+        <Scene onCenterIndexChange={onCenterIndexChange} touchMoveRef={touchMoveRef} />
       </Canvas>
+      {isTouch && <WalkButtons touchMoveRef={touchMoveRef} />}
     </div>
+  )
+}
+
+// Hold-to-walk — the aisle is a single forward/back rail, so two buttons
+// cover the whole movement model. Look-around already works via touch-drag
+// (the Rig's pointermove listener doesn't care whether the pointer is a
+// mouse or a finger), so this is the only input the walk was missing.
+function WalkButtons({ touchMoveRef }: { touchMoveRef: React.MutableRefObject<{ forward: boolean; backward: boolean }> }) {
+  const make = (dir: 'forward' | 'backward') => ({
+    onPointerDown: (e: React.PointerEvent) => { e.preventDefault(); touchMoveRef.current[dir] = true },
+    onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); touchMoveRef.current[dir] = false },
+    onPointerLeave: () => { touchMoveRef.current[dir] = false },
+    onPointerCancel: () => { touchMoveRef.current[dir] = false },
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  })
+  const btn: React.CSSProperties = {
+    width: 68, height: 68, borderRadius: '50%',
+    fontFamily: '"Space Mono", monospace', fontSize: 20,
+    color: 'rgba(255,255,255,0.75)', background: 'rgba(10,10,14,0.55)',
+    border: '1px solid rgba(255,255,255,0.22)', backdropFilter: 'blur(4px)',
+    touchAction: 'none', userSelect: 'none', zIndex: 20,
+  }
+  return (
+    <>
+      <button {...make('backward')} aria-label="walk backward" style={{ ...btn, position: 'fixed', left: 24, bottom: 100 }}>▼</button>
+      <button {...make('forward')} aria-label="walk forward" style={{ ...btn, position: 'fixed', right: 24, bottom: 100 }}>▲</button>
+    </>
   )
 }
