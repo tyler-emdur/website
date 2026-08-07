@@ -128,6 +128,7 @@ const PORTAL_GATES: Array<Omit<UniverseObject, 'type' | 'region' | 'visible'>> =
   { id: 'gate-08', label: 'READERS-08',  description: 'Fixed sensor array. Node count: 110. Subject classification: passing vehicles.', lore: 'They do not transmit pictures. They transmit that you were there.',              worldId: 8,  worldPortal: 'slide-right', position: [-620,  520, 44],  color: '#ffd666', size: 18 },
   { id: 'gate-09', label: 'MESSAGES-09', description: 'One red light blinking in a dark room. Tape present. Side A occupied.', lore: 'You can leave one. Someone will hear it.',                 worldId: 9, worldPortal: 'nothing',      position: [611,  844, 28],  color: '#c8a850', size: 20 },
   { id: 'gate-14', label: 'AISLE-14',   description: 'Retail corridor. Stock rotation: continuous. Exit: not on file.',        lore: 'Nobody has ever reported reaching the end.',                worldId: 14, worldPortal: 'chromatic',    position: [-950, 260,  85],  color: '#D4A24C', size: 20 },
+  { id: 'gate-10', label: 'DIRECTORY-10', description: 'Recovered project ledger. Entry count: 12. Completion status: mostly negative.', lore: 'Filed under: things that were supposed to be temporary.', worldId: 10, worldPortal: 'letter-expand', position: [950, -520, 36],  color: '#C9BE9E', size: 18 },
 ]
 
 export const VOID_OBJECTS: UniverseObject[] = [
