@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useUniverseStore, REGIONS, getAllObjects } from '@/lib/universe-store'
+import { IDENTITY } from '@/lib/identity'
 
 const MORSE: Record<string, string> = {
   A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',
@@ -123,9 +124,9 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
     contact: [
       R('CONTACT', 'hi'),
       R('────────────────────────'),
-      R('email    tyler@tyleremdur.com', 'cy'),
-      R('github   github.com/tyler-emdur', 'cy'),
-      R('site     tyleremdur.com'),
+      R(`email    ${IDENTITY.email}`, 'cy'),
+      R(`github   ${IDENTITY.githubLabel}`, 'cy'),
+      R(`site     ${IDENTITY.domain}`),
       R(''),
       R('response time: usually fast, sometimes slow', 'dim'),
     ],
@@ -242,7 +243,7 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
 
     'git log': [
       R('commit 7f3a291  (HEAD -> main, origin/main)', 'hi'),
-      R('Author: Tyler Emdur <tyler@tyleremdur.com>'),
+      R(`Author: ${IDENTITY.name} <${IDENTITY.email}>`),
       R('Date:   ' + new Date().toDateString()),
       R(''),
       R('    restructure coordinate bounds and cataloging rules'),
@@ -258,7 +259,7 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
     ],
 
     'git blame': [
-      R('operator: tyler-emdur (2026)', 'cy'),
+      R(`operator: ${IDENTITY.handle} (${new Date().getFullYear()})`, 'cy'),
     ],
 
     'npm install': [

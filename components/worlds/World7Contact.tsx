@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useWorldStore } from '@/lib/world-store'
+import { IDENTITY, MAILTO } from '@/lib/identity'
 import HomeButton from './HomeButton'
 
 // ── THE ENDPOINT ─────────────────────────────────────────────────────────────
@@ -288,13 +289,13 @@ export default function World7Contact() {
             </div>
 
             <div style={{ fontFamily: '"Oxanium", sans-serif', fontSize: 26, fontWeight: 300, color: 'rgba(200,255,230,0.85)', marginBottom: 18 }}>
-              Tyler Emdur
+              {IDENTITY.name}
             </div>
 
             {[
-              { label: 'TRANSMIT', value: 'healthreinvented@gmail.com', href: 'mailto:healthreinvented@gmail.com' },
-              { label: 'SOURCE', value: 'github.com/tyler-emdur', href: 'https://github.com/tyler-emdur' },
-              { label: 'ORIGIN', value: 'Boulder, CO · 40.0150°N 105.2705°W · 88.7 MHz', href: null },
+              { label: 'TRANSMIT', value: IDENTITY.email, href: MAILTO },
+              { label: 'SOURCE', value: IDENTITY.githubLabel, href: IDENTITY.github },
+              { label: 'ORIGIN', value: `${IDENTITY.locationShort} · ${IDENTITY.coords} · 88.7 MHz`, href: null },
             ].map((row, i) => {
               const inner = (
                 <>

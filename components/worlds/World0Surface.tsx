@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useWorldStore, WorldId } from '@/lib/world-store'
+import { IDENTITY, MAILTO } from '@/lib/identity'
+import { useSiteCommits } from '@/hooks/use-site-commits'
 
 /* ── Authentic early internet palette ── */
 const NAVY = '#000066'
@@ -15,13 +17,6 @@ const LINK = '#3366cc'
 const GREEN = '#00ff00'
 
 const img = (name: string) => `/retro/${name}.svg`
-
-function getLastUpdated() {
-  const raw = process.env.NEXT_PUBLIC_LAST_COMMIT_DATE
-  const d = raw ? new Date(raw) : new Date()
-  const label = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-  return { label }
-}
 
 const WEATHER_LABELS: Record<number, string> = {
   0: 'clear', 1: 'mainly clear', 2: 'partly cloudy', 3: 'overcast',
@@ -337,16 +332,19 @@ function HitCounter() {
 
 const NAV = [
   { icon: 'rocket', label: 'Enter Universe', action: 'enter' as const },
-  { icon: 'icon-download', label: 'Source Code', href: 'https://github.com/tyler-emdur/website' },
-  { icon: 'icon-gear', label: 'Contact', href: 'mailto:tyler@tyleremdur.com' },
+  { icon: 'icon-download', label: 'Source Code', href: IDENTITY.repo },
+  { icon: 'icon-gear', label: 'Contact', href: MAILTO },
 ]
 
 export default function World0Surface() {
   const navigateTo = useWorldStore(s => s.navigateTo)
   const [time, setTime] = useState('')
   const [weather, setWeather] = useState<{ temp: number; label: string } | null>(null)
-  const [ghCommits, setGhCommits] = useState<{ label: string; shortDate: string; message: string }[] | null>(null)
-  const { label: lastUpdatedLabel } = getLastUpdated()
+  // The "last updated" stamp is a literal claim, so it reads from the repo's
+  // live commit feed rather than a date frozen into the bundle at build time.
+  // `lastUpdatedLabel` is null until something real is known — every place it
+  // renders hides itself rather than printing a date the site can't back up.
+  const { commits: ghCommits, lastUpdated: lastUpdatedLabel } = useSiteCommits(5)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
   const trafficRef = useRef<HTMLDivElement>(null)
@@ -379,25 +377,6 @@ export default function World0Surface() {
         setWeather({ temp, label: WEATHER_LABELS[code] ?? 'unknown' })
       })
       .catch(() => setWeather({ temp: 0, label: 'offline' }))
-  }, [])
-
-  useEffect(() => {
-    fetch('https://api.github.com/repos/tyler-emdur/website/commits?per_page=5')
-      .then(r => r.json())
-      .then(d => {
-        if (!Array.isArray(d)) return
-        const commits = d.map(commit => {
-          const dateStr = commit?.commit?.committer?.date
-          const date = dateStr ? new Date(dateStr) : null
-          return {
-            label: date ? date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '',
-            shortDate: date ? date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }).replace(/\//g, '.') : '',
-            message: ((commit?.commit?.message ?? '').split('\n')[0]) as string,
-          }
-        }).filter(c => c.shortDate)
-        if (commits.length) setGhCommits(commits)
-      })
-      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -854,7 +833,7 @@ export default function World0Surface() {
           border: '2px inset #aaa', padding: '0 8px', display: 'flex', alignItems: 'center',
           fontSize: 13, color: '#000',
         }}>
-          http://www.tyleremdur.com/index.html
+          http://www.{IDENTITY.domain}/index.html
         </div>
         <img className="w0-img" src={img('browser-globe')} alt="" style={{ width: 22, height: 22, marginLeft: 'auto' }} />
         <span style={{ fontSize: 10, color: '#222' }}>Viewable With Any Browser</span>
@@ -863,9 +842,9 @@ export default function World0Surface() {
       {/* Ticker */}
       <div style={{ background: '#000033', borderBottom: `1px solid ${BORDER}`, padding: '2px 0', flexShrink: 0 }} className="w0-ticker-wrap">
         <div className="w0-ticker">
-          * WELCOME TO TYLER EMDUR&apos;S MULTIVERSE * {ALL_WORLDS.length} WORLDS INSIDE * BOULDER, COLORADO *
-          LAST UPDATED {lastUpdatedLabel.toUpperCase()} *
-          {weather ? ` BOULDER: ${weather.temp}F ${weather.label.toUpperCase()} *` : ' LOADING WEATHER... *'}
+          * WELCOME TO {IDENTITY.name.toUpperCase()}&apos;S MULTIVERSE * {ALL_WORLDS.length} WORLDS INSIDE * {IDENTITY.location.toUpperCase()} *
+          {lastUpdatedLabel ? ` LAST UPDATED ${lastUpdatedLabel.toUpperCase()} *` : ''}
+          {weather ? ` ${IDENTITY.city.toUpperCase()}: ${weather.temp}F ${weather.label.toUpperCase()} *` : ' LOADING WEATHER... *'}
         </div>
       </div>
 
@@ -912,12 +891,14 @@ export default function World0Surface() {
             <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
               <img className="w0-img" src={img('profile')} alt="" style={{ width: 52, height: 52, border: `2px groove ${BORDER}`, flexShrink: 0 }} />
               <div style={{ fontSize: 10, lineHeight: 1.65, color: '#CCCCCC' }}>
-                Software engineer.<br />Builder of worlds.<br />Boulder, Colorado.
+                {IDENTITY.role}.<br />{IDENTITY.doing}.<br />{IDENTITY.location}.
               </div>
             </div>
-            <div style={{ fontSize: 9, color: '#555568', borderTop: `1px solid #111155`, paddingTop: 5 }}>
-              Updated {lastUpdatedLabel}
-            </div>
+            {lastUpdatedLabel && (
+              <div style={{ fontSize: 9, color: '#555568', borderTop: `1px solid #111155`, paddingTop: 5 }}>
+                Updated {lastUpdatedLabel}
+              </div>
+            )}
           </MiniPanel>
 
           <MiniPanel label="> STATUS">
@@ -926,13 +907,13 @@ export default function World0Surface() {
               <span className="w0-mono" style={{ fontSize: 10, color: GREEN }}>Online</span>
             </div>
             <div className="w0-mono" style={{ fontSize: 9, color: '#00ff77' }}>
-              Last updated: <b>{ghCommits?.[0]?.label ?? lastUpdatedLabel}</b>
+              Last updated: <b>{lastUpdatedLabel ?? 'checking…'}</b>
               {ghCommits?.[0]?.message && (
                 <><br />&quot;{ghCommits[0].message}&quot;</>
               )}
             </div>
             <div style={{ fontSize: 9, marginTop: 4 }}>
-              <a href="https://github.com/tyler-emdur/website" target="_blank" rel="noopener noreferrer" style={{ color: LINK }}>
+              <a href={IDENTITY.repo} target="_blank" rel="noopener noreferrer" style={{ color: LINK }}>
                 view on github &rarr;
               </a>
             </div>
@@ -970,7 +951,7 @@ export default function World0Surface() {
             color: '#FFFFFF', fontSize: 11, fontWeight: 'bold', padding: '3px 8px',
             margin: '4px 4px 0', border: `2px solid ${BORDER}`, borderBottom: 'none'
           }}>
-            Tyler Emdur&apos;s Multiverse World!
+            {IDENTITY.name}&apos;s Multiverse World!
           </div>
 
           {/* Hero / starfield */}
@@ -1061,12 +1042,12 @@ export default function World0Surface() {
                 </div>
                 <div className="w0-hr-rainbow" />
                 <p style={{ fontSize: 11, lineHeight: 1.6, color: '#222', marginBottom: 5, position: 'relative', zIndex: 12 }}>
-                  Boulder, CO &bull; <span className="w0-gif-mail" style={{ fontSize: 13 }}>✉</span>{' '}
-                  <a href="mailto:tyler@tyleremdur.com" style={{ color: '#0000cc' }}>tyler@tyleremdur.com</a><br />
-                  github: <a href="https://github.com/tyler-emdur/website" target="_blank" rel="noopener noreferrer" style={{ color: '#0000cc' }}>tyler-emdur/website</a>
+                  {IDENTITY.locationShort} &bull; <span className="w0-gif-mail" style={{ fontSize: 13 }}>✉</span>{' '}
+                  <a href={MAILTO} style={{ color: '#0000cc' }}>{IDENTITY.email}</a><br />
+                  github: <a href={IDENTITY.repo} target="_blank" rel="noopener noreferrer" style={{ color: '#0000cc' }}>{IDENTITY.repoSlug}</a>
                 </p>
                 <div style={{ fontSize: 9, color: '#666', borderTop: `1px dotted ${BORDER}`, paddingTop: 5, textAlign: 'center', position: 'relative', zIndex: 12 }}>
-                  Site updated <b>{lastUpdatedLabel}</b> &bull; Best viewed at 800&times;600
+                  {lastUpdatedLabel && <>Site updated <b>{lastUpdatedLabel}</b> &bull; </>}Best viewed at 800&times;600
                 </div>
               </div>
             </div>
@@ -1086,8 +1067,8 @@ export default function World0Surface() {
                   The multiverse is still a work in progress, and many of these worlds are actively being
                   built and expanded. Think of it as a living project that grows over time as I create
                   new things and explore new ideas.<br /><br />
-                  <span style={{ color: '#00ff77' }}>Built by Tyler Emdur</span><br />
-                  Boulder, Colorado.
+                  <span style={{ color: '#00ff77' }}>Built by {IDENTITY.name}</span><br />
+                  {IDENTITY.location}.
                 </div>
               </div>
             </div>
@@ -1118,8 +1099,8 @@ export default function World0Surface() {
             <div style={{ margin: '-6px -8px', padding: 4 }}>
               <button className="w0-ibtn" onClick={go} style={{ width: '100%' }}>WORLDS</button>
               <button className="w0-ibtn" onClick={goMachine} style={{ width: '100%' }}>THE MACHINE</button>
-              <a href="mailto:tyler@tyleremdur.com" className="w0-ibtn">CONTACT</a>
-              <a href="https://github.com/tyler-emdur/website" target="_blank" rel="noopener noreferrer" className="w0-ibtn">SOURCE CODE</a>
+              <a href={MAILTO} className="w0-ibtn">CONTACT</a>
+              <a href={IDENTITY.repo} target="_blank" rel="noopener noreferrer" className="w0-ibtn">SOURCE CODE</a>
             </div>
           </MiniPanel>
 
@@ -1155,13 +1136,13 @@ export default function World0Surface() {
         fontSize: 10, color: '#777799', flexWrap: 'wrap', gap: 6, flexShrink: 0,
       }}>
         <span>
-          <button className="w0-link" onClick={go} style={{ color: YELLOW_DIM, fontWeight: 'bold' }}>TYLER EMDUR MULTIVERSE</button>
-          {' '}| updated {lastUpdatedLabel}
+          <button className="w0-link" onClick={go} style={{ color: YELLOW_DIM, fontWeight: 'bold' }}>{IDENTITY.name.toUpperCase()} MULTIVERSE</button>
+          {lastUpdatedLabel && <>{' '}| updated {lastUpdatedLabel}</>}
         </span>
         <span>
           [ <button className="w0-link" onClick={go} style={{ color: '#66aaff' }}>Enter</button> ]
-          &nbsp;[{' '}<a href="https://github.com/tyler-emdur/website" target="_blank" rel="noopener noreferrer" style={{ color: '#66aaff' }}>Source</a>{' '}]
-          &nbsp;[ <a href="mailto:tyler@tyleremdur.com" style={{ color: '#66aaff' }}>Contact</a> ]
+          &nbsp;[{' '}<a href={IDENTITY.repo} target="_blank" rel="noopener noreferrer" style={{ color: '#66aaff' }}>Source</a>{' '}]
+          &nbsp;[ <a href={MAILTO} style={{ color: '#66aaff' }}>Contact</a> ]
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{

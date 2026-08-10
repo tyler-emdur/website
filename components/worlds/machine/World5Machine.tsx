@@ -1,6 +1,8 @@
 'use client'
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
 import { useWorldStore, type WorldId } from '@/lib/world-store'
+import { IDENTITY } from '@/lib/identity'
+import { useSiteCommits } from '@/hooks/use-site-commits'
 import HomeButton from '../HomeButton'
 import Tetris from './Tetris'
 import { PROGRAMS } from './programs'
@@ -65,11 +67,16 @@ function SectorFile({ idx, healed }: { idx: number; healed: boolean }) {
   )
 }
 
+// WEBSITE.V1 is a museum piece: the site as it actually was, kept intact on the
+// disk. Its copy and its "last updated 2024" stamp are deliberately frozen and
+// are the one place exempt from lib/identity.ts — the whole point of the file is
+// that it says something the current site no longer says. The links are the
+// exception to the exception: a dead inbox in here is just a dead inbox.
 function WebsiteV1() {
   return (
     <div style={{ background: '#fff', height: '100%', overflowY: 'auto', padding: '18px 20px', fontFamily: 'Times New Roman, serif', color: '#000' }}>
-      <div style={{ fontSize: 22, marginBottom: 6 }}>Tyler Emdur</div>
-      <div style={{ fontSize: 13, marginBottom: 14 }}>I build things. Boulder, Colorado.</div>
+      <div style={{ fontSize: 22, marginBottom: 6 }}>{IDENTITY.name}</div>
+      <div style={{ fontSize: 13, marginBottom: 14 }}>I build things. {IDENTITY.location}.</div>
       <hr />
       <ul style={{ paddingLeft: 20, fontSize: 13, lineHeight: 2.2 }}>
         {WEBSITE_V1_LINKS.map(l => (
@@ -193,29 +200,17 @@ function Terminal({ bootCount, onRun, onSecret, onWorld, onSrv }: {
 }) {
   const [out, setOut] = useState<{ id: number; text: string; color?: string }[]>([
     { id: ++termSeq, text: 'EMDUR/OS [Version 4.86]' },
-    { id: ++termSeq, text: '(C) a bedroom in Boulder. All rights reserved.' },
+    { id: ++termSeq, text: `(C) a bedroom in ${IDENTITY.city}. All rights reserved.` },
     { id: ++termSeq, text: '' },
     { id: ++termSeq, text: "Type HELP if you're lost." },
   ])
   const [input, setInput] = useState('')
   const [cwd, setCwd] = useState('C:\\')
-  const [commits, setCommits] = useState<string[] | null>(null)
+  // Same live feed the surface reads, formatted for a DOS log.
+  const { commits: siteCommits } = useSiteCommits(10)
+  const commits = siteCommits?.map(c => `${c.isoDate}  ${c.message}`) ?? null
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    fetch('https://api.github.com/repos/tyler-emdur/website/commits?per_page=10')
-      .then(r => r.json())
-      .then(d => {
-        if (!Array.isArray(d)) return
-        setCommits(d.map(c => {
-          const date = c?.commit?.committer?.date?.slice(0, 10) ?? '????-??-??'
-          const msg = (c?.commit?.message ?? '').split('\n')[0]
-          return `${date}  ${msg}`
-        }))
-      })
-      .catch(() => {})
-  }, [])
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }) }, [out])
 
@@ -303,7 +298,7 @@ function Terminal({ bootCount, onRun, onSecret, onWorld, onSrv }: {
         break
       }
       case 'COMMITS':
-        print(commits ? ['live from github/tyler-emdur/website:', '', ...commits] : ['network sector unreadable.'], '#c8e6c9')
+        print(commits ? [`live from github/${IDENTITY.repoSlug}:`, '', ...commits] : ['network sector unreadable.'], '#c8e6c9')
         break
       // not in HELP — for whoever thinks to try it
       case 'UNDELETE':

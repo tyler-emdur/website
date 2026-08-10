@@ -1,5 +1,6 @@
 // The Machine — file system contents for the EMDUR-486.
 // Everything in here is real: real dead experiments, real notes, real regrets.
+import { IDENTITY, MAILTO } from '@/lib/identity'
 
 export interface MachineExperiment {
   id: string
@@ -130,7 +131,7 @@ export const RECYCLED: RecycledItem[] = [
     body: [
       'resume_2019.doc',
       '',
-      'TYLER EMDUR — Boulder, CO — available upon request',
+      `${IDENTITY.name.toUpperCase()} — ${IDENTITY.locationShort} — available upon request`,
       '',
       'I keep dragging this to the bin. It keeps coming back on the',
       'next boot. A list of jobs is a true thing about a person and',
@@ -196,8 +197,8 @@ export function garbleLine(line: string, seed: number): string {
 // The v1 site's link list, preserved as it was. No project index — that was
 // never what this page was for; it was four links and a lot of white space.
 export const WEBSITE_V1_LINKS = [
-  { label: 'github', href: 'https://github.com/tyler-emdur' },
-  { label: 'email me', href: 'mailto:healthreinvented@gmail.com' },
+  { label: 'github', href: IDENTITY.github },
+  { label: 'email me', href: MAILTO },
 ]
 
 export function getBootCount(): number {
