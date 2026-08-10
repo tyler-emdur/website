@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useUniverseStore, REGIONS, getAllObjects } from '@/lib/universe-store'
 import { IDENTITY } from '@/lib/identity'
+import { useSiteCommits, type SiteCommit } from '@/hooks/use-site-commits'
 
 const MORSE: Record<string, string> = {
   A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',
@@ -70,7 +71,11 @@ const INTERCEPTED_TRACKS = [
 
 type Line = { text: string; cls?: string }
 
-function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredIds: string[]) {
+function buildCommands(
+  flyTo: (pos: [number,number,number]) => void,
+  discoveredIds: string[],
+  commits: SiteCommit[] | null,
+) {
   const R = (text: string, cls?: string): Line => ({ text, cls })
 
   return {
@@ -241,22 +246,22 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
 
     echo: [R('ERROR: RECURSIVE ECHO BLOCKED', 'er')],
 
-    'git log': [
-      R('commit 7f3a291  (HEAD -> main, origin/main)', 'hi'),
-      R(`Author: ${IDENTITY.name} <${IDENTITY.email}>`),
-      R('Date:   ' + new Date().toDateString()),
-      R(''),
-      R('    restructure coordinate bounds and cataloging rules'),
-      R(''),
-      R('commit 1c8e044'),
-      R('    integrate signal concourse and cartography grids'),
-      R(''),
-      R('commit 2b91fa8'),
-      R('    universe core v0.1 — initialize sector sync'),
-      R(''),
-      R('commit 0000001'),
-      R('    init archive database --blank grid', 'dim'),
-    ],
+    // The repository this universe is served from, read live. It used to print
+    // four invented commits while the real feed was already being fetched two
+    // files away — a terminal claiming to show a log has to actually show one.
+    'git log': commits?.length
+      ? [
+          ...commits.slice(0, 4).flatMap((c, i) => [
+            R(`commit ${c.sha.slice(0, 7)}${i === 0 ? '  (HEAD -> main, origin/main)' : ''}`, i === 0 ? 'hi' : undefined),
+            ...(i === 0 ? [R(`Author: ${IDENTITY.name} <${IDENTITY.email}>`)] : []),
+            R(`Date:   ${c.isoDate}`),
+            R(''),
+            R(`    ${c.message}`),
+            R(''),
+          ]),
+          R(`${IDENTITY.repoSlug} — live`, 'dim'),
+        ]
+      : [R('fatal: unable to reach origin. the log is out there.', 'er')],
 
     'git blame': [
       R(`operator: ${IDENTITY.handle} (${new Date().getFullYear()})`, 'cy'),
@@ -335,6 +340,8 @@ function buildCommands(flyTo: (pos: [number,number,number]) => void, discoveredI
 type Commands = ReturnType<typeof buildCommands>
 
 export default function HiddenTerminal() {
+  // `git log` prints this repo's actual history, not a story about it.
+  const { commits } = useSiteCommits(4)
   const [open, setOpen] = useState(false)
   const [lines, setLines] = useState<Line[]>([{ text: 'UNIVERSE OS v0.1 · type "help" for commands', cls: 'dim' }])
   const [input, setInput] = useState('')
@@ -378,7 +385,7 @@ export default function HiddenTerminal() {
     if (!cmd) { setLines(prev => [...prev, echo]); return }
     if (cmd === 'clear') { setLines([]); return }
 
-    const cmds = buildCommands(flyTo, discoveredIds)
+    const cmds = buildCommands(flyTo, discoveredIds, commits)
 
     if (cmd.startsWith('goto ')) {
       const target = cmd.slice(5).trim()
@@ -441,7 +448,7 @@ export default function HiddenTerminal() {
         { text: 'type "help" to see known commands', cls: 'dim' },
       ])
     }
-  }, [flyTo, discoveredIds])
+  }, [flyTo, discoveredIds, commits])
 
   const clsColor = (cls?: string) => {
     switch (cls) {
@@ -507,7 +514,7 @@ export default function HiddenTerminal() {
             }
             if (e.key === 'Tab') {
               e.preventDefault()
-              const cmds = buildCommands(flyTo, discoveredIds)
+              const cmds = buildCommands(flyTo, discoveredIds, commits)
               const partial = input.toLowerCase()
               const match = Object.keys(cmds).find(k => k.startsWith(partial) && k !== partial)
               if (match) setInput(match)

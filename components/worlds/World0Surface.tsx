@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useWorldStore, WorldId } from '@/lib/world-store'
 import { IDENTITY, MAILTO } from '@/lib/identity'
 import { useSiteCommits } from '@/hooks/use-site-commits'
+import { useEnvironment } from '@/lib/environment'
 
 /* ── Authentic early internet palette ── */
 const NAVY = '#000066'
@@ -17,14 +18,6 @@ const LINK = '#3366cc'
 const GREEN = '#00ff00'
 
 const img = (name: string) => `/retro/${name}.svg`
-
-const WEATHER_LABELS: Record<number, string> = {
-  0: 'clear', 1: 'mainly clear', 2: 'partly cloudy', 3: 'overcast',
-  45: 'foggy', 48: 'rime fog', 51: 'light drizzle', 53: 'drizzle',
-  55: 'heavy drizzle', 61: 'light rain', 63: 'rain', 65: 'heavy rain',
-  71: 'light snow', 73: 'snow', 75: 'heavy snow', 80: 'showers',
-  81: 'rain showers', 82: 'heavy showers', 85: 'snow showers', 95: 'thunderstorm',
-}
 
 // `short` is what fits on a 84px tile at 7px Press Start 2P — roughly 12
 // characters including the "W#: " prefix. Without it the long names either cut
@@ -338,8 +331,12 @@ const NAV = [
 
 export default function World0Surface() {
   const navigateTo = useWorldStore(s => s.navigateTo)
-  const [time, setTime] = useState('')
-  const [weather, setWeather] = useState<{ temp: number; label: string } | null>(null)
+  // The clock and the temperature are the same Boulder clock and temperature
+  // every other world is reading — see lib/environment.ts. This world just
+  // happens to render them as a 1998 status bar.
+  const env = useEnvironment()
+  const time = `${env.clock.padStart(5, '0')} ${env.meridiem}`
+  const weather = env.weather
   // The "last updated" stamp is a literal claim, so it reads from the repo's
   // live commit feed rather than a date frozen into the bundle at build time.
   // `lastUpdatedLabel` is null until something real is known — every place it
@@ -353,31 +350,6 @@ export default function World0Surface() {
 
   const go = useCallback(() => navigateTo(1, { type: 'door' }), [navigateTo])
   const goMachine = useCallback(() => navigateTo(5, { type: 'door' }), [navigateTo])
-
-  useEffect(() => {
-    const tick = () => {
-      const d = new Date()
-      let h = d.getHours()
-      const m = d.getMinutes().toString().padStart(2, '0')
-      const ap = h >= 12 ? 'PM' : 'AM'
-      h = h % 12 || 12
-      setTime(`${h.toString().padStart(2, '0')}:${m} ${ap}`)
-    }
-    tick()
-    const iv = setInterval(tick, 10000)
-    return () => clearInterval(iv)
-  }, [])
-
-  useEffect(() => {
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=40.0150&longitude=-105.2705&current=temperature_2m,weather_code&temperature_unit=fahrenheit')
-      .then(r => r.json())
-      .then(d => {
-        const code = d?.current?.weather_code ?? 0
-        const temp = Math.round(d?.current?.temperature_2m ?? 0)
-        setWeather({ temp, label: WEATHER_LABELS[code] ?? 'unknown' })
-      })
-      .catch(() => setWeather({ temp: 0, label: 'offline' }))
-  }, [])
 
   useEffect(() => {
     const container = trafficRef.current
@@ -844,7 +816,7 @@ export default function World0Surface() {
         <div className="w0-ticker">
           * WELCOME TO {IDENTITY.name.toUpperCase()}&apos;S MULTIVERSE * {ALL_WORLDS.length} WORLDS INSIDE * {IDENTITY.location.toUpperCase()} *
           {lastUpdatedLabel ? ` LAST UPDATED ${lastUpdatedLabel.toUpperCase()} *` : ''}
-          {weather ? ` ${IDENTITY.city.toUpperCase()}: ${weather.temp}F ${weather.label.toUpperCase()} *` : ' LOADING WEATHER... *'}
+          {weather ? ` ${IDENTITY.city.toUpperCase()}: ${weather.tempF}F ${weather.label.toUpperCase()} *` : ' LOADING WEATHER... *'}
         </div>
       </div>
 
@@ -1108,7 +1080,7 @@ export default function World0Surface() {
             <div className="w0-mono" style={{ fontSize: 10, color: '#888899', lineHeight: 1.6 }}>
               {weather ? (
                 <>
-                  <span style={{ fontSize: 18, color: YELLOW }}>{weather.temp}&deg;F</span>{' '}
+                  <span style={{ fontSize: 18, color: YELLOW }}>{weather.tempF}&deg;F</span>{' '}
                   <span style={{ fontSize: 9 }}>{weather.label}</span><br />
                   <span style={{ fontSize: 8, color: '#555568' }}>40.01&deg;N 105.27&deg;W &bull; 5,430 ft</span>
                 </>

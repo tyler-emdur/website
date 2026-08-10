@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { BUILD_COMMIT_DATE, commitsApi, formatUpdated, formatUpdatedShort } from '@/lib/identity'
 
 export interface SiteCommit {
+  /** Full commit SHA. The terminal's `git log` prints the short form. */
+  sha: string
   /** Raw ISO timestamp from GitHub, for anything that wants its own format. */
   iso: string
   /** "August 7, 2026" */
@@ -39,6 +41,7 @@ export function useSiteCommits(count = 5) {
           .map((c): SiteCommit => {
             const iso = c?.commit?.committer?.date ?? ''
             return {
+              sha: c?.sha ?? '',
               iso,
               label: formatUpdated(iso || null),
               shortDate: formatUpdatedShort(iso || null),

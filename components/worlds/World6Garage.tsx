@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import HomeButton from './HomeButton'
 import { useWorldStore } from '@/lib/world-store'
+import { useEnvironment } from '@/lib/environment'
 import { LiveRadio, nearestStation, type RadioStatus } from './garage/live-radio'
 import type { RadioStation } from '@/app/api/radio/route'
 
@@ -100,6 +101,7 @@ const STATUS_LABEL: Record<RadioStatus, string> = {
 
 export default function World6Garage() {
   const findSecret = useWorldStore(s => s.findSecret)
+  const env = useEnvironment()
 
   const [headlightsOn, setHeadlightsOn] = useState(false)
   const [freq, setFreq] = useState(96.1)
@@ -257,7 +259,12 @@ export default function World6Garage() {
         <div style={{ position: 'fixed', top: 20, left: 24, zIndex: 30,
           fontFamily: '"Space Mono", monospace', color: 'rgba(255,223,140,0.85)', animation: 'garage-fade 0.8s ease' }}>
           <div style={{ fontSize: 13, letterSpacing: '0.25em', textTransform: 'uppercase' }}>Midnight Garage</div>
-          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>12:47 AM · engine off</div>
+          {/* The name is the place's name, the way a diner called Midnight is
+              still called that at noon. The clock, though, tells the truth —
+              it is the same Boulder hour the surface and the hub are showing. */}
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
+            {env.clock} {env.meridiem} · engine off
+          </div>
           {showIntro && (
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 8, maxWidth: 250, lineHeight: 1.7 }}>
               drag the windshield to look around · tune the radio to real stations from around the world · turn the key to drive
@@ -293,8 +300,8 @@ export default function World6Garage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, paddingBottom: 6 }}>
               <div style={{ fontFamily: '"Space Mono", monospace', fontSize: 15, color: 'rgba(120,255,170,0.85)',
-                textShadow: '0 0 8px rgba(120,255,170,0.4)' }}>12:47</div>
-              <div style={{ fontSize: 6, letterSpacing: '0.2em', color: 'rgba(255,255,255,0.3)' }}>AM · CLOCK</div>
+                textShadow: '0 0 8px rgba(120,255,170,0.4)' }}>{env.clock}</div>
+              <div style={{ fontSize: 6, letterSpacing: '0.2em', color: 'rgba(255,255,255,0.3)' }}>{env.meridiem} · CLOCK</div>
             </div>
           </div>
 

@@ -30,6 +30,56 @@ less mysterious — revert it and choose something smaller.
 
 ---
 
+## 2026-08-10 — One sky over eleven worlds
+
+Objective:
+The shared-reality pillar: real Boulder time and weather reaching every world in
+its own dialect, from one source.
+
+Why:
+Connectedness that isn't inventory following you around. The worlds don't share
+objects — they share a *world*. It is the same hour in Boulder in all of them,
+so the site is one place observed from eleven angles rather than eleven demos
+behind one menu. It also satisfies the data rule: the garage's clock was a
+hardcoded 12:47 AM, which is exactly the fabricated value the project bans.
+
+Changes Made:
+- `lib/environment.ts` (new) — real Boulder wall clock, weather, and solar
+  altitude (NOAA low-precision, no dependency). Weather is cached across worlds
+  for 15 minutes so walking the whole site costs one request, and stays null
+  until it lands rather than substituting a number.
+- World 0 reads it instead of running its own clock tick and weather fetch.
+- World 6's dash clock and state line were hardcoded `12:47`; both are now real.
+  The name stays "Midnight Garage" — that's the place's name, the way a diner
+  called Midnight is still called that at noon.
+- World 1's SYNC readout drifted off a random seed, so the hub disagreed with
+  every other world. Now real Boulder time; the coordinate display's own glitch
+  still carries the "unreliable instrument" idea.
+- `HiddenTerminal`'s `git log` printed four invented commits while the real feed
+  was already being fetched two files away. It now prints this repo's actual
+  history with real short SHAs; `useSiteCommits` exposes `sha`.
+
+Verification:
+Build clean. At 3:25 PM Boulder time: surface `03:25 PM`, garage
+`3:25 PM · engine off`, hub `SYNC 15:25:38`, weather 96F mainly clear — three
+worlds, one clock. Terminal `git log` prints c057580 / 946de81 / 0176b12,
+matching the repo. All 11 worlds render with zero JS errors.
+
+Discovered:
+`git log` first returned its failure line even though the fetch was fine — the
+`exec` callback's dep array was `[flyTo, discoveredIds]`, so it closed over the
+initial null commits forever. Worth remembering: a stale closure in a useCallback
+looks exactly like a failed network request.
+
+Next:
+Cut the string pools (`AbstractIndex`, `GlitchOverlay`) and start the hub's
+objects on real artifacts. Emoji breaking the era in the Machine.
+
+Risk:
+Low. One new module, three worlds, all verified against a real clock.
+
+---
+
 ## 2026-08-10 — Every world gets a URL, and the gate index opens
 
 Objective:

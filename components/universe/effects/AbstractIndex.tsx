@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { boulderClockWithSeconds } from '@/lib/environment'
 
 // ─── SURVEY MARKERS ───────────────────────────────────────────────────────────
 // Scattered across the viewport — feel like markers left on a survey map
@@ -60,7 +61,7 @@ export default function AbstractIndex() {
   const [mounted, setMounted] = useState(false)
   const [statusLine, setStatusLine] = useState(STATUS_LINES[0])
   const [objectCount, setObjectCount] = useState(47)
-  const [time, setTime] = useState('03:12:47')
+  const [time, setTime] = useState(() => boulderClockWithSeconds())
   const [markerTexts] = useState(() =>
     MARKER_POSITIONS.map(() => pick(MARKERS))
   )
@@ -89,14 +90,12 @@ export default function AbstractIndex() {
       })
     }, 7000)
 
-    // Clock — drifts slightly, does not match real time
-    let t = Date.now()
-    const clockIv = setInterval(() => {
-      // drift forward at inconsistent rate
-      t += 980 + Math.floor(Math.random() * 80)
-      const d = new Date(t)
-      setTime(`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`)
-    }, 1000)
+    // The survey clock used to drift off a random seed, so the hub disagreed
+    // with the hour every other world was showing — and the site is supposed to
+    // be one place. It now reads real Boulder time, the same clock the surface
+    // prints and the garage dash shows. The instrument is still unreliable; the
+    // coordinate readout above glitches on its own schedule and carries that.
+    const clockIv = setInterval(() => setTime(boulderClockWithSeconds()), 1000)
 
     return () => {
       markerTimers.forEach(clearTimeout)
