@@ -1,643 +1,151 @@
-# TylerEmdur.com Autonomous Development Log
+# Session Log
 
-# Project Identity
+What actually happened, session by session. Identity, rules and the measurement
+trap live in `CLAUDE.md`; the roadmap lives in `PLAN.md`.
 
-TylerEmdur.com is a digital universe disguised as a website.
-
-It is not a portfolio, startup, SaaS application, dashboard, or personal brand site.
-
-It is a collection of places that people can wander through, discover, and slowly understand over time.
-
-The website should feel:
-
-- handcrafted
-- immersive
-- mysterious
-- nostalgic
-- playful
-- atmospheric
-- lived in
-- occasionally strange
-
-A visitor should feel:
-
-> "I wonder what's over there."
-
-The goal is not to add features.
-
-The goal is to create places that feel alive.
+Entries through July 2026 are in `docs/archive/PROGRESS-history-2026-07.md`.
 
 ---
 
-# Context
+## Template
 
-This website is a growing multiverse made of distinct worlds.
+Only these fields. The old eighteen-field version was mostly left blank — these
+are the ones eight sessions of real entries actually used.
 
-Every world should feel like a real place with:
+```
+## YYYY-MM-DD — <one-line title>
 
-- its own personality
-- its own rules
-- memorable interactions
-- hidden details
-- environmental storytelling
-- reasons to revisit
+Objective:      what, and which PLAN.md item it is
+Why:            why it improves the site
+Changes Made:   files, and what changed in each
+Verification:   build, real-window check, what was actually confirmed
+Discovered:     anything learned that outlives this session (optional)
+Next:           recommended focus
+Risk:           low / medium / high
+```
 
-The website should reward curiosity.
-
-A person should be able to spend an hour exploring and still discover something new.
-
-The website should slowly become deeper over time, not larger for the sake of being larger.
-
----
-
-# North Star
-
-The website should feel less like a website and more like a place.
-
-Every commit should move the project toward:
-
-- more immersion
-- more atmosphere
-- more delight
-- more mystery
-- more depth
+Before finishing: run `next build`, verify navigation and mobile, confirm no
+regressions. If the work made the site feel more generic, more professional, or
+less mysterious — revert it and choose something smaller.
 
 ---
 
-# Non-Negotiable Principles
-
-1. Never turn the website into a portfolio.
-2. Never turn the website into a dashboard.
-3. Never turn the website into a generic developer website.
-4. Never remove mystery in favor of explanation.
-5. Never remove weirdness in favor of professionalism.
-6. Never make the website feel AI-generated.
-7. Never sacrifice atmosphere for feature count.
-8. Never redesign the entire site in one session.
-9. Never break existing navigation.
-10. Never leave the project in a worse state than you found it.
-11. Never introduce generic chatbots, productivity systems, or fake data.
-12. Never add a feature solely because it is technically impressive.
-13. Never create features that feel disconnected from the rest of the universe.
-14. Never create empty experiences.
-
----
-
-# Core Development Rules
-
-1. Preserve existing functionality unless replacing it with something objectively better.
-2. Prefer small polished improvements over huge unfinished systems.
-3. Preserve performance and mobile usability.
-4. Keep the personality of every world distinct.
-5. Avoid unnecessary dependencies.
-6. Every change should feel intentional and handcrafted.
-7. Add depth before adding breadth.
-8. Every feature should have a reason to exist.
-9. If uncertain, improve an existing world.
-10. If no meaningful improvement exists, do nothing.
-
----
-
-# Anti-Slop Rules
-
-The website must never become AI-generated slop.
-
-Avoid:
-
-- random particle effects
-- meaningless animations
-- generic cards
-- fake terminal effects
-- placeholder content
-- unnecessary complexity
-- trendy features that don't belong
-- endless feature additions
-
-Every addition should answer:
-
-1. Why does this exist?
-2. Does it make the world feel more real?
-3. Does it reward exploration?
-4. Does it belong here?
-5. Would a human intentionally build this?
-
-If the answer is no, do not build it.
-
----
-
-# Existing Worlds
-
-## Surface
-Purpose:
-The front door of the universe.
-
-Characteristics:
-- welcoming
-- nostalgic
-- slightly strange
-
-Avoid:
-- corporate hero sections
-- portfolio language
-- excessive information
-
-Ideas:
-Status:
-Known Issues:
-
----
-
-## Universe
-Purpose:
-The hub connecting all worlds.
-
-Characteristics:
-- wonder
-- mystery
-- scale
-- discovery
-
-Avoid:
-- clutter
-- overexplaining
-- excessive UI
-
-Ideas:
-Status:
-Known Issues:
-
----
-
-## Boulder Explorer
-Purpose:
-A living memory of place.
-
-Characteristics:
-- exploration
-- geography
-- personal connection
-
-Avoid:
-- becoming a normal map application
-- excessive overlays
-- information overload
-
-Ideas:
-Status:
-Known Issues:
-
----
-
-## Broadcast
-Purpose:
-A late-night radio and television experience.
-
-Characteristics:
-- atmosphere
-- discovery
-- background listening
-
-Long-Term Goals:
-- Radio Garden inspiration
-- strange stations
-- electroclash
-- indie sleaze
-- underground radio
-- international stations
-- hidden stations
-- favorites
-- listening while exploring other worlds
-
-Avoid:
-- generic music players
-- Top 40 focus
-- streaming service interfaces
-
-Ideas:
-Status:
-Known Issues:
-
----
-
-## Mall
-Purpose:
-A nostalgic place to wander.
-
-Characteristics:
-- atmosphere
-- memories
-- discovery
-
-Avoid:
-- empty storefronts
-- placeholder experiences
-
-Ideas:
-Status:
-Known Issues:
-
----
-
-## Garage
-Purpose:
-A place to hang out.
-
-Characteristics:
-- tactile
-- immersive
-- cozy
-- personal
-
-Long-Term Goals:
-- functioning radio
-- gauges
-- dashboard controls
-- glovebox
-- trunk
-- weather
-- cassette collection
-- hidden objects
-- ambient sounds
-
-Avoid:
-- becoming a menu system
-
-Ideas:
-Status:
-Known Issues:
-
----
-
-## Contact
-Purpose:
-Human connection.
-
-Characteristics:
-- warmth
-- personality
-- surprise
-
-Avoid:
-- generic forms
-
-Ideas:
-Status:
-Known Issues:
-
----
-
-## Answering Machine
-Purpose:
-Memory and mystery.
-
-Characteristics:
-- secrets
-- emotional artifacts
-- discovery
-
-Avoid:
-- overexplaining lore
-
-Ideas:
-Status:
-Known Issues:
-
----
-
-## Isle 14
-Purpose:
-Unknown.
-
-This world intentionally resists definition.
-
-It is NOT a portfolio.
-
-Possible Directions:
-- observatory
-- memory archive
-- museum
-- research station
-- time capsule
-- library of forgotten websites
-- dream world
-- train station between worlds
-- underwater facility
-
-Avoid:
-- project cards
-- resume sections
-- skills lists
-- personal branding
-
-Ideas:
-Status:
-Known Issues:
-
----
-
-# Future World Ideas
-
-Potential worlds:
-
-- Dream Archive
-- Observatory
-- Digital Aquarium
-- Library of Lost Websites
-- Memory Palace
-- Radio Station
-- Time Capsule
-- Train Station
-- Planetarium
-- Museum
-- Airport Terminal
-- VHS Rental Store
-- Arcade
-- Botanical Garden
-- Subway System
-- Internet Archaeology Museum
-- Underwater Research Station
-- Movie Theater
-- Abandoned Theme Park
-
-New worlds are encouraged, but only if:
-
-1. They have a unique identity.
-2. They add something genuinely new.
-3. They have atmosphere.
-4. They include at least one original interaction.
-5. They can be polished.
-6. They improve the universe.
-
-A deeply developed world is better than many shallow ones.
-
----
-
-# Mystery Rules
-
-Mystery is better than explanation.
-
-Do not:
-
-- solve recurring mysteries
-- establish definitive canon
-- explain every anomaly
-- permanently close narrative possibilities
-
-Prefer:
-
-- clues
-- fragments
-- contradictions
-- implications
-- hidden details
-
-Leave room for future discovery.
-
----
-
-# Personal Lore Rules
-
-Personal memories, diary entries, or emotional artifacts should be rare.
-
-At most one major personal revelation should occur within any seven-day period.
-
-Do not over-explain the owner of the universe.
-
-Maintain intrigue.
-
----
-
-# Development Philosophy
-
-Small details matter.
-
-A hidden interaction can be more valuable than an entirely new feature.
-
-Polish matters.
-
-Atmosphere matters.
-
-Restraint matters.
-
-The goal is to make the universe feel lived in.
-
----
-
-# Session Limits
-
-Maximum work per session:
-
-- One major feature
-OR
-- Two medium improvements
-OR
-- Five small improvements
-
-Avoid touching more than three worlds in one session.
-
----
-
-# World Rotation
-
-Track how many sessions have passed since each world was last updated.
-
-Prefer worlds that have gone the longest without attention.
-
-The entire universe should slowly deepen together.
-
----
-
-# Delight Rule
-
-Every session should contain at least one small delightful detail.
-
-Examples:
-
-- hidden note
-- easter egg
-- secret interaction
-- environmental sound
-- tiny animation
-- atmospheric effect
-- strange object
-- hidden station
-- subtle callback
-
-Small details compound into atmosphere.
-
----
-
-# Regression Rule
-
-If today's work makes the website feel:
-
-- more generic
-- more professional
-- more portfolio-like
-- less mysterious
-- less immersive
-- less handcrafted
-
-then revert the changes and choose something smaller.
-
----
-
-# Performance Rules
-
-Never significantly regress:
-
-- load times
-- frame rate
-- responsiveness
-- mobile experience
-- accessibility
-
-Prefer simple solutions.
-
-Avoid unnecessary dependencies.
-
----
-
-# Git Rules
-
-Always:
-
-- work on a branch
-- commit changes
-- write descriptive commit messages
-- leave the repository in a clean state
-
-Never deploy directly to production.
-
-Preview deployments are staging environments.
-
----
-
-# Before Making Changes
-
-Write down:
-
-Today's Objective:
-Why it improves the website:
-Risks involved:
-
----
-
-# After Making Changes
-
-You must:
-
-- run the build
-- verify the application starts
-- verify navigation
-- verify mobile layouts
-- verify no major regressions
-- update PROGRESS.md
-
----
-
-# Self Review
-
-At the end of every session answer:
-
-1. Did I make the website feel more alive?
-2. Did I preserve its identity?
-3. Did I avoid generic solutions?
-4. Is the website objectively better?
-5. Would the owner be excited to discover these changes?
-6. Did I add at least one delightful detail?
-7. Did I preserve mystery?
-
-If any answer is no:
-
-revise the work or revert it.
-
----
-
-# Day 0 (Starting State)
-
-Current strengths:
-- [fill in]
-
-Current weaknesses:
-- [fill in]
-
-Major bugs:
-- [fill in]
-
-Features that must never be removed:
-- [fill in]
-
----
-
-# Session History
-
-Past dated entries archived to `docs/archive/PROGRESS-history-2026-07.md` to keep this file focused. New entries go below, using the template.
-
-## YYYY-MM-DD
+## 2026-08-10 — Every world gets a URL, and the gate index opens
 
 Objective:
+PLAN.md P5a plus the routing work Tyler asked for — give each world its own
+address so links are shareable and the back button works.
 
 Why:
-
-Risks:
-
-Files Modified:
-
-Worlds Touched:
+The whole site was one route with the world held in a zustand store. No deep
+links, no back button, no per-world titles, and `te-return-world` in
+localStorage standing in for an address bar. Also: `PortalDirectory.tsx` gated
+the only in-world route to nine worlds behind three "discoveries", which
+register by clicking universe objects — so a first-time visitor clicked the one
+visible affordance and was told no, by a mechanic they had no way to know about.
 
 Changes Made:
+- `lib/worlds.ts` (new) — canonical slug + in-fiction aliases + title per world.
+  Plain slugs because people paste them (`/map`, `/machine`, `/garage`);
+  aliases (`/kwnd`, `/emdur-486`, `/sector-02b`) redirect via next.config.
+- `app/[world]/` (new) — one static page per world, `generateStaticParams` over
+  the slug list, per-world metadata, `dynamicParams: false` so unknown slugs 404.
+- `WorldManager` moved from `app/page.tsx` into the root layout. This is the
+  load-bearing decision: because it never unmounts, moving between worlds keeps
+  the store alive and the portal animates over a live scene. Pages only declare
+  which world.
+- `world-store.ts` — added `arriveAt()` for landing on a URL (no portal, since
+  you didn't travel), removed `applyReturnWorld()` and the `te-return-world` hack.
+- `WorldManager` syncs the URL both ways: `history.pushState` on world change
+  (not the Next router, which would remount and kill the portal mid-animation),
+  and a `popstate` listener so back/forward work.
+- `PortalDirectory.tsx` — dropped the `discovered >= 3` lock entirely. Labels
+  stay mangled, so the door is open but the contents are still unknown.
+- `FrontDoor.tsx` — the reveal is driven by rAF, which browsers pause in
+  backgrounded tabs; switching away mid-entrance left a door that would never
+  open. Added a timeout fallback so the handoff always completes.
 
-Features Added:
+Verification:
+`next build` clean; all 11 worlds prerender as static routes. curl: `/map` 200,
+`/kwnd` → `/broadcast` 307, `/nope` 404. In a browser: `/map` loads World 2
+directly with the right title and `data-world`; clicking the Garage tile on
+`/surface` ran the portal and moved the URL to `/garage`; back returned to
+`/surface`; the gate index opens with 0 discoveries showing all 10 gates.
 
-Bugs Fixed:
+Discovered:
+**The automation trap caught me again, twice in one session.** The front door
+appeared stuck after entering — I measured `visibilityState: "hidden"` and
+**0 rAF frames in 1.5 s**, confirming the documented cause rather than a bug.
+Then a second false alarm: `seen: null` showed my click had missed the button
+entirely. Both would have been wrong findings. The one real thing that fell out
+is the backgrounded-tab edge case, which is genuine in production and now fixed.
 
-Performance Improvements:
+Next:
+`lib/environment.ts` — shared reality. Real Boulder time, weather and sun
+position, read by each world in its own dialect.
 
-Atmospheric Details Added:
-
-Things Discovered:
-
-New Ideas:
-
-Website Scores:
-- Immersion:
-- Originality:
-- Polish:
-- Performance:
-- Cohesion:
-- Exploration:
-- Mystery:
-
-Commit Hash:
-
-Recommended Focus For Tomorrow:
-
-Risk Level:
-- Low
-- Medium
-- High
+Risk:
+Medium. Touches how every world mounts. Build green and the main paths verified,
+but the portal animation itself can't be judged from automation — worth a real
+click-through.
 
 ---
 
-# Primary Rule
+## 2026-08-10 — Identity source of truth, and a plan consolidation
 
-Protect the soul of the project.
+Objective:
+Collapse three divergent contact identities into one, then consolidate three
+out-of-sync plan documents into a single roadmap.
 
-When in doubt, choose:
+Why:
+The site had three email addresses across five screens, and a "last updated"
+stamp frozen at June 30 while the newest commit was August 7. Three different
+addresses doesn't read as layered fiction — it reads as an abandoned site with
+several owners.
 
-- mystery
-- atmosphere
-- craftsmanship
-- exploration
-- small delightful details
+Changes Made:
+- `lib/identity.ts` (new) — single source of truth for name, handle, email,
+  city/region, coords, domain, GitHub, repo slug, role. Every identity string
+  in the app now reads from it.
+- `hooks/use-site-commits.ts` (new) — World 0 and World 5's terminal were each
+  fetching the GitHub commits endpoint with different parsing. Now one hook.
+- Email unified on `tyleremdur@gmail.com` across ten sites: front door, the
+  hidden source comment in `layout.tsx`, World 0 (×4), World 7, machine data,
+  hidden terminal (×2).
+- The last-updated stamp now reads the live commit feed, with the build-time
+  git date as fallback. If neither is known it **hides** rather than falling
+  back to `new Date()`, which was the old behavior and printed today's date as
+  a lie.
+- `app/page.tsx` no longer returns `null` on first load — lays down the black
+  ground with a dim name instead of a blank white frame.
+- Docs restructured: `CLAUDE.md` (new, auto-loads), `PLAN.md` (roadmap),
+  `PROGRESS.md` (this log), `docs/archive/` (four retired docs + README).
+- `PROGRESS.md`'s world roster was wrong — listed a **Mall** that doesn't
+  exist, called Warehouse 14 "Isle 14", and omitted Worlds 5, 8 and 10.
 
-over:
+Verification:
+`next build` clean, no type errors. Walked all eleven worlds in Chrome against
+a production build. Confirmed the surface now reads August 7, 2026 from the
+live feed, and `grep` for both old addresses returns nothing.
 
-- feature count
-- complexity
-- professionalism
-- trendiness
-- explanations
+Discovered:
+1. **The gate index is locked for every new visitor.** `PortalDirectory.tsx`
+   gates the only in-world route to nine worlds behind three "discoveries",
+   which register by clicking universe objects — so the door is held shut by a
+   mechanic whose input a first-timer has no way to know exists. Now PLAN.md #1.
+2. **July's plan had already found August's headline.** The immersion plan's
+   "Later" list contains the hub's missing loading state, diagnosed from code a
+   month before the browser pass rediscovered it.
+3. **The trap caught me too.** `PLAN-immersion-2026-07.md` documents that
+   automation tabs pause `requestAnimationFrame`; I measured the hub's black
+   window in exactly that environment and reported a duration I shouldn't have
+   trusted. The gap is code-confirmed; the timing isn't. Now caveated in PLAN.md.
+4. **The front door shipped without its argument.** `PIVOT.md` exists to make a
+   cold visitor understand who this is; commit `cfe83c3` stripped the
+   positioning line the whole document rests on. Open Question 1.
 
-The website should slowly become deeper, stranger, and more alive.
+Next:
+PLAN.md #1 — unlock the gate index. One file, unlocks most of the site.
+
+Risk:
+Low. Additive plus string substitution; build and browser verification green.
