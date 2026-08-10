@@ -33,7 +33,9 @@ const WORLD_TITLES: Record<WorldId, string> = {
   2: 'boulder explorer · gps trace',
   3: 'KWND — broadcasting',
   5: 'EMDUR-486 — press any key',
-  6: '12:47 AM · engine off',
+  // No time here. The garage's clock is real now, and a tab title frozen at
+  // 12:47 AM would contradict the dash it is sitting above.
+  6: 'midnight garage · engine off',
   7: `${IDENTITY.name} — ${IDENTITY.domain}`,
   8: 'departures · every reader in boulder',
   9: 'one new message',
