@@ -1,10 +1,15 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { IDENTITY } from '@/lib/identity'
+import WorldManager from '@/components/worlds/WorldManager'
+
+const DESCRIPTION = 'A digital universe.'
 
 export const metadata: Metadata = {
-  title: 'Tyler Emdur',
-  description: 'A digital universe.',
-  openGraph: { title: 'Tyler Emdur', description: 'A digital universe.', type: 'website' },
+  title: IDENTITY.name,
+  description: DESCRIPTION,
+  authors: [{ name: IDENTITY.name, url: `https://${IDENTITY.domain}` }],
+  openGraph: { title: IDENTITY.name, description: DESCRIPTION, type: 'website' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -18,8 +23,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         {/* For whoever reads the source. A JSX comment gets compiled away —
-            this is the only way the note actually survives into the HTML. */}
-        <div hidden dangerouslySetInnerHTML={{ __html: '<!-- hello: healthreinvented@gmail.com -->' }} />
+            this is the only way the note actually survives into the HTML.
+            Same address the front door shows: a source-only inbox that
+            disagreed with the visible one just looked like a stale site. */}
+        <div hidden dangerouslySetInnerHTML={{ __html: `<!-- hello: ${IDENTITY.email} -->` }} />
+        {/* The worlds render from here, not from a page, so that moving between
+            /map and /garage never unmounts them — the store survives, and the
+            portal animation runs over a live scene instead of a remount. Pages
+            under app/[world]/ only declare *which* world; app/page.tsx only
+            lays the front door on top of it. */}
+        <WorldManager />
         {children}
       </body>
     </html>

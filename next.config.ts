@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
 import { execSync } from 'child_process'
+import { ALIAS_REDIRECTS } from './lib/worlds'
 
 let lastCommitDate = ''
 try {
@@ -12,6 +13,16 @@ const config: NextConfig = {
   reactStrictMode: false,
   env: {
     NEXT_PUBLIC_LAST_COMMIT_DATE: lastCommitDate,
+  },
+  // Every world answers to its in-fiction designation as well as its slug —
+  // /kwnd, /emdur-486, /sector-02b. They redirect rather than render so there
+  // is still exactly one canonical URL per world to share.
+  async redirects() {
+    return ALIAS_REDIRECTS.map(({ from, to }) => ({
+      source: `/${from}`,
+      destination: to,
+      permanent: false,
+    }))
   },
   images: {
     remotePatterns: [

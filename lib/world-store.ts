@@ -1,5 +1,6 @@
 'use client'
 import { create } from 'zustand'
+import { IDENTITY } from './identity'
 
 export type WorldId = 0 | 1 | 2 | 3 | 5 | 6 | 7 | 8 | 9 | 10 | 14
 
@@ -27,13 +28,13 @@ export interface PortalConfig {
 }
 
 const WORLD_TITLES: Record<WorldId, string> = {
-  0: 'Tyler Emdur',
-  1: 'Tyler Emdur',
+  0: IDENTITY.name,
+  1: IDENTITY.name,
   2: 'boulder explorer · gps trace',
   3: 'KWND — broadcasting',
   5: 'EMDUR-486 — press any key',
   6: '12:47 AM · engine off',
-  7: 'Tyler Emdur — tyleremdur.com',
+  7: `${IDENTITY.name} — ${IDENTITY.domain}`,
   8: 'departures · every reader in boulder',
   9: 'one new message',
   10: 'the directory · 12 objects, none shipped',
@@ -51,24 +52,13 @@ interface WorldState {
   counter: number
   secretsFound: string[]
   navigateTo: (world: WorldId, portal: PortalConfig) => void
+  arriveAt: (world: WorldId) => void
   completePortal: () => void
   recordInteraction: () => void
   findSecret: (id: string) => void
   hasSecret: (id: string) => boolean
   resetCounter: () => void
   _pendingWorld: WorldId | null
-}
-
-function loadReturnWorld(): WorldId {
-  if (typeof window === 'undefined') return 0
-  try {
-    const raw = localStorage.getItem('te-return-world')
-    if (raw === null) return 0
-    localStorage.removeItem('te-return-world')
-    const id = parseInt(raw)
-    if (isNaN(id) || !WORLD_IDS.includes(id as WorldId)) return 0
-    return id as WorldId
-  } catch { return 0 }
 }
 
 function loadVisited(): WorldId[] {
@@ -128,6 +118,25 @@ export const useWorldStore = create<WorldState>((set, get) => ({
     })
   },
 
+  // Landing on a URL rather than travelling to one. No portal, because the
+  // visitor didn't come through anything — they were already there. Still
+  // counts as visited, so the hub reveals what exploring would have revealed.
+  arriveAt: (world) => {
+    const state = get()
+    if (state.current === world && !state.portalActive) return
+    if (typeof document !== 'undefined') document.title = WORLD_TITLES[world]
+    const newVisited = state.visited.includes(world) ? state.visited : [...state.visited, world]
+    saveVisited(newVisited)
+    set({
+      current: world,
+      previous: state.current === world ? state.previous : state.current,
+      portalActive: false,
+      portalConfig: null,
+      _pendingWorld: null,
+      visited: newVisited,
+    })
+  },
+
   completePortal: () => {
     const state = get()
     if (state._pendingWorld === null) return
@@ -167,13 +176,6 @@ export const useWorldStore = create<WorldState>((set, get) => ({
 
 // Called once on mount (client only) to restore the world saved before a
 // full-page reload. Doing this post-hydration avoids a server/client mismatch.
-export function applyReturnWorld() {
-  const world = loadReturnWorld()
-  if (world !== 0) {
-    if (typeof document !== 'undefined') document.title = WORLD_TITLES[world]
-    useWorldStore.setState({ current: world })
-  }
-}
 
 export function getWorldLog(): string {
   const visited = loadVisited()

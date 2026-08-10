@@ -1,6 +1,7 @@
 'use client'
 import React, { useEffect } from 'react'
-import { useWorldStore, getWorldLog, applyReturnWorld } from '@/lib/world-store'
+import { useWorldStore, getWorldLog, WORLD_IDS, type WorldId } from '@/lib/world-store'
+import { pathForWorld, worldForSlug } from '@/lib/worlds'
 import PortalTransition from './PortalTransition'
 import World0Surface from './World0Surface'
 import World1Universe from './World1Universe'
@@ -60,7 +61,30 @@ export default function WorldManager() {
 
   const WorldComponent = WORLD_COMPONENTS[current] ?? World0Surface
 
-  useEffect(() => { applyReturnWorld() }, [])
+  // The address bar follows the world. `history.pushState` rather than the
+  // Next router on purpose: the router would re-run the route and remount this
+  // subtree, killing the portal mid-animation. Shallow history updates are a
+  // supported App Router escape hatch and leave the mounted scene alone.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    // The front door owns "/" until the visitor enters; don't steal it.
+    if (window.location.pathname === '/') return
+    const path = pathForWorld(current)
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path)
+    }
+  }, [current])
+
+  // ...and the world follows the back button.
+  useEffect(() => {
+    const onPop = () => {
+      const slug = window.location.pathname.replace(/^\/+|\/+$/g, '')
+      const route = worldForSlug(slug)
+      if (route) useWorldStore.getState().arriveAt(route.id)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   // Update data-world on html element for CSS scoping
   useEffect(() => {

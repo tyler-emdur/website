@@ -1,5 +1,6 @@
 'use client'
 import { useRef, useState } from 'react'
+import { IDENTITY, MAILTO } from '@/lib/identity'
 
 // The five-second version, for whoever gets here cold. Everything after
 // this is the multiverse, exactly as it already exists — this screen adds
@@ -51,6 +52,20 @@ export default function FrontDoor({ onEnter, onDone }: { onEnter: () => void; on
     const ease = (t: number) => 1 - Math.pow(1 - t, 3)
     const start = performance.now()
 
+    // The reveal below is driven by requestAnimationFrame, which browsers pause
+    // entirely in a backgrounded tab. Switch away mid-entrance and the loop
+    // stops, so `onDone` never fires and you come back to a door that will
+    // never open. This guarantees the handoff regardless of whether a single
+    // frame ever runs; `finished` keeps the two paths from both firing.
+    let finished = false
+    const finish = () => {
+      if (finished) return
+      finished = true
+      clearTimeout(safety)
+      onDone()
+    }
+    const safety = setTimeout(finish, duration + 600)
+
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration)
       const r = maxR * ease(t)
@@ -70,7 +85,7 @@ export default function FrontDoor({ onEnter, onDone }: { onEnter: () => void; on
       }
 
       if (t < 1) requestAnimationFrame(tick)
-      else onDone()
+      else finish()
     }
     requestAnimationFrame(tick)
   }
@@ -104,21 +119,21 @@ export default function FrontDoor({ onEnter, onDone }: { onEnter: () => void; on
             fontFamily: 'var(--font-sans)', fontSize: 40, fontWeight: 600, letterSpacing: '-0.02em',
             color: 'rgba(255,255,255,0.95)',
           }}>
-            Tyler Emdur
+            {IDENTITY.name}
           </div>
           <div style={{
             fontFamily: 'var(--font-mono)', fontSize: 12, marginTop: 12, letterSpacing: '0.12em',
             textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)',
           }}>
-            Boulder, Colorado
+            {IDENTITY.location}
           </div>
 
           <div style={{ display: 'flex', gap: 28, marginTop: 36, fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-            <a href="https://github.com/tyler-emdur" target="_blank" rel="noopener noreferrer"
+            <a href={IDENTITY.github} target="_blank" rel="noopener noreferrer"
               style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>
               GitHub
             </a>
-            <a href="mailto:healthreinvented@gmail.com"
+            <a href={MAILTO}
               style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none' }}>
               Email
             </a>
