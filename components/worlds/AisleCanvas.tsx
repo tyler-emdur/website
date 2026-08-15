@@ -6,8 +6,22 @@ import {
   MeshStandardMaterial, MeshBasicMaterial, PointLight, AmbientLight, DirectionalLight,
   Fog, NearestFilter, EquirectangularReflectionMapping, SRGBColorSpace,
 } from 'three'
-import { SPACING, RAIL_X, getSlot, type Slot, type Shape } from './aisle-data'
+import { SPACING, RAIL_X, getSlot, type Slot, type Shape, type StorePhase } from './aisle-data'
 import { useIsTouchDevice } from '@/lib/use-touch-device'
+
+// ── the building runs on Boulder's clock ─────────────────────────────────────
+// Everything in here is a real measurement, handed down from lib/environment.ts
+// and components/worlds/aisle-data.ts. The warehouse doesn't simulate a time of
+// day — it is whatever time it actually is in Boulder, which is why turning up
+// at 3am gets you a different building rather than a different filter over the
+// same one. The sun in the skylights is the sun.
+export interface Sky {
+  /** Real solar elevation over Boulder, normalised: 0 after dark, 1 at noon. */
+  daylight: number
+  phase: StorePhase
+  /** 0 → 1 across the last half hour of trading, and 1 once the doors are shut. */
+  dimming: number
+}
 
 // The Endless Aisle: an actual supermarket at closing time. Fluorescent
 // fixtures, steel pallet racking stacked past the light, sealed concrete slab.
@@ -61,6 +75,9 @@ const SUN_CAST = 1.75
 const FOG_BRIGHT = new Color('#c8ced4')
 const FOG_DECAY = new Color('#79876f')
 const FOG_DARK = new Color('#0a0807')
+// what the front of the store hazes to once the sun is off it and the house
+// lights are down — not black, just nobody's idea of daytime
+const FOG_NIGHT = new Color('#2a2e33')
 
 // seeded per-slot random, independent of aisle-data's slot rng
 function srand(seed: number) {
@@ -133,7 +150,12 @@ function caseTexture() {
 }
 
 // ── canvas-texture text sprites (no troika) ──────────────────────────────────
-function makeLabelTexture(lines: { text: string; size: number; color: string }[], bg: string | null, w = 256, h = 128) {
+function makeLabelTexture(
+  lines: { text: string; size: number; color: string }[],
+  bg: string | null,
+  w = 256, h = 128,
+  corner?: { text: string; color: string },
+) {
   const cv = document.createElement('canvas')
   cv.width = w; cv.height = h
   const cx = cv.getContext('2d')!
@@ -149,20 +171,31 @@ function makeLabelTexture(lines: { text: string; size: number; color: string }[]
     cx.fillText(l.text.slice(0, 30), w / 2, y)
     y += l.size * 0.72
   }
+  // The asterisk. Top right corner of the sign, small, unexplained, exactly
+  // where the real one goes — it means the warehouse is not reordering this
+  // item, and when the last case is gone it is gone. Shoppers who know what it
+  // means clear the pallet. Nothing in this world will ever tell you that.
+  if (corner) {
+    cx.textAlign = 'right'
+    cx.fillStyle = corner.color
+    cx.font = `bold ${Math.round(h * 0.26)}px Arial, sans-serif`
+    cx.fillText(corner.text, w - Math.round(w * 0.045), Math.round(h * 0.17))
+  }
   const tex = new CanvasTexture(cv)
   tex.minFilter = NearestFilter
   return tex
 }
 
-function LabelPlane({ lines, bg, width, position, rotation }: {
+function LabelPlane({ lines, bg, width, position, rotation, corner }: {
   lines: { text: string; size: number; color: string }[]
   bg: string | null
   width: number
   position: [number, number, number]
   rotation?: [number, number, number]
+  corner?: { text: string; color: string }
 }) {
-  const key = lines.map(l => l.text + l.color).join('|') + bg
-  const tex = useMemo(() => makeLabelTexture(lines, bg), [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  const key = lines.map(l => l.text + l.color).join('|') + bg + (corner?.text ?? '')
+  const tex = useMemo(() => makeLabelTexture(lines, bg, 256, 128, corner), [key]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => tex.dispose(), [tex])
   return (
     <mesh position={position} rotation={rotation}>
@@ -199,6 +232,10 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
     for (let idx = startIndex; idx <= endIndex; idx++) {
       const z = -idx * SPACING
       const zone = zoneAt(idx)
+      // the entrance reads as bright retail — printed packaging over plain
+      // kraft — before the walk settles into the usual brown club-store mix
+      // by idx 30, well ahead of where flicker even begins
+      const freshness = 1 - smooth(0, 30, idx)
       // déjà-vu bands: stretches where every slot stocks the exact same
       // shelves, the same way, again and again
       const dejavu = (idx >= 72 && idx <= 80) || (idx >= 132 && idx <= 144)
@@ -252,7 +289,7 @@ function Shelving({ startIndex, endIndex }: { startIndex: number; endIndex: numb
           // one colour per column: a column is one product, as it would be.
           // Two cases in three are bare corrugated — that ratio is the whole
           // reason a real club store reads brown from the end of the aisle.
-          col.set(rnd() < 0.66
+          col.set(rnd() < 0.66 - freshness * 0.30
             ? CARDBOARD[Math.floor(rnd() * CARDBOARD.length)]
             : PRINTED[Math.floor(rnd() * PRINTED.length)])
           col.lerp(new Color('#4a4a48'), zone.decay * 0.45 + zone.dark * 0.35)
@@ -413,13 +450,14 @@ function FeaturedItem({ slot }: { slot: Slot }) {
         width={0.62}
         position={[side * -0.2, 0.8, 0.3]}
         rotation={[0, -side * Math.PI / 4, 0]}
+        corner={slot.star ? { text: '*', color: tagColor } : undefined}
       />
     </group>
   )
 }
 
 // ── ceiling fixtures ─────────────────────────────────────────────────────────
-function Fixture({ index }: { index: number }) {
+function Fixture({ index, sky }: { index: number; sky: Sky }) {
   const matRef = useRef<MeshStandardMaterial>(null)
   const zone = zoneAt(index)
   const rnd = srand(index * 31 + 5)
@@ -427,6 +465,10 @@ function Fixture({ index }: { index: number }) {
   const dead = deadRoll < zone.flicker * 0.12 + zone.dark * 0.72
   const flickery = !dead && rnd() < 0.2 + zone.flicker * 0.5
   const phase = rnd() * 100
+  // Drawn last on purpose: the three rolls above decided which fixtures were
+  // dead long before the store had opening hours, and inserting a draw ahead of
+  // them would silently re-deal the whole aisle.
+  const closingRoll = rnd()
   useFrame((state) => {
     const m = matRef.current
     if (!m) return
@@ -446,6 +488,12 @@ function Fixture({ index }: { index: number }) {
       }
       target = v * (1.4 - zone.decay * 0.4)
     }
+    // Closing time is not a dimmer. Somebody walks a panel and kills the lights
+    // in banks, and the bank you are standing under is not the one they start
+    // with. Once the doors are locked the building runs on night-crew lighting:
+    // roughly a third of the fixtures, at a third of the output, all night.
+    if (closingRoll < sky.dimming * 0.72) target = 0.02
+    else if (sky.phase === 'closed') target *= 0.38
     if (behind) target = 0.04
     // slow lerp so lights visibly die off rather than snap
     m.emissiveIntensity += (target - m.emissiveIntensity) * (behind ? 0.06 : 0.5)
@@ -474,6 +522,11 @@ function Fixture({ index }: { index: number }) {
 }
 
 // ── overhead aisle signs ─────────────────────────────────────────────────────
+// The front of the store gets an actual department directory — the thing a
+// real warehouse club has and this one, past idx 50, deliberately does not.
+// Losing that legibility is the first sign something's off, not the last.
+const FRONT_DEPTS = ['BULK & PAPER GOODS', 'CHILLED · BAKERY', 'HOUSEHOLD', 'SEASONAL', 'ELECTRONICS · HOME']
+const FRONT_SIGN_IDXS = [10, 21, 32, 43]
 const AISLE_NAMES = [
   ['AISLE 14', 'EVERYTHING ELSE'],
   ['AISLE 14', 'SEASONAL · PERMANENT'],
@@ -482,10 +535,13 @@ const AISLE_NAMES = [
   ['AISLE 14 OF 14', 'KEEP WALKING'],
   ['AISLE ∞', ''],
 ]
-function AisleSign({ n }: { n: number }) {
-  const idx = n * 22 + 10
+function signContent(idx: number): [string, string] {
+  if (idx < 50) return ['AISLE 14', FRONT_DEPTS[Math.floor(idx / 11) % FRONT_DEPTS.length]]
   const tier = Math.min(AISLE_NAMES.length - 1, Math.floor(idx / 40))
-  const [title, sub] = AISLE_NAMES[tier]
+  return AISLE_NAMES[tier] as [string, string]
+}
+function AisleSign({ idx }: { idx: number }) {
+  const [title, sub] = signContent(idx)
   const dark = zoneAt(idx).dark
   return (
     <group position={[0, 2.72, -idx * SPACING]}>
@@ -512,6 +568,89 @@ function AisleSign({ n }: { n: number }) {
         position={[0, 0, -0.011]}
         rotation={[0, Math.PI, 0]}
       />
+    </group>
+  )
+}
+
+// ── the night crew's machine ─────────────────────────────────────────────────
+// Only here when the doors are actually locked, which is the point of it. A
+// ride-on scrubber parked mid-aisle at an angle, tank half full, amber beacon
+// still turning because nobody switched it off — the single most recognisable
+// object in a closed big-box store, and the reason the after-hours warehouse
+// reads as a building somebody works in rather than the same aisle dimmed.
+//
+// The operator is not here. The floor behind it is still wet.
+const SCRUBBER_AT = 26
+
+function Scrubber() {
+  const beacon = useRef<Group>(null)
+  const lamp = useRef<PointLight>(null)
+  useFrame((state) => {
+    // a rotating-mirror beacon: the lamp is fixed and the reflector turns, so
+    // what you see is a bar of light sweeping the racking, not a blinker
+    const t = state.clock.elapsedTime * 2.1
+    if (beacon.current) beacon.current.rotation.y = t
+    if (lamp.current) lamp.current.intensity = 1.1 + Math.cos(t) * 0.9
+  })
+  return (
+    <group position={[1.15, 0, -SCRUBBER_AT * SPACING]} rotation={[0, -0.42, 0]}>
+      {/* the deck and the tank — a scrubber is mostly a tank on wheels */}
+      <mesh position={[0, 0.52, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.78, 0.62, 1.34]} />
+        <meshStandardMaterial color="#c8ccd0" roughness={0.55} metalness={0.15} />
+      </mesh>
+      {/* recovery tank, the grubby one, sat on the back */}
+      <mesh position={[0, 0.95, -0.24]} castShadow>
+        <boxGeometry args={[0.66, 0.3, 0.72]} />
+        <meshStandardMaterial color="#6d757c" roughness={0.42} metalness={0.1} />
+      </mesh>
+      {/* seat and column */}
+      <mesh position={[0, 0.95, 0.3]} castShadow>
+        <boxGeometry args={[0.42, 0.1, 0.4]} />
+        <meshStandardMaterial color="#1c1f22" roughness={0.85} />
+      </mesh>
+      <mesh position={[0, 1.16, 0.52]} rotation={[0.24, 0, 0]} castShadow>
+        <boxGeometry args={[0.34, 0.42, 0.07]} />
+        <meshStandardMaterial color="#1c1f22" roughness={0.85} />
+      </mesh>
+      {/* squeegee, trailing at the back where it was dropped */}
+      <mesh position={[0, 0.1, -0.78]} castShadow>
+        <boxGeometry args={[0.98, 0.12, 0.1]} />
+        <meshStandardMaterial color="#2a2d31" roughness={0.7} />
+      </mesh>
+      {[[-0.3, 0.5], [0.3, 0.5], [0, -0.5]].map(([wx, wz], i) => (
+        <mesh key={i} position={[wx, 0.13, wz]} rotation={[0, 0, Math.PI / 2]} castShadow>
+          <cylinderGeometry args={[0.13, 0.13, 0.12, 12]} />
+          <meshStandardMaterial color="#131518" roughness={0.9} />
+        </mesh>
+      ))}
+      {/* the beacon: stalk, amber dome, and the turning reflector inside it */}
+      <mesh position={[0.3, 1.28, -0.1]} castShadow>
+        <cylinderGeometry args={[0.02, 0.02, 0.5, 6]} />
+        <meshStandardMaterial color="#42474c" metalness={0.6} roughness={0.5} />
+      </mesh>
+      <mesh position={[0.3, 1.58, -0.1]}>
+        <cylinderGeometry args={[0.1, 0.11, 0.13, 12]} />
+        <meshStandardMaterial
+          color="#e8a021" emissive="#ff9c17" emissiveIntensity={1.5}
+          transparent opacity={0.62} roughness={0.3} toneMapped={false}
+        />
+      </mesh>
+      <group ref={beacon} position={[0.3, 1.58, -0.1]}>
+        <pointLight ref={lamp} position={[0.16, 0, 0]} color="#ff9c17" intensity={1.6} distance={7} decay={1.5} />
+      </group>
+      {/* the floor it just did. still wet, and it reflects the beacon. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.008, -2.6]}>
+        <planeGeometry args={[2.2, 5.4]} />
+        <meshStandardMaterial color="#8e9296" roughness={0.06} metalness={0.5} transparent opacity={0.5} />
+      </mesh>
+      {/* and the sign that says so, folded open across the aisle */}
+      {[-1, 1].map(f => (
+        <mesh key={f} position={[-1.05, 0.3, -1.5 + f * 0.09]} rotation={[f * 0.22, 0.3, 0]} castShadow>
+          <boxGeometry args={[0.34, 0.6, 0.015]} />
+          <meshStandardMaterial color="#e3b41c" roughness={0.6} />
+        </mesh>
+      ))}
     </group>
   )
 }
@@ -688,11 +827,17 @@ function Ceiling() {
 // a clear afternoon half the fixtures aren't even on, because the sun is doing
 // the work for free.
 //
-// Which is worth having here for one reason. The further you walk, the more of
+// Which is worth having here for two reasons. The further you walk, the more of
 // them go out — and unlike a dead fixture, a dead skylight means it is no
 // longer daytime above this part of the building. The sun runs out before the
 // aisle does.
-function Skylight({ index }: { index: number }) {
+//
+// And the sun is the real one. These panels carry the actual solar elevation
+// over Boulder, so an evening visitor walks in under panels that are already
+// grey and gets no daylight to lose; the world's best trick has been spent
+// before they arrive, which is the correct thing for it to do. Come back at
+// noon and the front of the store is lit by the sky.
+function Skylight({ index, sky }: { index: number; sky: Sky }) {
   const ref = useRef<Mesh>(null)
   const zone = zoneAt(index)
   const rnd = srand(index * 977 + 13)
@@ -704,7 +849,9 @@ function Skylight({ index }: { index: number }) {
     // the dark end and every skylight behind you is dimmer too
     const day = shut ? 0.02 : Math.max(0.02, 1 - d * 0.95) * (1 - zone.decay * 0.35)
     const m = ref.current?.material as MeshBasicMaterial | undefined
-    if (m) m.opacity = 0.25 + day * 0.75
+    // after dark the panel is not black, it is a slab of roof glass with the
+    // car park's lighting on the far side of it
+    if (m) m.opacity = 0.14 + day * 0.86 * (0.1 + sky.daylight * 0.9)
   })
   return (
     <group position={[0, CEIL_Y + 0.06 - zone.dark * 0.45, -index * SPACING]}>
@@ -802,7 +949,7 @@ function Figure() {
 }
 
 // ── atmosphere: fog / light / background track the walker's depth ────────────
-function Atmosphere() {
+function Atmosphere({ sky }: { sky: Sky }) {
   const { scene, viewport } = useThree()
   const ambientRef = useRef<AmbientLight>(null)
   const p1 = useRef<PointLight>(null)
@@ -847,9 +994,21 @@ function Atmosphere() {
     }
     const bl = b.level
 
+    // How much of the building's own light is on, and how much sun is getting
+    // in. Both are real: `dimming` is where we are in the last half hour of
+    // trading, `daylight` is where the sun actually is over Boulder.
+    //
+    // These deliberately do not multiply together for the fluorescents. A club
+    // store at eight on a winter evening is not dim — it is *fully lit*, and
+    // the only thing missing is the sky. Dimming the fixtures because the sun
+    // went down would be the mistake that turns "night" into "broken".
+    const house = 1 - sky.dimming * 0.45 - (sky.phase === 'closed' ? 0.1 : 0)
+    const sunlit = sky.daylight
+
     const fog = fogRef.current
     if (fog) {
-      fog.color.copy(FOG_BRIGHT).lerp(FOG_DECAY, decay).lerp(FOG_DARK, dark)
+      fog.color.copy(FOG_BRIGHT).lerp(FOG_NIGHT, (1 - sunlit) * 0.72 + sky.dimming * 0.28)
+        .lerp(FOG_DECAY, decay).lerp(FOG_DARK, dark)
       // The haze used to start at 10 m and close out at 46, which whited the
       // aisle out well before the point of the world — that it does not end —
       // had a chance to land. Pushed back to 16/62, which is exactly the depth
@@ -860,18 +1019,21 @@ function Atmosphere() {
       bg.current.copy(fog.color).multiplyScalar(0.55 + bl * 0.45)
       scene.background = bg.current
     }
-    if (ambientRef.current) ambientRef.current.intensity = (AMBIENT - decay * 0.5 - dark * 0.74) * (0.4 + bl * 0.6)
+    if (ambientRef.current) {
+      ambientRef.current.intensity =
+        (AMBIENT - decay * 0.5 - dark * 0.74) * (0.4 + bl * 0.6) * (0.62 + sunlit * 0.38) * house
+    }
     // two pooled lights ride along near the closest fixtures
     const flickMul = flicker > 0.05 && Math.sin(t * 17.3) * Math.sin(t * 5.1) < -0.75 ? 0.28 : 1
     const zBase = Math.round(camera.position.z / (SPACING * FIXTURE_EVERY)) * SPACING * FIXTURE_EVERY
     if (p1.current) {
       p1.current.position.set(0, CEIL_Y - 0.3, zBase - SPACING)
-      p1.current.intensity = (5.2 - decay * 1.9 - dark * 4.2) * flickMul * bl
+      p1.current.intensity = (5.2 - decay * 1.9 - dark * 4.2) * flickMul * bl * house
       p1.current.color.set(decay > 0.4 ? '#cfe8c4' : '#eef2f5')
     }
     if (p2.current) {
       p2.current.position.set(0, CEIL_Y - 0.3, zBase - SPACING * (FIXTURE_EVERY + 1))
-      p2.current.intensity = (4.0 - decay * 1.5 - dark * 3.3) * bl
+      p2.current.intensity = (4.0 - decay * 1.5 - dark * 3.3) * bl * house
       p2.current.color.set(decay > 0.4 ? '#cfe8c4' : '#eef2f5')
     }
     // daylight: one pool riding the nearest skylight. A light per panel would
@@ -880,7 +1042,9 @@ function Atmosphere() {
     // electrical, which is exactly why losing it later reads as worse.
     if (sun.current) {
       sun.current.position.set(0, CEIL_Y - 0.6, zBase - SPACING * (FIXTURE_EVERY / 2))
-      sun.current.intensity = Math.max(0, 4.6 - decay * 1.8 - dark * 4.6)
+      // and it goes out when the actual sun does, which is the whole reason
+      // this world reads Boulder's clock at all
+      sun.current.intensity = Math.max(0, 4.6 - decay * 1.8 - dark * 4.6) * sunlit
     }
 
     // The one light that casts. It rides the walker, comes down steeply from
@@ -890,19 +1054,24 @@ function Atmosphere() {
     const c = caster.current
     const ct = casterTarget.current
     if (c && ct) {
-      const lit = Math.max(0, 1 - decay * 0.42 - dark * 1.0)
+      // After hours the sun is not the caster any more — the fixtures are, and
+      // they hang straight overhead, so the shadows shorten and go colder
+      // rather than disappearing. A club store at night still has shadows in
+      // it; they just all point down.
+      const lit = Math.max(0, 1 - decay * 0.42 - dark * 1.0) * (0.45 + sunlit * 0.55) * house
       // stop paying for a shadow pass once nothing is casting one
       c.castShadow = lit > 0.02
       c.intensity = lit * SUN_CAST * (0.55 + bl * 0.45)
-      c.color.set(decay > 0.4 ? '#e8f0dc' : '#eaf1fb')
+      c.color.set(decay > 0.4 ? '#e8f0dc' : sunlit > 0.25 ? '#eaf1fb' : '#e9eef0')
       const cz = camera.position.z
       ct.position.set(0, 0, cz - 9)
       ct.updateMatrixWorld()
-      c.position.set(3.4, CEIL_Y + 5.6, cz - 3.2)
+      c.position.set(0.5 + sunlit * 2.9, CEIL_Y + 5.6, cz - (1.2 + sunlit * 2.0))
     }
 
     // reflections fade with the building. Metal in the dark end is just dark.
-    scene.environmentIntensity = Math.max(0.04, (0.62 - decay * 0.26 - dark * 0.5)) * bl
+    scene.environmentIntensity =
+      Math.max(0.04, (0.62 - decay * 0.26 - dark * 0.5)) * bl * (0.55 + sunlit * 0.45) * house
   })
   return (
     <>
@@ -1171,7 +1340,7 @@ function Rig({ onDistance, touchMoveRef }: {
 }
 
 // ── the visible window of the world ──────────────────────────────────────────
-function SlotWindow() {
+function SlotWindow({ sky }: { sky: Sky }) {
   const { camera } = useThree()
   const [centerIndex, setCenterIndex] = useState(0)
   useFrame(() => {
@@ -1209,9 +1378,13 @@ function SlotWindow() {
 
   const signs = useMemo(() => {
     const arr: number[] = []
+    for (const idx of FRONT_SIGN_IDXS) {
+      if (idx >= start - 2 && idx <= end + 2) arr.push(idx)
+    }
     for (let n = 0; n < 40; n++) {
       const idx = n * 22 + 10
-      if (idx >= start - 2 && idx <= end + 2) arr.push(n)
+      if (idx < 50) continue // covered by the dense front directory above
+      if (idx >= start - 2 && idx <= end + 2) arr.push(idx)
     }
     return arr
   }, [start, end])
@@ -1222,17 +1395,19 @@ function SlotWindow() {
     <>
       <Shelving startIndex={start} endIndex={end} />
       {featured.map(s => <FeaturedItem key={s.index} slot={s} />)}
-      {fixtures.map(i => <Fixture key={i} index={i} />)}
-      {skylights.map(i => <Skylight key={i} index={i} />)}
-      {signs.map(n => <AisleSign key={n} n={n} />)}
+      {fixtures.map(i => <Fixture key={i} index={i} sky={sky} />)}
+      {skylights.map(i => <Skylight key={i} index={i} sky={sky} />)}
+      {signs.map(idx => <AisleSign key={idx} idx={idx} />)}
       {carts.map((i, k) => <Cart key={i} index={i} lean={k % 2 === 0 ? 1 : -1} />)}
+      {sky.phase === 'closed' && SCRUBBER_AT >= start - 2 && SCRUBBER_AT <= end + 2 && <Scrubber />}
     </>
   )
 }
 
-function Scene({ onCenterIndexChange, touchMoveRef }: {
+function Scene({ onCenterIndexChange, touchMoveRef, sky }: {
   onCenterIndexChange: (i: number) => void
   touchMoveRef: React.MutableRefObject<{ forward: boolean; backward: boolean }>
+  sky: Sky
 }) {
   const lastIndexRef = useRef(-1)
   // Dev-only probe. Three wrong diagnoses on this site came from the same
@@ -1261,14 +1436,14 @@ function Scene({ onCenterIndexChange, touchMoveRef }: {
 
   return (
     <>
-      <Atmosphere />
+      <Atmosphere sky={sky} />
       <Rig onDistance={handleDistance} touchMoveRef={touchMoveRef} />
       <Floor />
       <RackBacks />
       <Ceiling />
       <ExitSign />
       <Figure />
-      <SlotWindow />
+      <SlotWindow sky={sky} />
     </>
   )
 }
@@ -1291,7 +1466,10 @@ function ReadySignal({ onReady }: { onReady: () => void }) {
   return null
 }
 
-export default function AisleCanvas({ onCenterIndexChange }: { onCenterIndexChange: (i: number) => void }) {
+export default function AisleCanvas({ onCenterIndexChange, sky }: {
+  onCenterIndexChange: (i: number) => void
+  sky: Sky
+}) {
   const [ready, setReady] = useState(false)
   const isTouch = useIsTouchDevice()
   const touchMoveRef = useRef({ forward: false, backward: false })
@@ -1307,7 +1485,7 @@ export default function AisleCanvas({ onCenterIndexChange }: { onCenterIndexChan
         gl={{ antialias: true, alpha: false }}
       >
         <ReadySignal onReady={() => setReady(true)} />
-        <Scene onCenterIndexChange={onCenterIndexChange} touchMoveRef={touchMoveRef} />
+        <Scene onCenterIndexChange={onCenterIndexChange} touchMoveRef={touchMoveRef} sky={sky} />
       </Canvas>
       {isTouch && <WalkButtons touchMoveRef={touchMoveRef} />}
     </div>

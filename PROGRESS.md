@@ -199,3 +199,78 @@ PLAN.md #1 — unlock the gate index. One file, unlocks most of the site.
 
 Risk:
 Low. Additive plus string substitution; build and browser verification green.
+
+---
+
+## 2026-08-14 — The warehouse gets opening hours
+
+Objective:
+Make Warehouse 14 a place that is different depending on when you walk into it,
+using the shared clock the rest of the site already runs on.
+
+Why:
+Two gaps, both in the code rather than in the concept.
+
+World 14 was the only world outside `lib/environment.ts`. "One sky over eleven
+worlds" reached the surface and the garage; the warehouse ignored it — and it
+is the one world on the site with a legitimate reason to be *shut* when you
+arrive, which is the strongest dialect the shared clock had available anywhere.
+
+And `StockItem.star` was dead data. There is a comment in `aisle-data.ts`
+explaining the death-star asterisk, and a gem (`the-asterisk`) whose entire
+flavor text explains what an asterisk in the corner of a sign means — but no
+sign in the world had ever had one. The world was explaining a mechanic it did
+not have.
+
+Changes Made:
+- `warehouseHours()` in `aisle-data.ts` — real posted club-store hours (Mon–Fri
+  10:00–20:30, Sat 9:30–18:00, Sun 10:00–18:00) read against Boulder's real
+  weekday and clock. Returns `open` / `lastCall` / `closed`, the countdown, and
+  the line the door sign prints.
+- The building now runs on it. `Sky` (daylight, phase, dimming) threads through
+  `AisleCanvas`: skylights carry the actual solar elevation over Boulder, the
+  sun pool light and the shadow caster go out with the real sun, and the caster
+  swings overhead after dark so night shadows point down instead of vanishing.
+- Closing time is not a fader. Fixtures die in banks across the last half hour
+  (the roll is drawn *after* the three existing ones, so the daytime aisle is
+  dealt exactly as before), then the building settles to night-crew lighting.
+- The night crew's floor scrubber — parked mid-aisle at idx 26, amber beacon
+  still turning, squeegee dropped, wet floor behind it, sign folded open across
+  the aisle. Present only when the doors are actually locked.
+- The asterisk renders: top-right of the 3D shelf tag via a new `corner` slot in
+  `makeLabelTexture`, and on the HUD tag. Never explained. 41 of the first 300
+  slots carry one; the first is at index 0.
+- HUD posts the hours and the live notice. Two PA lines that fire on the real
+  clock rather than on depth. Receipt stamps `SALE RUNG OUTSIDE POSTED HOURS`.
+
+Verification:
+`tsc --noEmit` and `next build` clean. `warehouseHours()` unit-checked against
+ten constructed instants including both open/close boundaries, the Sat 9:30
+exception, and both day-rollovers — all ten correct. Walked `/warehouse` in
+Chrome against the dev server: HUD reads `9:30 AM — 6:00 PM · CLOSED · OPENS
+9:30 AM` (correct — it was past Friday close in Boulder), slot 0 renders
+`$3.97*`, no console errors on load or reload.
+
+**Not verified: the night lighting.** Per `CLAUDE.md` an automation tab cannot
+be trusted for brightness in an R3F world, and this change is almost entirely
+brightness. The numbers were chosen so the fluorescents do *not* dim with the
+sun — a club store at 8pm is fully lit and only the sky is missing — and so the
+closed building sits near 58% house output with ~70% of fixtures dark. Whether
+that reads as "night crew" or as "broken" needs a real window.
+
+Discovered:
+1. The sign contradicted itself after closing — it posted today's hours while
+   announcing tomorrow's opening. Fixed: past close, the sign posts the next
+   day's row.
+2. The world already contained the asterisk's *explanation* before it contained
+   a single asterisk. Worth watching for elsewhere: lore written against a
+   mechanic that was never built.
+
+Next:
+Look at the closed warehouse in a real window and tune the night exposure. The
+levers are `house`, the two `sunlit` mix constants in `Atmosphere`, and
+`dimming` for `closed` in `World14Aisle`.
+
+Risk:
+Medium — additive in structure, but it moves the exposure balance in a world
+whose own file warns that the balance can only be checked by looking.
