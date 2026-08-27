@@ -277,3 +277,79 @@ something off frame.
 Risk:
 Low. World 9 is DOM/CSS and was verified by looking; the hub changes delete code
 and read state that four other files already read.
+
+---
+
+## 2026-08-26 (2) — The hub could not be panned on a phone
+
+Objective:
+Chase down a report that the site is hard to move around on a phone.
+
+Why:
+`CameraRig.tsx` hand-rolls the hub's camera on raw pointer events, and neither
+it, `UniverseCanvas.tsx`, nor `UniverseRoot.tsx` ever set `touch-action`.
+Verified in the browser: `touch-action` computed to `auto` on the canvas and
+every ancestor up to `<html>`. On a touch device that means the browser claims
+any one-finger drag as a scroll gesture, fires `pointercancel`, and stops
+delivering `pointermove` — so the hub's pan died on the first swipe. There was
+no `pointercancel` handler either, so `dragActive` then stayed true forever.
+
+And zoom was bound only to `wheel`. A phone has no wheel, so a visitor arrived
+at z=1640 in a range of 55–9000 and could never move along it.
+
+The hub is the one screen you have to move around in to reach anything, which
+is exactly the shape of the report.
+
+Changes Made:
+- `touch-action: none` on the hub's Canvas, which lands on R3F's container div
+  and covers the canvas by the ancestor-intersection rule.
+- **Pinch-to-zoom**, and `pointercancel` handled as `pointerup`, with
+  `releasePointerCapture` to match the existing `setPointerCapture`.
+- `lib/pointer-gestures.ts` (new) — the drag/pinch bookkeeping as a pure state
+  machine, so `CameraRig` is just the adapter that turns its output into camera
+  moves. It also encodes the lurch fix: lifting one finger of a pinch does not
+  hand the drag to the survivor.
+- `scripts/check-gestures.mjs` (new) — 19 assertions over that module.
+- `@media (pointer: coarse)` in `globals.css`: the gate index tab, the only way
+  into nine worlds, was a 22px-tall target. Now 44. Gates go to 52, and the
+  `:hover` style is neutralised on touch, where it sticks after a tap and leaves
+  a gate looking selected. Keyed on pointer type, not width — a small laptop
+  window is still a mouse.
+- Same one-line fix on the Machine's window title bars, which drag on pointer
+  events and would have been stolen the same way.
+- Removed a dead `idleTime` counter in `CameraRig` that was calling
+  `clock.getDelta()` every frame. Nothing read it, and R3F calls `getDelta()`
+  itself — the extra call was stealing the delta from the next frame.
+
+Verification:
+`tsc --noEmit` and `next build` clean. All 19 gesture assertions pass. Against
+the production build in Chrome: `touch-action` now computes to `none` on the
+canvas's container, the `(pointer: coarse)` block is present and parsed in the
+CSSOM, a real mouse drag throws nothing, and synthetic `pointerType: 'touch'`
+sequences — one-finger pan, two-finger pinch, lifting one finger of a pinch,
+and `pointercancel` mid-drag — all run through the live handlers with an empty
+console.
+
+**Not verified on a real phone.** The gesture logic is unit-tested and the
+`touch-action` value is confirmed in a real browser, but nobody has put a thumb
+on it. Whether the pinch *speed* feels right (`PINCH_SPEED = 2.2`) is a
+judgement only a real device can make.
+
+Discovered:
+1. **`/map` and `/garage` were never broken.** Their canvases read
+   `touch-action: auto` in the automation tab, which looked like the same bug —
+   but three-stdlib's `OrbitControls` sets `touchAction = "none"` on connect
+   (`OrbitControls.js:300`), and it simply hadn't connected because R3F never
+   ran in a hidden automation tab. The CLAUDE.md trap, caught before it became a
+   fifth wrong finding. The fix came from reading `node_modules`, not the DOM.
+2. `touch-action` does not inherit, but the browser intersects it up the
+   ancestor chain — which is why the warehouse, whose `none` sits on a wrapper
+   two levels above its canvas, was fine all along.
+
+Next:
+Ask Tyler to try the hub on a phone and say whether the pinch is too fast.
+
+Risk:
+Low on desktop — the mouse path is the same one-pointer branch it always was,
+and it was exercised. Medium on touch only in the sense that it is new
+behaviour nobody has felt yet.

@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { Vector3 } from 'three'
 import { useUniverseStore } from '@/lib/universe-store'
+import { createGestureTracker } from '@/lib/pointer-gestures'
 
 const PAN_SPEED = 1.4
 const ZOOM_MIN = 55
@@ -11,6 +12,7 @@ const LERP = 0.065
 const IDLE_BOB_AMPLITUDE = 8
 const IDLE_BOB_SPEED = 0.15
 const FRICTION = 0.88 // Momentum friction
+const PINCH_SPEED = 2.2 // how much a pinch of N pixels moves the camera
 
 export default function CameraRig() {
   const { camera, gl } = useThree()
@@ -24,7 +26,12 @@ export default function CameraRig() {
   const lastPointer = useRef({ x: 0, y: 0 })
   const panOffset = useRef({ x: 0, y: 0 })
   const velocity = useRef({ x: 0, y: 0 })
-  const idleTime = useRef(0)
+
+  // One finger drags, two pinch. A phone has no wheel, so without the pinch
+  // there is no way to zoom the hub at all — the visitor is stuck at whatever
+  // distance they happened to arrive at. The gesture bookkeeping lives in
+  // lib/pointer-gestures.ts so it can be tested outside a WebGL context.
+  const gesture = useRef(createGestureTracker())
 
   // Sync store → local targets
   useEffect(() => {
@@ -41,55 +48,73 @@ export default function CameraRig() {
   useEffect(() => {
     const canvas = gl.domElement
 
+    const g = gesture.current
+
+    // exponential zoom feel — faster when far out, finer when close in
+    const zoomBy = (amount: number) => {
+      const zoomFactor = targetPos.current.z / 600
+      targetPos.current.z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, targetPos.current.z + amount * zoomFactor))
+    }
+
     const onDown = (e: PointerEvent) => {
       if (mode !== 'exploring') return
-      dragActive.current = true
+      g.down(e.pointerId, e.clientX, e.clientY)
       velocity.current = { x: 0, y: 0 }
-      lastPointer.current = { x: e.clientX, y: e.clientY }
+      dragActive.current = g.dragging
       canvas.setPointerCapture(e.pointerId)
     }
 
     const onMove = (e: PointerEvent) => {
-      if (!dragActive.current) return
-      const dx = e.clientX - lastPointer.current.x
-      const dy = e.clientY - lastPointer.current.y
-      lastPointer.current = { x: e.clientX, y: e.clientY }
+      const r = g.move(e.pointerId, e.clientX, e.clientY)
 
-      const zoomFactor = camera.position.z / 600
-      // Add to velocity instead of directly translating
-      velocity.current.x -= dx * PAN_SPEED * zoomFactor * 0.15
-      velocity.current.y += dy * PAN_SPEED * zoomFactor * 0.15
+      if (r.pinch !== undefined) {
+        zoomBy(r.pinch * PINCH_SPEED)
+        return
+      }
 
-      idleTime.current = 0
+      if (r.pan) {
+        const zoomFactor = camera.position.z / 600
+        // Add to velocity instead of directly translating
+        velocity.current.x -= r.pan.dx * PAN_SPEED * zoomFactor * 0.15
+        velocity.current.y += r.pan.dy * PAN_SPEED * zoomFactor * 0.15
+      }
     }
 
-    const onUp = () => { dragActive.current = false }
+    // `pointercancel` matters more than `pointerup` here: it is what the
+    // browser fires when it decides a touch was really a scroll gesture. Left
+    // unhandled, the drag stayed "active" forever after the first swipe.
+    const onUp = (e: PointerEvent) => {
+      g.up(e.pointerId)
+      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId)
+      // velocity is deliberately left alone: a flick should coast after the
+      // finger leaves, the same way it does after a mouse drag.
+      dragActive.current = g.dragging
+    }
 
     const onWheel = (e: WheelEvent) => {
       if (mode !== 'exploring') return
       e.preventDefault()
-      // exponential zoom feel — faster when far out, finer when close in
-      const zoomFactor = targetPos.current.z / 600
-      const delta = e.deltaY * 1.6 * zoomFactor
-      targetPos.current.z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, targetPos.current.z + delta))
+      zoomBy(e.deltaY * 1.6)
     }
 
     canvas.addEventListener('pointerdown', onDown)
     canvas.addEventListener('pointermove', onMove)
     canvas.addEventListener('pointerup', onUp)
+    canvas.addEventListener('pointercancel', onUp)
     canvas.addEventListener('wheel', onWheel, { passive: false })
 
     return () => {
       canvas.removeEventListener('pointerdown', onDown)
       canvas.removeEventListener('pointermove', onMove)
       canvas.removeEventListener('pointerup', onUp)
+      canvas.removeEventListener('pointercancel', onUp)
       canvas.removeEventListener('wheel', onWheel)
+      g.clear()
+      dragActive.current = false
     }
   }, [gl, camera, mode])
 
   useFrame((state) => {
-    idleTime.current += state.clock.getDelta()
-
     // Apply momentum
     if (mode === 'exploring') {
       panOffset.current.x += velocity.current.x

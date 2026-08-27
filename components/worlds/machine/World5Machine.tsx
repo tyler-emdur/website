@@ -530,6 +530,9 @@ function MachineWindow({ win, onFocus, onClose, onMin, onMax, onMoved }: {
           background: 'linear-gradient(90deg, #000080, #1084d0)', color: '#fff',
           padding: '3px 4px 3px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           fontFamily: 'Arial, sans-serif', fontSize: 11, fontWeight: 700, userSelect: 'none', flexShrink: 0, cursor: 'default',
+          // same trap as the hub camera: without this the browser claims the
+          // drag as a scroll gesture and the window won't move on a phone
+          touchAction: 'none',
         }}
       >
         <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{win.title}</span>
