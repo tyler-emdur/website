@@ -131,6 +131,34 @@ body {
   line-height: 1.45;
 }
 
+/* Touch devices, not narrow ones — a small laptop window is still a mouse.
+   The gate index tab is the only way into nine worlds, and at the desktop
+   size it is a 22px-tall target. Nothing here changes the pointer layout. */
+@media (pointer: coarse) {
+  .portal-directory__tab {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 9px;
+  }
+
+  .portal-directory__gate {
+    min-height: 52px;
+  }
+
+  /* :hover sticks on touch after a tap and leaves a gate looking selected */
+  .portal-directory__gate:hover {
+    background: rgba(255,255,255,0.035);
+    color: rgba(255,255,255,0.62);
+  }
+
+  .portal-directory__gate:active {
+    background: color-mix(in srgb, var(--gate-color) 15%, rgba(0,0,8,0.72));
+    color: rgba(255,255,255,0.9);
+  }
+}
+
 @keyframes abstractFloat {
   0%, 100% { translate: 0 0; }
   50% { translate: 0 -10px; }

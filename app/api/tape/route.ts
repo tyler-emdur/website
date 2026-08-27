@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
-import { promises as fs } from 'fs'
+import { promises as fs, constants as fsConstants } from 'fs'
 import path from 'path'
 
 // Visitor messages left on the answering machine (world 9).
 // Stored as a flat JSON file — fine for a personal site. On serverless hosts
 // the write may not persist between instances; the client keeps a local copy
 // and the UI is honest about it.
+
+// The tape is state, not a build artifact — never prerender this.
+export const dynamic = 'force-dynamic'
 
 const TAPE_PATH = path.join(process.cwd(), '.tape', 'messages.json')
 const MAX_MESSAGES = 200
@@ -28,9 +31,25 @@ async function readTape(): Promise<TapeMessage[]> {
   }
 }
 
+/**
+ * Can this instance actually keep a message? On a read-only serverless
+ * filesystem it can't, and the machine's phone line is drawn unplugged because
+ * of it. Checked by asking the directory, not by writing a probe file.
+ */
+async function tapeWritable(): Promise<boolean> {
+  const dir = path.dirname(TAPE_PATH)
+  try {
+    await fs.mkdir(dir, { recursive: true })
+    await fs.access(dir, fsConstants.W_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function GET() {
-  const messages = await readTape()
-  return NextResponse.json({ messages: messages.slice(-40) })
+  const [messages, live] = await Promise.all([readTape(), tapeWritable()])
+  return NextResponse.json({ messages: messages.slice(-40), live })
 }
 
 export async function POST(req: Request) {

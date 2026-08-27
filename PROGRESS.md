@@ -274,3 +274,157 @@ levers are `house`, the two `sunlit` mix constants in `Atmosphere`, and
 Risk:
 Medium — additive in structure, but it moves the exposure balance in a world
 whose own file warns that the balance can only be checked by looking.
+
+---
+
+## 2026-08-26 — The answering machine gets a room
+
+Objective:
+Take World 9 out of the void it was floating in, and cut the hub's two pools of
+invented telemetry.
+
+Why:
+World 9 was the site's clearest example of the shape `CLAUDE.md` names as the
+tell — one well-drawn object centered on black. `World9Answering.tsx` drew a
+radial vignette, a machine, and a 10px bar under it labelled "table edge" that
+was exactly as wide as the machine. Nothing it sat on, nothing behind it,
+nothing else in frame. It was also the world that had gone longest without
+attention (July 19).
+
+The hub's corner terminal, meanwhile, printed `OBJECTS 47 [UNVERIFIED]` and
+random-walked that number between 44 and 51 every seven seconds, next to a
+status line drawn from twelve invented strings, over nine scattered markers
+drawn from fifteen more. `getAllObjects()` was two imports away the whole time.
+
+Changes Made:
+- **`Room` in `World9Answering.tsx`.** Wall, window light, counter surface,
+  front edge and lip, floor, the machine's shadow thrown up the wall, and its
+  contact shadow on the counter. Every layer positions off the machine's own
+  box — `top: 100%` is the countertop — so the object sits on something at any
+  window size instead of hovering near a viewport percentage.
+- **The room keeps the same clock the greeting does.** `ROOM_LIGHT` maps the
+  five existing `HourMood` values to a second light source: a slab of daylight
+  falling across the wall and continuing onto the counter, cool at midday,
+  orange in the evening, gone after dark. The lamp comes up as it goes.
+- **The phone line out is drawn, and it is real.** `/api/tape` now reports
+  whether the tape directory is writable; the cord runs over the counter's front
+  edge and out of frame when it is, and lies loose on the counter with the plug
+  out when it isn't. Production is read-only, so on the live site the line is
+  visibly unplugged — which is what the machine already said in words after you
+  record, only now it says it before.
+- Mail nobody opened, and a duplex outlet with **both** sockets occupied. One
+  cord goes to the machine. The other goes down behind the counter, and there is
+  nothing else in the room it could belong to. Never mentioned.
+- `.room-prop` drops out under 720px and the stand-back margin under 780px tall,
+  so narrow windows keep the wall, counter and shadow and lose only furniture
+  that would be hanging off the frame.
+- **`AbstractIndex.tsx`:** both string pools and the drifting count deleted. The
+  corner terminal prints `OBJECTS n IN VIEW` (objects passing `isVisible`),
+  `INDEXED n` (`discoveredIds.length`), and a status line derived from those two.
+- **`GlitchOverlay.tsx`:** 17 transmissions down to 5. Everything naming a
+  sector, node, or percentage that doesn't exist is gone. The fifth line names
+  the object you opened most recently.
+
+Verification:
+`tsc --noEmit` and `next build` clean. Walked `/messages` in Chrome (DOM world —
+screenshots are trustworthy here per `CLAUDE.md`): idle, playback with the
+typing display, both `lineLive` branches, and both `day` and `latenight` light,
+each forced temporarily and reverted. Narrow layout checked at 390px through an
+iframe, since window resize doesn't move the automation viewport. On `/universe`
+the corner terminal read `OBJECTS 34 IN VIEW / INDEXED 0 / SURVEY NOT BEGUN`,
+and 36 fourteen seconds later as the timed objects surfaced — 49 objects total,
+so the number is real and climbing.
+
+Discovered:
+1. **The wall was painting over the tape's display text.** The room's layers are
+   absolutely positioned and the display card was in normal flow, so the wall
+   won the paint order and the greeting typed out invisibly. `position:
+   relative` on the card fixes it, and the comment there says why so the next
+   person doesn't remove it.
+2. **`next build` clobbers `.next` under a running dev server** and leaves it
+   throwing ENOENT on every route until restarted. Cost a confusing minute.
+
+Next:
+World 7 is the last centered-card-on-black. The `Room` approach ports directly:
+anchor off the object, one real second light source, two props that imply
+something off frame.
+
+Risk:
+Low. World 9 is DOM/CSS and was verified by looking; the hub changes delete code
+and read state that four other files already read.
+
+---
+
+## 2026-08-26 (2) — The hub could not be panned on a phone
+
+Objective:
+Chase down a report that the site is hard to move around on a phone.
+
+Why:
+`CameraRig.tsx` hand-rolls the hub's camera on raw pointer events, and neither
+it, `UniverseCanvas.tsx`, nor `UniverseRoot.tsx` ever set `touch-action`.
+Verified in the browser: `touch-action` computed to `auto` on the canvas and
+every ancestor up to `<html>`. On a touch device that means the browser claims
+any one-finger drag as a scroll gesture, fires `pointercancel`, and stops
+delivering `pointermove` — so the hub's pan died on the first swipe. There was
+no `pointercancel` handler either, so `dragActive` then stayed true forever.
+
+And zoom was bound only to `wheel`. A phone has no wheel, so a visitor arrived
+at z=1640 in a range of 55–9000 and could never move along it.
+
+The hub is the one screen you have to move around in to reach anything, which
+is exactly the shape of the report.
+
+Changes Made:
+- `touch-action: none` on the hub's Canvas, which lands on R3F's container div
+  and covers the canvas by the ancestor-intersection rule.
+- **Pinch-to-zoom**, and `pointercancel` handled as `pointerup`, with
+  `releasePointerCapture` to match the existing `setPointerCapture`.
+- `lib/pointer-gestures.ts` (new) — the drag/pinch bookkeeping as a pure state
+  machine, so `CameraRig` is just the adapter that turns its output into camera
+  moves. It also encodes the lurch fix: lifting one finger of a pinch does not
+  hand the drag to the survivor.
+- `scripts/check-gestures.mjs` (new) — 19 assertions over that module.
+- `@media (pointer: coarse)` in `globals.css`: the gate index tab, the only way
+  into nine worlds, was a 22px-tall target. Now 44. Gates go to 52, and the
+  `:hover` style is neutralised on touch, where it sticks after a tap and leaves
+  a gate looking selected. Keyed on pointer type, not width — a small laptop
+  window is still a mouse.
+- Same one-line fix on the Machine's window title bars, which drag on pointer
+  events and would have been stolen the same way.
+- Removed a dead `idleTime` counter in `CameraRig` that was calling
+  `clock.getDelta()` every frame. Nothing read it, and R3F calls `getDelta()`
+  itself — the extra call was stealing the delta from the next frame.
+
+Verification:
+`tsc --noEmit` and `next build` clean. All 19 gesture assertions pass. Against
+the production build in Chrome: `touch-action` now computes to `none` on the
+canvas's container, the `(pointer: coarse)` block is present and parsed in the
+CSSOM, a real mouse drag throws nothing, and synthetic `pointerType: 'touch'`
+sequences — one-finger pan, two-finger pinch, lifting one finger of a pinch,
+and `pointercancel` mid-drag — all run through the live handlers with an empty
+console.
+
+**Not verified on a real phone.** The gesture logic is unit-tested and the
+`touch-action` value is confirmed in a real browser, but nobody has put a thumb
+on it. Whether the pinch *speed* feels right (`PINCH_SPEED = 2.2`) is a
+judgement only a real device can make.
+
+Discovered:
+1. **`/map` and `/garage` were never broken.** Their canvases read
+   `touch-action: auto` in the automation tab, which looked like the same bug —
+   but three-stdlib's `OrbitControls` sets `touchAction = "none"` on connect
+   (`OrbitControls.js:300`), and it simply hadn't connected because R3F never
+   ran in a hidden automation tab. The CLAUDE.md trap, caught before it became a
+   fifth wrong finding. The fix came from reading `node_modules`, not the DOM.
+2. `touch-action` does not inherit, but the browser intersects it up the
+   ancestor chain — which is why the warehouse, whose `none` sits on a wrapper
+   two levels above its canvas, was fine all along.
+
+Next:
+Ask Tyler to try the hub on a phone and say whether the pinch is too fast.
+
+Risk:
+Low on desktop — the mouse path is the same one-pointer branch it always was,
+and it was exercised. Medium on touch only in the sense that it is new
+behaviour nobody has felt yet.

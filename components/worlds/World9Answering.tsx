@@ -76,6 +76,23 @@ const GREETING_TAIL: Record<HourMood, string> = {
   latenight: ' it is late. the good kind of late.',
 }
 
+// ── the room the machine sits in ─────────────────────────────────────────────
+// It used to be a machine floating in a vignette. It sits on a counter now,
+// against a wall, under a lamp, with a window somewhere off frame that only
+// exists while it's light out where the visitor is standing. Same clock as the
+// greeting: the room and the tape agree about what hour it is.
+
+const SURFACE = 34   // the sliver of countertop visible in front of the machine
+const APRON = 14     // its front edge
+
+const ROOM_LIGHT: Record<HourMood, { win: [number, number, number]; day: number; lamp: number }> = {
+  deepnight:    { win: [120, 150, 200], day: 0,    lamp: 1 },
+  earlymorning: { win: [150, 180, 225], day: 0.34, lamp: 0.92 },
+  day:          { win: [196, 218, 248], day: 0.9,  lamp: 0.5 },
+  evening:      { win: [255, 152, 92],  day: 0.5,  lamp: 0.86 },
+  latenight:    { win: [120, 150, 200], day: 0.07, lamp: 1 },
+}
+
 const END_LINE: Record<HourMood, string> = {
   deepnight: 'no more messages. just you and the hiss now. the tape keeps going anyway.',
   earlymorning: 'no more messages. the tape keeps going anyway.',
@@ -246,6 +263,177 @@ function saveLocalTape(t: Tape) {
   } catch {}
 }
 
+/**
+ * Everything around the machine.
+ *
+ * Every layer is positioned off the machine's own box, not off the viewport —
+ * the counter starts exactly where the machine's feet stop, so the object sits
+ * on something at any window size instead of hovering near a percentage.
+ *
+ * `lineLive` is the phone line, and it is not decoration: it draws plugged when
+ * the tape writes to disk and lying loose on the counter when it doesn't. The
+ * machine says the same thing in words after you record. This says it before.
+ */
+function Room({ mood, lineLive }: { mood: HourMood; lineLive: boolean | null }) {
+  const L = ROOM_LIGHT[mood]
+  const win = (a: number) => `rgba(${L.win[0]},${L.win[1]},${L.win[2]},${+(a * L.day).toFixed(3)})`
+  const lamp = (a: number) => `rgba(255,186,110,${+(a * L.lamp).toFixed(3)})`
+  const span = { position: 'absolute' as const, left: '50%', transform: 'translateX(-50%)', width: '100vw', pointerEvents: 'none' as const }
+
+  return (
+    <>
+      {/* wall — its base is the counter's back edge, hidden behind the machine */}
+      <div style={{
+        ...span, bottom: 0, height: '240vh',
+        background: [
+          `radial-gradient(ellipse 460px 250px at 50% calc(100% + 12px), ${lamp(0.34)}, ${lamp(0.12)} 40%, transparent 72%)`,
+          `radial-gradient(ellipse 1000px 620px at 50% 100%, ${lamp(0.05)}, transparent 62%)`,
+          'linear-gradient(180deg, #030302 0%, #050403 52%, #0a0806 82%, #0e0b08 100%)',
+        ].join(','),
+      }} />
+
+      {/* the window is off frame to the left; only its light is in the room */}
+      {L.day > 0.02 && (
+        <div style={{
+          ...span, bottom: -(SURFACE + APRON), height: '240vh', mixBlendMode: 'screen',
+          background: [
+            `linear-gradient(103deg, transparent 19.5%, ${win(0.04)} 20.5%, ${win(0.17)} 23%, ${win(0.19)} 37%, ${win(0.05)} 40%, transparent 41%)`,
+            `linear-gradient(103deg, transparent 43.5%, ${win(0.03)} 44.5%, ${win(0.12)} 47%, ${win(0.13)} 58%, ${win(0.03)} 61%, transparent 62%)`,
+          ].join(','),
+        }} />
+      )}
+
+      {/* the seam where two drops of wallpaper meet — scale, and nothing else */}
+      <div style={{
+        ...span, bottom: 0, height: 400,
+        background: 'linear-gradient(90deg, transparent calc(50% - 234px), rgba(0,0,0,0.55) calc(50% - 233px), rgba(255,205,155,0.09) calc(50% - 232px), transparent calc(50% - 231px))',
+        WebkitMaskImage: 'linear-gradient(to top, #000 0%, transparent 100%)',
+        maskImage: 'linear-gradient(to top, #000 0%, transparent 100%)',
+      }} />
+
+      {/* the machine's shadow, thrown up the wall by the lamp in front of it */}
+      <div style={{
+        position: 'absolute', left: -14, right: -14, top: '6%', bottom: -4,
+        background: 'rgba(0,0,0,0.72)', borderRadius: 18, filter: 'blur(26px)',
+        transform: 'translate(-10px, -14px)', pointerEvents: 'none',
+      }} />
+
+      {/* floor */}
+      <div style={{
+        ...span, top: `calc(100% + ${SURFACE + APRON}px)`, height: '140vh',
+        background: `radial-gradient(ellipse 620px 260px at 50% -30px, ${lamp(0.12)}, transparent 68%), linear-gradient(180deg, #0d0a07 0%, #070504 38%, #020202 100%)`,
+      }} />
+
+      {/* counter — front edge first, then the surface laid over its top lip */}
+      <div style={{
+        ...span, top: `calc(100% + ${SURFACE}px)`, height: APRON,
+        background: `radial-gradient(ellipse 480px 40px at 50% 0%, ${lamp(0.1)}, transparent 70%), linear-gradient(180deg, #1d1509 0%, #110c06 55%, #080503)`,
+        boxShadow: '0 16px 30px rgba(0,0,0,0.9)',
+      }} />
+      <div style={{
+        ...span, top: `calc(100% + ${SURFACE}px)`, height: 2, background: lamp(0.62),
+        WebkitMaskImage: 'linear-gradient(90deg, transparent 0%, #000 24%, #000 76%, transparent 100%)',
+        maskImage: 'linear-gradient(90deg, transparent 0%, #000 24%, #000 76%, transparent 100%)',
+      }} />
+      <div style={{
+        ...span, top: '100%', height: SURFACE,
+        background: `radial-gradient(ellipse 430px 60px at 50% 130%, ${lamp(0.5)}, ${lamp(0.14)} 55%, transparent 78%), linear-gradient(180deg, #241a10 0%, #302416 45%, #3a2c1b 100%)`,
+        boxShadow: `inset 0 1px 0 rgba(0,0,0,0.55)`,
+      }} />
+
+      {L.day > 0.02 && (
+        <div style={{
+          ...span, top: '100%', height: SURFACE + APRON, mixBlendMode: 'screen',
+          background: [
+            `linear-gradient(103deg, transparent 19%, ${win(0.03)} 20%, ${win(0.1)} 22.5%, ${win(0.11)} 36.5%, ${win(0.03)} 39.5%, transparent 40.5%)`,
+            `linear-gradient(103deg, transparent 43%, ${win(0.02)} 44%, ${win(0.07)} 46.5%, ${win(0.08)} 57.5%, ${win(0.02)} 60.5%, transparent 61.5%)`,
+          ].join(','),
+        }} />
+      )}
+
+      {/* what the machine is plugged into */}
+      <div className="room-prop" style={{ position: 'absolute', left: 'calc(100% + 58px)', bottom: 26, width: 40, height: 66, pointerEvents: 'none' }}>
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: 4,
+          background: `linear-gradient(102deg, ${lamp(0.62)}, rgba(196,180,154,0.3) 52%, rgba(96,86,74,0.16))`,
+          boxShadow: '0 4px 14px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,240,214,0.3), inset 0 -1px 0 rgba(0,0,0,0.5)',
+        }} />
+        {/* the sockets, and both plugs already in them */}
+        {[6, 36].map((y, i) => (
+          <div key={y}>
+            <div style={{
+              position: 'absolute', left: 7, top: y, width: 26, height: 24, borderRadius: 3,
+              background: 'radial-gradient(ellipse at 50% 30%, rgba(0,0,0,0.55), rgba(0,0,0,0.25))',
+            }} />
+            <div style={{
+              position: 'absolute', left: 5, top: y + 1, width: 30, height: 22, borderRadius: 3,
+              background: `linear-gradient(102deg, ${lamp(0.3)}, #2a241e 45%, #14110d)`,
+              boxShadow: '0 3px 7px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,235,200,0.13)',
+            }} />
+            <div style={{
+              position: 'absolute', left: 5, top: y + (i ? 18 : 1), width: 30, height: 5,
+              background: 'rgba(0,0,0,0.55)', filter: 'blur(2px)',
+            }} />
+          </div>
+        ))}
+      </div>
+
+      {/* the two cords leaving that outlet. one goes to the machine. */}
+      <svg className="room-prop" width="70" height="120" viewBox="0 0 70 120" style={{ position: 'absolute', left: 'calc(100% - 4px)', bottom: -6, overflow: 'visible', pointerEvents: 'none' }}>
+        <path d="M66 78 C 52 84, 44 96, 30 100 C 18 104, 8 102, -2 104" fill="none" stroke="#080605" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M66 78 C 52 84, 44 96, 30 100 C 18 104, 8 102, -2 104" fill="none" stroke={lamp(0.16)} strokeWidth="1" strokeLinecap="round" transform="translate(0,-1)" />
+      </svg>
+      {/* and one goes down behind the counter, to nothing in this room */}
+      <svg className="room-prop" width="40" height="90" viewBox="0 0 40 90" style={{ position: 'absolute', left: 'calc(100% + 68px)', bottom: 0, overflow: 'visible', pointerEvents: 'none' }}>
+        <path d="M8 4 C 10 22, 2 34, 6 52 C 9 66, 7 78, 9 94" fill="none" stroke="#080605" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M8 4 C 10 22, 2 34, 6 52 C 9 66, 7 78, 9 94" fill="none" stroke={lamp(0.12)} strokeWidth="1" strokeLinecap="round" transform="translate(-1,0)" />
+      </svg>
+
+      {/* the phone line out */}
+      <svg className="room-prop" width="120" height="420" viewBox="0 0 120 420" style={{ position: 'absolute', right: 'calc(100% - 52px)', top: 'calc(100% - 12px)', overflow: 'visible', pointerEvents: 'none' }}>
+        {lineLive === false ? (
+          <>
+            {/* not in anything. it just lies there. */}
+            <path d="M118 14 C 104 20, 96 26, 84 27 C 70 28, 62 22, 52 26 C 44 29, 44 34, 52 35 C 60 36, 66 31, 62 27" fill="none" stroke="#0a0706" strokeWidth="3" strokeLinecap="round" />
+            <rect x="30" y="28" width="14" height="9" rx="2" fill="#211c17" stroke={lamp(0.35)} strokeWidth="0.7" />
+            <rect x="35" y="25" width="5" height="4" rx="1" fill="#211c17" stroke={lamp(0.25)} strokeWidth="0.6" />
+            <path d="M44 32 L 52 33" stroke="#0a0706" strokeWidth="3" strokeLinecap="round" />
+          </>
+        ) : (
+          <>
+            {/* over the front edge, down, out of the room */}
+            <path d="M118 14 C 104 20, 92 24, 80 28 C 68 32, 60 40, 58 62 C 55 110, 63 200, 52 300 C 46 356, 50 390, 44 420" fill="none" stroke="#0a0706" strokeWidth="3" strokeLinecap="round" />
+            <path d="M118 14 C 104 20, 92 24, 80 28 C 68 32, 60 40, 58 62" fill="none" stroke={lamp(0.13)} strokeWidth="0.9" strokeLinecap="round" transform="translate(0,-1)" />
+          </>
+        )}
+      </svg>
+
+      {/* mail nobody opened, squared up against the machine */}
+      <div className="room-prop" style={{ position: 'absolute', right: 'calc(100% + 96px)', top: `calc(100% + ${SURFACE - 20}px)`, width: 108, height: 20, pointerEvents: 'none' }}>
+        {/* the two underneath, just edges */}
+        <div style={{ position: 'absolute', left: 2, top: 12, width: 106, height: 4, transform: 'rotate(0.7deg)', background: 'linear-gradient(180deg, #2b2419, #14100b)', boxShadow: '0 3px 7px rgba(0,0,0,0.8)' }} />
+        <div style={{ position: 'absolute', left: -1, top: 9, width: 104, height: 4, transform: 'rotate(-0.5deg)', background: 'linear-gradient(180deg, #322a1d, #17130d)' }} />
+        {/* the one on top, foreshortened, catching the lamp */}
+        <div style={{
+          position: 'absolute', left: 0, top: 0, width: 104, height: 11, transform: 'rotate(-1.2deg)',
+          background: `linear-gradient(178deg, ${lamp(0.5)}, ${lamp(0.22)} 62%, rgba(58,50,38,0.5))`,
+          boxShadow: '0 2px 5px rgba(0,0,0,0.6), inset 0 -1px 0 rgba(0,0,0,0.4)',
+        }}>
+          {/* the window in the envelope. nothing legible through it. */}
+          <div style={{ position: 'absolute', left: 58, top: 4, width: 32, height: 4, background: 'rgba(20,16,10,0.4)' }} />
+        </div>
+      </div>
+
+      {/* where the machine touches the counter */}
+      <div style={{
+        position: 'absolute', left: -26, right: -26, top: '100%', height: SURFACE,
+        background: 'radial-gradient(ellipse 52% 150% at 50% -20%, rgba(0,0,0,0.97), rgba(0,0,0,0.6) 48%, transparent 74%)',
+        filter: 'blur(3px)', pointerEvents: 'none',
+      }} />
+    </>
+  )
+}
+
 type Mode = 'idle' | 'playing' | 'recording' | 'recorded'
 
 export default function World9Answering() {
@@ -261,6 +449,7 @@ export default function World9Answering() {
   const [mood, setMood] = useState<HourMood>('day') // resolved on mount to avoid hydration mismatch
   const [phantom, setPhantom] = useState(false) // the sixth message that isn't on the counter
   const [hidden, setHidden] = useState(false) // the unlisted message is on the reel
+  const [lineLive, setLineLive] = useState<boolean | null>(null) // does the phone line out go anywhere
   const voiceOnRef = useRef(true)
   const audioRef = useRef<TapeAudio | null>(null)
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
@@ -285,9 +474,10 @@ export default function World9Answering() {
       .then(d => {
         const server: Tape[] = Array.isArray(d?.messages) ? d.messages : []
         const seen = new Set(server.map(m => m.id))
+        setLineLive(!!d?.live)
         setTapes(withEcho([...SAVED_TAPES, ...server, ...local.filter(m => !seen.has(m.id))]))
       })
-      .catch(() => setTapes(withEcho([...SAVED_TAPES, ...local])))
+      .catch(() => { setLineLive(false); setTapes(withEcho([...SAVED_TAPES, ...local])) })
   }, [])
 
   const wait = (ms: number) => new Promise<void>(res => {
@@ -448,6 +638,7 @@ export default function World9Answering() {
       const d = await res.json()
       if (d?.message) { msg = d.message; persisted = !!d.persisted }
     } catch {}
+    setLineLive(persisted) // the cord answers to what actually happened
     if (!persisted) saveLocalTape(msg)
     setTapes(prev => [...prev, msg])
     setRecText('')
@@ -465,7 +656,7 @@ export default function World9Answering() {
   return (
     <div data-world="9" style={{
       position: 'fixed', inset: 0, overflow: 'hidden',
-      background: 'radial-gradient(ellipse 90% 70% at 50% 62%, #17110a 0%, #0a0705 45%, #030202 100%)',
+      background: '#020202',
       display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
       fontFamily: '"Space Mono", monospace',
     }}>
@@ -476,20 +667,22 @@ export default function World9Answering() {
         .tape-btn { transition: transform 0.06s, filter 0.15s; cursor: pointer; }
         .tape-btn:hover { filter: brightness(1.25); }
         .tape-btn:active { transform: translateY(1px); }
+        /* narrow windows keep the counter and the wall; the room's furniture
+           would only be hanging off the edge of the frame. */
+        @media (max-width: 720px) { .room-prop { display: none } }
+        /* standing back from the counter costs vertical room; short windows
+           can't spare it without clipping the tape's display. */
+        .w9-scene { margin-bottom: 88px }
+        @media (max-height: 780px) { .w9-scene { margin-bottom: 0 } }
       `}</style>
       <HomeButton />
 
-      {/* pool of lamp light */}
-      <div style={{
-        position: 'absolute', left: '50%', top: '58%', transform: 'translate(-50%,-50%)',
-        width: 720, height: 520, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse, rgba(255,190,110,0.10) 0%, rgba(255,170,90,0.03) 45%, transparent 70%)',
-      }} />
+      <div className="w9-scene" style={{ position: 'relative', width: 'min(480px, calc(100vw - 40px))' }}>
 
-      <div style={{ position: 'relative', width: 'min(480px, calc(100vw - 40px))' }}>
-
-        {/* display card above the machine — what the tape is "saying" */}
-        <div style={{ minHeight: 150, marginBottom: 26, padding: '0 8px' }}>
+        {/* display card above the machine — what the tape is "saying".
+            `relative` is load-bearing: the room's wall is absolutely
+            positioned and would otherwise paint straight over this text. */}
+        <div style={{ position: 'relative', zIndex: 2, minHeight: 150, marginBottom: 26, padding: '0 8px' }}>
           {display && (
             <div style={{ animation: phantom ? 'phantom-flicker 3.2s linear infinite' : 'none' }}>
               <div style={{ fontSize: 8, letterSpacing: '0.28em', color: phantom ? 'rgba(150,180,220,0.55)' : 'rgba(255,190,110,0.5)', marginBottom: 12 }}>
@@ -551,7 +744,9 @@ export default function World9Answering() {
           )}
         </div>
 
-        {/* the machine */}
+        {/* the machine, and the room it is standing in */}
+        <div style={{ position: 'relative' }}>
+        <Room mood={mood} lineLive={lineLive} />
         <div style={{
           position: 'relative',
           background: 'linear-gradient(170deg, #4a4238 0%, #35302a 50%, #262220 100%)',
@@ -677,15 +872,9 @@ export default function World9Answering() {
           </div>
         </div>
 
-        {/* table edge */}
-        <div style={{
-          height: 10, marginTop: 0,
-          background: 'linear-gradient(180deg, #2a1e12, #150f08)',
-          borderRadius: '0 0 4px 4px',
-          boxShadow: '0 18px 30px rgba(0,0,0,0.8)',
-        }} />
+        </div>
 
-        <div style={{ textAlign: 'center', marginTop: 22, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(255,235,205,0.16)' }}>
+        <div style={{ textAlign: 'center', marginTop: SURFACE + APRON + 34, fontSize: 8, letterSpacing: '0.2em', color: 'rgba(255,235,205,0.16)' }}>
           {msgCount} MESSAGE{msgCount === 1 ? '' : 'S'} ON TAPE · SOME ARE MINE · ONE COULD BE YOURS
         </div>
       </div>
