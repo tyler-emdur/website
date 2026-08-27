@@ -37,9 +37,8 @@ it must either be real or be clearly fictional *by design* — part of that
 world's internal system, never an accidental-looking placeholder. If it can't
 be made real, remove it or replace it with something interactive.
 
-- [ ] **`HiddenTerminal`'s `git log` prints invented commits** while
-      `hooks/use-site-commits.ts` fetches the real ones two files away. Point it
-      at the real feed. Free, and strictly cooler.
+- [x] **`HiddenTerminal`'s `git log` reads the real feed** (2026-08-10, in the
+      identity pass). It had been printing four invented commits.
 - [ ] **Hub object descriptions are fake telemetry over real facts.** Pikes Peak
       — 14,115 ft, run in 3:00:00 — renders as `PEAK-14115 / Geological spire.
       Local gravity variance: +1.2%`. The real fact is more interesting than the
@@ -47,8 +46,8 @@ be made real, remove it or replace it with something interactive.
       lead with the true thing.
 - [ ] **Audit every numeric readout** for whether it's sourced or invented.
       Known-real: Explorer coverage, Departures reads, weather, commits, boot
-      count. Known-invented: universe object counts, `FIELD INTEGRITY CHECK`,
-      coordinate glitches.
+      count, warehouse hours, **the hub's survey counts** (2026-08-26). Still
+      invented: `FIELD INTEGRITY CHECK`, coordinate glitches.
 - [ ] Where a value must stay fictional, give it a rule inside the world that
       generates it, so it behaves consistently instead of randomly.
 
@@ -99,16 +98,19 @@ and the visitor is never told, so it may as well not.
 
 ## P4 — Cut filler
 
-- [ ] **Delete `AbstractIndex.tsx`'s 15-string marker pool and 12-string status
-      pool.** Randomly scattered `UNMAPPED ANOMALY` / `ORIGIN UNKNOWN` /
-      `POSITION DISPUTED` is decorative telemetry that changes nothing the user
-      can do — the exact "meaningless" category `CLAUDE.md` bans.
-- [ ] Same pass on `GlitchOverlay.tsx`'s phrase pool.
+- [x] **`AbstractIndex.tsx`'s two pools are gone** (2026-08-26). Fifteen
+      scattered markers and twelve rotating status lines deleted, along with an
+      object count that random-walked 44–51 behind `[UNVERIFIED]`. The corner
+      terminal now prints how many objects have surfaced for you, how many
+      you've opened, and the survey state that follows from those.
+- [x] **`GlitchOverlay.tsx`'s pool cut 17 → 5** (2026-08-26). Everything naming
+      a sector, node, or percentage that doesn't exist is gone; the last line
+      reads back the object you opened most recently.
 - [ ] Cut repeated mystery phrasing that doesn't reveal new structure.
 - [ ] Cut anything that exists only to sound cool.
 
 Mystery works when there's something real underneath to find. Fifteen rotating
-strings have nothing underneath.
+strings had nothing underneath.
 
 ## P5 — Navigable and revisitable
 
@@ -186,9 +188,11 @@ measured from automation. Items 3–4 are safe independently of item 2.
 - **Transitions are curtains over a hard cut.** `completePortal()` fires on a
   fixed `setTimeout` that knows nothing about whether the destination mounted.
   Same root problem as the hub loading state.
-- **Give the object a room** — World 9, then World 7. Both DOM, both a centered
-  card on black. Reuse the Broadcast approach: anchor floor/seam/shadow off the
-  object, not the viewport.
+- **Give the object a room** — World 9 done (2026-08-26): counter, wall, window
+  light on the visitor's clock, cast shadow, outlet, two cords, mail. Every
+  layer anchored off the machine's own box rather than a viewport percentage,
+  which is the part worth copying. **World 7 is still a centered card on black**
+  and is next.
 - **Explorer is still not a place.** Its session was triage only.
 - **`RESUME.TXT` on the desktop** — proposed in the pivot, never built. World 5
   already has `resume_2019.doc` in `RECYCLED` as a joke about deleting it; an

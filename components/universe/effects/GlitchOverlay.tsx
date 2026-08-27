@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { getAllObjects, useUniverseStore } from '@/lib/universe-store'
 
 // Random static burst that covers the screen briefly
 function StaticBurst({ onDone }: { onDone: () => void }) {
@@ -58,25 +59,25 @@ function StaticBurst({ onDone }: { onDone: () => void }) {
   )
 }
 
-const TRANSMISSIONS = [
-  'SIGNAL LOST · REACQUISITION PENDING',
-  'WARNING: UNKNOWN MASS DETECTED',
-  '⚠ SECTOR INTEGRITY: 12%',
-  'NAVIGATION SYSTEM OFFLINE',
-  'YOU ARE NOT SUPPOSED TO BE HERE',
-  'MEMORY CORRUPTION · SECTOR 03-Ω',
-  'ENTRY REDACTED · CLEARANCE: TYPE-IV',
-  'TRANSMISSION INTERRUPTED · PARTIAL RECORD FOLLOWS',
-  'ERROR CODE: ████████',
-  'DO NOT APPROACH THE WORMHOLE',
-  'OBJECT COUNT MISMATCH · RECOUNT REQUIRED',
-  'ARCHIVE NODE 17 · ACCESS LOGGED',
-  'DESIGNATION: T.EMDUR',
-  '... ... ...',
-  'CLASSIFIED — CLEARANCE REQUIRED',
-  'POSITION DISPUTED · LAST VERIFIED 03:12',
-  'SURVEY INCOMPLETE · OBJECTS REMAIN UNCATALOGUED',
-]
+// The pool was seventeen strings long and most of them named things that do
+// not exist — sector 03-Ω, archive node 17, an integrity percentage, a count
+// mismatch the survey now contradicts. What's left either names something the
+// store actually holds, or says nothing at all.
+//
+// The last line is the interesting one: it reads back the object you opened
+// most recently. Nobody tells you it's doing that.
+function transmissions(): string[] {
+  const { discoveredIds } = useUniverseStore.getState()
+  const lastId = discoveredIds[discoveredIds.length - 1]
+  const last = lastId ? getAllObjects().find(o => o.id === lastId) : undefined
+  return [
+    'DESIGNATION: T.EMDUR',
+    '... ... ...',
+    'WARNING: UNKNOWN MASS DETECTED',
+    'DO NOT APPROACH THE WORMHOLE',
+    ...(last ? [`${last.label} · ACCESS LOGGED`] : []),
+  ]
+}
 
 export default function GlitchOverlay() {
   const [burst, setBurst] = useState(false)
@@ -103,7 +104,8 @@ export default function GlitchOverlay() {
       const delay = 20000 + Math.random() * 30000
       txId = setTimeout(() => {
         if (cancelled) return
-        const msg = TRANSMISSIONS[Math.floor(Math.random() * TRANSMISSIONS.length)]
+        const pool = transmissions()
+        const msg = pool[Math.floor(Math.random() * pool.length)]
         setMessage(msg)
         setMsgVisible(true)
         setTimeout(() => { if (!cancelled) setMsgVisible(false) }, 3500)
