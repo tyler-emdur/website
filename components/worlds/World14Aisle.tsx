@@ -3,8 +3,9 @@ import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import HomeButton from './HomeButton'
 import { useWorldStore } from '@/lib/world-store'
-import { getSlot, getSpecial, loadBasket, addToBasket, type BasketEntry } from './aisle-data'
+import { getSlot, getSpecial, loadBasket, addToBasket, warehouseHours, type BasketEntry } from './aisle-data'
 import { useIsTouchDevice } from '@/lib/use-touch-device'
+import { useEnvironment } from '@/lib/environment'
 
 const AisleCanvas = dynamic(() => import('./AisleCanvas'), { ssr: false })
 
@@ -141,6 +142,20 @@ export default function World14Aisle() {
   const special = useMemo(() => getSpecial(), [])
   const currentSlot = useMemo(() => getSlot(Math.max(0, centerIndex)), [centerIndex])
 
+  // The building's clock. useEnvironment reruns every twenty seconds, which is
+  // what keeps the closing countdown honest — stand still through 8:30 and the
+  // lights actually go out around you.
+  const env = useEnvironment()
+  const hours = useMemo(() => warehouseHours(), [env.hour, env.minute]) // eslint-disable-line react-hooks/exhaustive-deps
+  const sky = useMemo(() => ({
+    daylight: env.daylight,
+    phase: hours.phase,
+    // shut, the building sits at night-crew lighting rather than at zero
+    dimming: hours.phase === 'closed' ? 0.7
+      : hours.phase === 'lastCall' ? 1 - Math.max(0, hours.toClose) / 0.5
+        : 0,
+  }), [env.daylight, hours])
+
   useEffect(() => { setBasket(loadBasket()) }, [])
 
   useEffect(() => {
@@ -155,6 +170,21 @@ export default function World14Aisle() {
   }, [centerIndex])
 
   useEffect(() => () => { if (paTimerRef.current) clearTimeout(paTimerRef.current) }, [])
+
+  // Walk in after closing and the building says so before anything else does.
+  // These are the only PA lines that aren't triggered by depth — they're
+  // triggered by what time it actually is in Boulder when you arrived.
+  const greetedRef = useRef(false)
+  useEffect(() => {
+    if (!hasMoved || greetedRef.current) return
+    if (hours.phase === 'open') return
+    greetedRef.current = true
+    setPa(hours.phase === 'closed'
+      ? 'the warehouse is closed. the doors locked behind you. you are welcome to keep shopping.'
+      : `the warehouse closes in ${Math.max(1, Math.round(hours.toClose * 60))} minutes. this one is true.`)
+    if (paTimerRef.current) clearTimeout(paTimerRef.current)
+    paTimerRef.current = setTimeout(() => setPa(null), 8000)
+  }, [hasMoved, hours])
 
   useEffect(() => {
     if (currentSlot.kind === 'gem' && currentSlot.gemKey && !foundGemsRef.current.has(currentSlot.gemKey)) {
@@ -236,6 +266,23 @@ export default function World14Aisle() {
         </div>
         <div style={{ fontSize: 9, marginTop: 4 }}>
           ITEM {String(centerIndex).padStart(5, '0')} · KEEP WALKING
+        </div>
+
+        {/* the hours, off the door of the building, against Boulder's real clock */}
+        <div style={{
+          fontSize: 8, marginTop: 10, lineHeight: 1.8, letterSpacing: '0.12em',
+          borderLeft: `2px solid ${hours.phase === 'closed' ? 'rgba(200,72,58,0.5)'
+            : hours.phase === 'lastCall' ? 'rgba(246,198,106,0.6)' : 'rgba(255,255,255,0.2)'}`,
+          paddingLeft: 8, color: 'rgba(255,255,255,0.32)',
+        }}>
+          WAREHOUSE HOURS<br />
+          {hours.posted}<br />
+          <span style={{
+            color: hours.phase === 'closed' ? 'rgba(220,110,96,0.85)'
+              : hours.phase === 'lastCall' ? 'rgba(246,198,106,0.85)' : 'rgba(255,255,255,0.55)',
+          }}>
+            {hours.notice}
+          </span>
         </div>
         <div style={{ fontSize: 8, marginTop: 10, color: 'rgba(246,198,106,0.65)', maxWidth: 220, lineHeight: 1.7 }}>
           ★ TODAY&apos;S MANAGER&apos;S MARKDOWN<br />
@@ -339,6 +386,12 @@ export default function World14Aisle() {
           {currentSlot.price && (
             <div style={{ fontSize: 10, color: currentSlot.kind === 'special' ? '#F6C66A' : 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap' }}>
               {currentSlot.price}
+              {/* the asterisk, top right, exactly where it goes on the real
+                  sign. Never explained here — one of the gems deeper in the
+                  aisle explains it, to whoever has already been wondering. */}
+              {currentSlot.star && (
+                <span style={{ color: 'rgba(255,255,255,0.9)', marginLeft: 3, verticalAlign: 'super', fontSize: 11 }}>*</span>
+              )}
             </div>
           )}
         </div>
@@ -364,11 +417,12 @@ export default function World14Aisle() {
           basket={basket}
           depth={centerIndex}
           enteredAt={enteredAt.current}
+          afterHours={hours.phase === 'closed'}
           onClose={() => setShowReceipt(false)}
         />
       )}
 
-      <AisleCanvas onCenterIndexChange={setCenterIndex} />
+      <AisleCanvas onCenterIndexChange={setCenterIndex} sky={sky} />
     </div>
   )
 }
@@ -383,10 +437,11 @@ function fmtElapsed(ms: number) {
   return `${s}s`
 }
 
-function Receipt({ basket, depth, enteredAt, onClose }: {
+function Receipt({ basket, depth, enteredAt, afterHours, onClose }: {
   basket: BasketEntry[]
   depth: number
   enteredAt: number
+  afterHours: boolean
   onClose: () => void
 }) {
   const now = new Date()
@@ -435,6 +490,12 @@ function Receipt({ basket, depth, enteredAt, onClose }: {
         <div style={{ textAlign: 'center', fontSize: 9, opacity: 0.7 }}>REG 03 · CASHIER: —— (UNATTENDED)</div>
         <div style={{ textAlign: 'center', fontSize: 9, opacity: 0.7, marginTop: 2 }}>{stamp}</div>
         <div style={{ textAlign: 'center', fontSize: 9, opacity: 0.7 }}>MEMBER 1114 ████ ████ · EXECUTIVE</div>
+        {/* the register knows what time it is even if nobody was standing at it */}
+        {afterHours && (
+          <div style={{ textAlign: 'center', fontSize: 9, marginTop: 2, letterSpacing: '0.08em' }}>
+            ** SALE RUNG OUTSIDE POSTED HOURS **
+          </div>
+        )}
 
         <div style={{ borderTop: '1px dashed #14120c', margin: '12px 0 10px' }} />
 

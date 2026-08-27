@@ -1,3 +1,5 @@
+import { BOULDER } from '@/lib/environment'
+
 export const SPACING = 2.6
 export const RAIL_X = 4.0   // half-width: two flatbeds pass without touching
 export const RAIL_Y = 2.3   // sign/tag height — where a person actually reads
@@ -127,6 +129,95 @@ export const GEMS: Gem[] = [
   { key: 'lost-child-page', label: 'ATTENTION: LOST MEMBER', flavor: 'the description on the PA matches you. it was recorded years ago. it uses the past tense.' },
 ]
 
+// ── the warehouse keeps hours ────────────────────────────────────────────────
+// Real ones, read against the real Boulder clock.
+//
+// Every other world reads lib/environment.ts in its own dialect — the surface
+// prints a clock, the garage decides whether light comes under the door. This
+// is the warehouse's dialect, and it's the strongest one available to it,
+// because a warehouse club is the one place on this site with a legitimate
+// reason to be *shut* when you arrive. Turn up at three in the morning and you
+// get the building at three in the morning: house lights down, nothing in the
+// skylights, the night crew's machine parked in the aisle.
+//
+// The hours below are the ones actually posted at the door of a warehouse club,
+// which is the point — they aren't dressed up, they're just what time it is.
+const HOURS: [open: number, close: number][] = [
+  [10, 18],    // Sun
+  [10, 20.5],  // Mon
+  [10, 20.5],  // Tue
+  [10, 20.5],  // Wed
+  [10, 20.5],  // Thu
+  [10, 20.5],  // Fri
+  [9.5, 18],   // Sat
+]
+
+export type StorePhase = 'open' | 'lastCall' | 'closed'
+
+export interface WarehouseHours {
+  phase: StorePhase
+  /** Hours until the doors are locked. Negative once they are. */
+  toClose: number
+  /** Hours until they open again. 0 while open. */
+  toOpen: number
+  /** What the sign at the door says today: "10:00 AM — 8:30 PM". */
+  posted: string
+  /** The line under it, which is the one that's true right now. */
+  notice: string
+}
+
+function clockLabel(h: number): string {
+  const hh = Math.floor(h)
+  const mm = Math.round((h - hh) * 60)
+  const h12 = hh % 12 === 0 ? 12 : hh % 12
+  return `${h12}:${String(mm).padStart(2, '0')} ${hh < 12 ? 'AM' : 'PM'}`
+}
+
+/** Boulder's weekday and decimal hour, wherever the visitor happens to be. */
+function boulderNow(now: Date): { day: number; hour: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BOULDER.tz, weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: false,
+  }).formatToParts(now)
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? '0'
+  const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(get('weekday'))
+  const hour = (parseInt(get('hour'), 10) % 24) + parseInt(get('minute'), 10) / 60
+  return { day: day < 0 ? 0 : day, hour }
+}
+
+/** Half an hour out, the PA stops lying about closing in ten minutes. */
+const LAST_CALL = 0.5
+
+export function warehouseHours(now: Date = new Date()): WarehouseHours {
+  const { day, hour } = boulderNow(now)
+  const [open, close] = HOURS[day]
+  const posted = `${clockLabel(open)} — ${clockLabel(close)}`
+  const toClose = close - hour
+
+  if (hour >= open && toClose > 0) {
+    if (toClose <= LAST_CALL) {
+      const mins = Math.max(1, Math.round(toClose * 60))
+      return {
+        phase: 'lastCall', toClose, toOpen: 0, posted,
+        notice: `CLOSING IN ${mins} MINUTE${mins === 1 ? '' : 'S'}`,
+      }
+    }
+    return { phase: 'open', toClose, toOpen: 0, posted, notice: `OPEN UNTIL ${clockLabel(close)}` }
+  }
+
+  // Shut. The doors come back either later today or tomorrow — and once the
+  // day is over the sign has to post *tomorrow's* row, or it ends up promising
+  // hours it has already missed while announcing an opening from a different
+  // day underneath them.
+  const nextDay = hour < open ? day : (day + 1) % 7
+  const [nextOpen, nextClose] = HOURS[nextDay]
+  const toOpen = hour < open ? open - hour : 24 - hour + nextOpen
+  return {
+    phase: 'closed', toClose, toOpen,
+    posted: hour < open ? posted : `${clockLabel(nextOpen)} — ${clockLabel(nextClose)}`,
+    notice: `CLOSED · OPENS ${clockLabel(nextOpen)}`,
+  }
+}
+
 // ── manager's special — rotates daily ────────────────────────────────────────
 export function getDayNumber(): number {
   return Math.floor(Date.now() / 86400000)
@@ -151,6 +242,8 @@ export interface Slot {
   scale: number
   rotation: [number, number, number]
   gemKey?: string
+  /** the asterisk in the corner of the sign. see STOCK, above. */
+  star?: boolean
 }
 
 export function getSlot(index: number): Slot {
@@ -177,6 +270,7 @@ export function getSlot(index: number): Slot {
       price: `TODAY ONLY: ${special.item.price}`,
       color: '#F6C66A', shape: style.shape, scale: 1.25,
       rotation: [0, rnd() * Math.PI, 0],
+      star: special.item.star,
     }
   }
 
@@ -205,6 +299,7 @@ export function getSlot(index: number): Slot {
     color: style.color, shape: style.shape,
     scale: 0.75 + rnd() * 0.3,
     rotation: [(rnd() - 0.5) * 0.3, rnd() * Math.PI, (rnd() - 0.5) * 0.2],
+    star: pick.star,
   }
 }
 
