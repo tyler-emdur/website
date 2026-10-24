@@ -7,7 +7,6 @@ import KonamiEgg from '@/components/universe/effects/KonamiEgg'
 import HiddenTerminal from '@/components/universe/effects/HiddenTerminal'
 import AbstractIndex from '@/components/universe/effects/AbstractIndex'
 import PortalDirectory from '@/components/universe/effects/PortalDirectory'
-import AmbientTransmissions from '@/components/universe/effects/AmbientTransmissions'
 import NullDescent from '@/components/universe/effects/NullDescent'
 
 const UniverseCanvas = dynamic(() => import('./UniverseCanvas'), { ssr: false })
@@ -31,7 +30,6 @@ export default function UniverseRoot() {
       <GlitchOverlay />
       <KonamiEgg />
       <HiddenTerminal />
-      <AmbientTransmissions />
       <NullDescent />
     </div>
   )

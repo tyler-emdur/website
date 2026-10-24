@@ -428,3 +428,127 @@ Risk:
 Low on desktop — the mouse path is the same one-pointer branch it always was,
 and it was exercised. Medium on touch only in the sense that it is new
 behaviour nobody has felt yet.
+
+---
+
+## 2026-10-23 — The hub stops making things up
+
+Objective:
+P1 ("hub object descriptions are fake telemetry over real facts") and P4 ("cut
+filler", "cut anything that exists only to sound cool"), triggered by Tyler
+reading the site cold: *"a lot of it just sounds super AI language... some of it
+just needs to go back to the basics, think berkshirehathaway.com."*
+
+Why:
+The complaint localised almost entirely to World 1. Across the hub there were
+**151 invented strings**, and 41 of the 50 object descriptions were the same
+sentence:
+
+    [Adjective] [technical noun]. [Label]: [value]. [Label]: [value].
+
+Not one of the values was real. The template was the tell — a reader does not
+consciously count to forty-one, they just stop believing the screen. Meanwhile
+Warehouse 14, `catalogue-data.ts`, Departures and World 9 are written in a voice
+nobody would mistake for generated text ("A dollar fifty. It has been a dollar
+fifty since 1985 and it will be a dollar fifty after the building is gone").
+
+The difference is not tone, it is **reference**: the good copy names something
+you could point at, the filler names a category and bolts a number to it. That
+is also the actual lesson of the Berkshire page — it is plain because every link
+goes to a real document. Plainness is the residue of having something real
+underneath. The hub was ornate because it had nothing underneath yet.
+
+Changes Made:
+- **`lib/universe-store.ts`** — all 50 descriptions rewritten to one true
+  sentence; the `lore` field and its 35 strings **deleted from the interface**,
+  so the second voice can't come back. `PEAK-14115 / Local gravity variance:
+  +1.2%` is now *"Pikes Peak. 14,115 feet, 13.3 miles of it uphill, three hours
+  exactly."* Region designations carry what the sector holds (`SECTOR 02-B ·
+  RUNS`) instead of an invented fault (`[SURVEY DETAILED]`).
+  Five objects now describe **their own real reveal rule** — BEACON-04-Δ says it
+  only surfaces after twenty seconds, RELAY-00 says it appeared once you had
+  opened four things. P3's "an unannounced consequence is indistinguishable from
+  no consequence", paid for by copy rather than new machinery.
+- **`AmbientTransmissions.tsx` deleted** (43-string pool). Its `DEEP` band
+  flattered the reader — *"classification: patient · rare"*, *"you have stayed
+  longer than most · the map remembers this"*. The map did not remember this.
+  The hub still has three text layers, all reading real state.
+- **`CartographyLayer.tsx`** — 16 floating annotations → 7. Every grid, arc,
+  ring and crosshair kept (that geometry is what makes the void a room); the
+  labels now sit on something really at that coordinate: `DATUM · 40.0150°N
+  105.2705°W`, `WORLD 4 · NEVER BUILT` on the gate that points at nothing.
+- **`components/hud/HUD.tsx`** — `getClassificationStamp()` was a `switch` on
+  `obj.type`, so every anomaly read CORRUPTED and every station read STABLE: the
+  type restated in scarier letters. It now reads `visited` from the world store
+  — VISITED / OPEN / NEVER BUILT / NO EXIT. **That store has persisted for
+  months with nothing consuming it** (PLAN.md P3). Also deleted: `redact()`,
+  which blanked random words with `██████` off `Math.sin(i * 4.3 + w.length)`,
+  and the coordinate readout's self-corruption into `['ERR_0','NULL','???','LOST']`.
+  Faking a fault on top of a true number only makes the true number look
+  invented too.
+- **`HiddenTerminal.tsx`** — `weather` printed four invented sensor lines
+  (barometric pressure, gravity, a dose in mSv/h) while `lib/environment.ts` was
+  already holding the real Boulder temperature, shared by every world. It now
+  prints it. `scan` and `status` were two commands over the same facts, one of
+  them with three invented faults; collapsed to one readout under both names.
+  `ARCHIVE_RECORDS` and `VOID_READOUTS` pools gone with `fortune`. `uptime` was
+  "days since epoch" and a fake load average — now the real length of this visit
+  from `visitStartTime`. `about` and `whoami` plainer.
+- **`World7Contact.tsx`** — the worst sentence on the site (*"it was only ever
+  one person, in boulder, making things at 3am and pointing them at the dark"*)
+  replaced with *"the address below is real, and goes to a person rather than a
+  form."* Its `47 OBJECTS CATALOGUED` fragment was stale besides — AbstractIndex
+  stopped claiming 47 in August — now `ELEVEN WORLDS`, which is checkable.
+- **`lib/identity.ts`** — `doing: 'Builder of worlds'` → `'Amateur webmaster'`.
+  `role` already makes the serious claim; this is what a homepage of World 0's
+  vintage would actually have said.
+- **The detail this session ships:** `88.7` is a real command in the hub
+  terminal. The frequency is stamped on the machine's README, the broadcast
+  dial, the garage radio and the endpoint's carrier — five worlds carrying one
+  number with nothing that answered to it. `88.7`, `88.7 mhz` and `887` all
+  resolve. Not in `help`.
+
+Net: **−427 / +232**, 195 lines of filler gone.
+
+Verification:
+`tsc --noEmit` and `next build` clean. All gesture assertions still pass. Against
+the production build in a real Chrome tab, by DOM text rather than screenshot:
+the seven cartography labels render, `status` prints the per-sector opened counts
+off the store, `88.7 mhz` resolves through the alias, and `weather` returns
+**63°F · overcast · 9:27 PM · sun down** — correct for Boulder this evening.
+All eleven world routes return 200.
+
+**Not verified in a real window:** the object panel's new VISITED/OPEN stamp.
+Reaching it means clicking a 3D object, and R3F never initialises in an
+automation tab — the CLAUDE.md trap. The stamp is code-confirmed and type-checked
+only. Worth thirty seconds of Tyler clicking a gate.
+
+Discovered:
+1. **An all-caps grep blind spot.** My first sweep for filler matched on a
+   lowercase `[a-z] [a-z]` pattern and so missed all 16 `CartographyLayer`
+   labels, including `FIELD INTEGRITY CHECK: PASSING` — which PLAN.md had
+   *already* flagged as invented. They only turned up when the hub's DOM text
+   was read in a browser. **Grep the rendered page, not just the source.**
+2. **A stale `next start` will lie to you convincingly.** `pkill` then immediate
+   restart raced: the new server hit `EADDRINUSE` and the old process kept
+   serving the previous build, so a verified-looking browser check showed all 16
+   old labels still present after a clean edit and a clean build. Always confirm
+   `✓ Ready` in the server log, not just a 200.
+3. **I introduced a stale-closure bug and the honest message hid it.** Adding
+   `env` to `buildCommands` without adding it to the `run` callback's dep array
+   meant the handler kept the first render's environment forever: `weather`
+   reported the station unreachable for an entire visit while the request had
+   already returned 200. `commits` was in the deps, which is why `git log`
+   worked and masked it. The fallback copy now says "no reading yet." rather
+   than asserting a failure it cannot distinguish from a pending fetch.
+
+Next:
+Explorer (`World2Explorer`) — its one session was triage only, it is the world
+that has gone longest without attention, and six hub objects now make promises
+about it. Then World 7's room: the endpoint copy is honest now but it is still a
+centered card on black, which PLAN.md already has queued behind World 9.
+
+Risk:
+Low. No geometry, layout, routing or mobile surface touched — the one removed
+element was a `position: fixed` text layer. Every change is copy, a deletion, or
+a readout now sourced from state that was already there.

@@ -39,15 +39,21 @@ be made real, remove it or replace it with something interactive.
 
 - [x] **`HiddenTerminal`'s `git log` reads the real feed** (2026-08-10, in the
       identity pass). It had been printing four invented commits.
-- [ ] **Hub object descriptions are fake telemetry over real facts.** Pikes Peak
-      — 14,115 ft, run in 3:00:00 — renders as `PEAK-14115 / Geological spire.
-      Local gravity variance: +1.2%`. The real fact is more interesting than the
-      fiction wrapped around it. Rewrite `lib/universe-store.ts` descriptions to
-      lead with the true thing.
-- [ ] **Audit every numeric readout** for whether it's sourced or invented.
-      Known-real: Explorer coverage, Departures reads, weather, commits, boot
-      count, warehouse hours, **the hub's survey counts** (2026-08-26). Still
-      invented: `FIELD INTEGRITY CHECK`, coordinate glitches.
+- [x] **Hub object descriptions rewritten** (2026-10-23). All 50 now lead with
+      the true thing; Pikes Peak reads "14,115 feet, 13.3 miles of it uphill,
+      three hours exactly." The `lore` field is **gone from the interface** along
+      with its 35 strings, so the second invented voice can't return. Five
+      objects describe their own reveal rule, which pays part of P3 in copy.
+- [x] **Numeric readouts audited across the hub** (2026-10-23). `FIELD
+      INTEGRITY CHECK` and the other 15 `CartographyLayer` labels are gone (7
+      remain, each anchored to something really at that coordinate); the
+      coordinate glitch and `redact()` are deleted; the terminal's `weather`
+      prints the real Boulder temperature instead of invented mSv/h; `uptime`
+      reads the real visit length. Known-real now also: the object panel's
+      stamp, which reads `visited` from the world store.
+      **Blind spot worth remembering:** a lowercase-pattern grep missed all 16
+      caps-locked `CartographyLayer` labels. Grep the rendered DOM, not just the
+      source.
 - [ ] Where a value must stay fictional, give it a rule inside the world that
       generates it, so it behaves consistently instead of randomly.
 
@@ -91,8 +97,11 @@ and the visitor is never told, so it may as well not.
       the item taken in the aisle stays in your basket across worlds ·
       the plate looked up in Departures appears on the answering machine ·
       files recovered in the Machine unlock hub entries
-- [ ] Tell the user when cross-world state fires. An unannounced consequence is
-      indistinguishable from no consequence.
+- [~] Tell the user when cross-world state fires. An unannounced consequence is
+      indistinguishable from no consequence. *(Partly done 2026-10-23: the hub
+      panel now stamps VISITED on worlds you have been to, reading the
+      `visited` array that had persisted for months with nothing consuming it.
+      Five object descriptions state their own reveal rule.)*
 - [ ] **A second visit should differ from the first.** `visited_worlds` and
       `world_secrets` already persist and nothing consumes them.
 
@@ -106,8 +115,17 @@ and the visitor is never told, so it may as well not.
 - [x] **`GlitchOverlay.tsx`'s pool cut 17 → 5** (2026-08-26). Everything naming
       a sector, node, or percentage that doesn't exist is gone; the last line
       reads back the object you opened most recently.
+- [x] **`AmbientTransmissions.tsx` deleted** (2026-10-23) — the last and
+      largest pool, 43 strings. Its `DEEP` band flattered the reader ("you have
+      stayed longer than most · the map remembers this"); the map did not
+      remember this. Flattery-as-atmosphere is the most AI-shaped register there
+      is — watch for it returning anywhere.
+- [x] **The hub's duplicate readouts collapsed** (2026-10-23). `scan` and
+      `status` were two terminal commands over the same facts, one of them with
+      three invented faults. One readout, two names.
 - [ ] Cut repeated mystery phrasing that doesn't reveal new structure.
-- [ ] Cut anything that exists only to sound cool.
+      *Remaining known offenders are outside the hub — the Broadcast's station
+      idents and World 2's HUD have not been read with this lens yet.*
 
 Mystery works when there's something real underneath to find. Fifteen rotating
 strings had nothing underneath.

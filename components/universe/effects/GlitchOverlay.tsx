@@ -73,8 +73,9 @@ function transmissions(): string[] {
   return [
     'DESIGNATION: T.EMDUR',
     '... ... ...',
-    'WARNING: UNKNOWN MASS DETECTED',
-    'DO NOT APPROACH THE WORMHOLE',
+    // 'WARNING: UNKNOWN MASS DETECTED' and 'DO NOT APPROACH THE WORMHOLE' were
+    // the last two inventions in here. No mass, no warning, and the wormholes
+    // are doors you are meant to walk through.
     ...(last ? [`${last.label} · ACCESS LOGGED`] : []),
   ]
 }

@@ -35,7 +35,10 @@ export const IDENTITY = {
   // The "what I do" facts, kept as atoms so each world can punctuate and order
   // them however its typography wants without inventing a new claim.
   role: 'Software engineer',
-  doing: 'Builder of worlds',
+  // Deliberately unglamorous. `role` already makes the serious claim; this is
+  // the line a personal homepage of this vintage would actually have used, and
+  // it is the honest description of what this particular site is.
+  doing: 'Amateur webmaster',
 } as const
 
 export const MAILTO = `mailto:${IDENTITY.email}`

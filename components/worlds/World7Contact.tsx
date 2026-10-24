@@ -20,7 +20,7 @@ const FRAGMENTS: Fragment[] = [
   { at: 0.16, garble: '░8▓.7▒ M░z',              truth: '88.7 MHz' },
   { at: 0.36, garble: '4▓.0▒5░°N 1░5.2▓0░°W',    truth: '40.0150°N 105.2705°W' },
   { at: 0.56, garble: 'S▒RV░Y T▓-∅',             truth: 'SURVEY TE-∅' },
-  { at: 0.74, garble: '▓7 O░J▒CTS',              truth: '47 OBJECTS CATALOGUED' },
+  { at: 0.74, garble: '░L▒V▓N W░RL▒S',           truth: 'ELEVEN WORLDS' },
   { at: 0.9,  garble: 'OP░R▒T░R — T.░MD▓R',      truth: 'OPERATOR — T. EMDUR' },
 ]
 
@@ -283,9 +283,9 @@ export default function World7Contact() {
         {locked && reveal && (
           <div className="ep-in" style={{ marginTop: 22, width: 'min(560px, 90vw)', textAlign: 'center' }}>
             <div style={{ fontSize: 12, lineHeight: 2, color: 'rgba(200,255,230,0.8)', marginBottom: 20 }}>
-              you reached the end of the signal.<br />
-              this is the place it was coming from. it was only ever one person,<br />
-              in boulder, making things at 3am and pointing them at the dark.
+              this is the end of the signal.<br />
+              one person in boulder wrote all eleven of the rooms behind you.<br />
+              the address below is real, and goes to a person rather than a form.
             </div>
 
             <div style={{ fontFamily: '"Oxanium", sans-serif', fontSize: 26, fontWeight: 300, color: 'rgba(200,255,230,0.85)', marginBottom: 18 }}>
@@ -314,7 +314,7 @@ export default function World7Contact() {
             })}
 
             <div style={{ fontSize: 8, letterSpacing: '0.28em', color: 'rgba(70,240,166,0.35)', marginTop: 10 }}>
-              DESIGNATION T.EMDUR · END OF TRANSMISSION
+              END OF TRANSMISSION
             </div>
           </div>
         )}

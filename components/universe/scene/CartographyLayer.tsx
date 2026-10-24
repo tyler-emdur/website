@@ -3,6 +3,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Html } from '@react-three/drei'
+import { IDENTITY } from '@/lib/identity'
 
 // Non-aligning grid fragment
 function GridFragment({ position, rotation, size = 400, divisions = 10, opacity = 0.15 }: {
@@ -82,25 +83,27 @@ function MeasurementArc({ position, rotation, radius, arc = Math.PI * 0.5, color
 export default function CartographyLayer() {
   const ref = useRef<THREE.Group>(null)
 
-  // Floating coordinate labels data
+  // ── SURVEY ANNOTATIONS ──────────────────────────────────────────────────────
+  // Sixteen of these floated in the void, every one invented: COORDINATE
+  // DEVIATION: +4.2, FIELD INTEGRITY CHECK: PASSING, OBJECT NOT FOUND — LAST
+  // DETECTED 2019-08-14. Nothing deviated, no check ran, nothing was detected
+  // in 2019. They were caps-locked, so they slipped past a sweep for the same
+  // template in the object descriptions.
+  //
+  // Seven left. Each sits on something that is really at that coordinate — the
+  // datum, the big black object with nothing behind it, the unlisted sector,
+  // the orbit drawn around nothing, the gate pointing at a world that was
+  // never built — and says the true thing about it. The geometry below (the
+  // grids, arcs, rings and crosshairs) was always the part doing the work;
+  // it is all still here.
   const annotations = useMemo(() => [
-    { pos: [0, 0, 100] as [number, number, number],         label: 'TE-∅ // ORIGIN REFERENCE CLAMP',            color: 'rgba(255,255,255,0.28)' },
-    { pos: [-2500, 1800, -1100] as [number, number, number],label: 'NULL-ZONE [LIGHT_ABSORPTION: 100%]',         color: 'rgba(255,255,255,0.28)' },
-    { pos: [900, -900, -400] as [number, number, number],   label: 'SURVEY ARC #08-F // ERASED',                 color: 'rgba(255,255,255,0.28)' },
-    { pos: [-2400, -1800, 600] as [number, number, number], label: 'SECTOR-06 [RECORD NOT FOUND]',               color: 'rgba(255,255,255,0.28)' },
-    { pos: [2200, 300, 100] as [number, number, number],    label: 'COORDINATE DEVIATION: +4.2',                 color: 'rgba(255,255,255,0.28)' },
-    { pos: [500, 500, 0] as [number, number, number],       label: 'EMPTY ORBIT REFERENCE: NULL-4',              color: 'rgba(255,255,255,0.28)' },
-    { pos: [200, -200, -100] as [number, number, number],   label: 'FIELD INTEGRITY CHECK: PASSING',             color: 'rgba(255,255,255,0.28)' },
-    // Archive classification stamps
-    { pos: [-800, -2200, 200] as [number, number, number],  label: 'STATUS: LOST',                               color: 'rgba(251,191,36,0.45)' },
-    { pos: [1800, 800, -300] as [number, number, number],   label: 'ENTRY CORRUPTED — DATA RECOVERY FAILED',     color: 'rgba(239,68,68,0.35)' },
-    { pos: [-1400, 600, 400] as [number, number, number],   label: 'DO NOT INDEX',                               color: 'rgba(251,191,36,0.40)' },
-    { pos: [400, -1600, 80] as [number, number, number],    label: 'ARCHIVE STATUS: UNKNOWN',                    color: 'rgba(255,255,255,0.22)' },
-    { pos: [2800, -400, -100] as [number, number, number],  label: 'OBJECT NOT FOUND — LAST DETECTED 2019-08-14', color: 'rgba(251,191,36,0.35)' },
-    { pos: [-300, 2000, 150] as [number, number, number],   label: 'SECTOR MARKED FOR DELETION',                 color: 'rgba(239,68,68,0.30)' },
-    { pos: [1000, 1400, -200] as [number, number, number],  label: 'NULL RECORD // ROUTE NOT FOUND',             color: 'rgba(255,255,255,0.20)' },
-    { pos: [-2200, 200, 300] as [number, number, number],   label: 'ARCHIVED: ACCESS DENIED',                    color: 'rgba(251,191,36,0.32)' },
-    { pos: [600, -400, 200] as [number, number, number],    label: 'TRANSMISSION INTERRUPTED AT THIS POINT',     color: 'rgba(255,255,255,0.18)' },
+    { pos: [0, 0, 100] as [number, number, number],          label: `DATUM · ${IDENTITY.coords}`,   color: 'rgba(255,255,255,0.30)' },
+    { pos: [-2500, 1800, -1100] as [number, number, number], label: 'NOTHING BEHIND THIS ONE',      color: 'rgba(255,255,255,0.26)' },
+    { pos: [-2400, -1800, 620] as [number, number, number],  label: 'NOT ON THE INDEX',             color: 'rgba(251,191,36,0.40)' },
+    { pos: [500, 500, 0] as [number, number, number],        label: 'ORBIT DRAWN · NOTHING IN IT',  color: 'rgba(255,255,255,0.22)' },
+    { pos: [1120, -1520, 250] as [number, number, number],   label: 'WORLD 4 · NEVER BUILT',        color: 'rgba(239,68,68,0.38)' },
+    { pos: [800, 180, 110] as [number, number, number],      label: 'CHANNEL 88 · NOT A REAL CITY', color: 'rgba(251,191,36,0.34)' },
+    { pos: [2800, -400, -100] as [number, number, number],   label: 'EDGE OF THE SURVEY',           color: 'rgba(255,255,255,0.18)' },
   ], [])
 
   return (
