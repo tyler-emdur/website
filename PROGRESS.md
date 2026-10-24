@@ -652,3 +652,102 @@ Risk:
 Low. Broadcast is two strings. World 7 is additive — the room is a set of
 pointer-events-none layers behind the existing receiver; the hold mechanic, the
 audio, the lock math and the reveal are untouched.
+
+---
+
+## 2026-10-23 (3) — One motion grammar under twelve doors
+
+Objective:
+PLAN.md goal 2 — interface identity — approached from the one surface every
+world shares. Not a world: the portal layer between them.
+
+Why:
+A grep for easing turned up eleven hand-rolled bezier curves, five different
+spellings of `cubic-bezier(0.4,0,0.2,1)`, and fourteen uses of `ease-in-out`.
+Symmetric easing is the single clearest tell that nobody chose the motion — real
+interfaces decelerate into arrivals and accelerate out of departures. Underneath
+that, three of the twelve portals were animating properties that force layout,
+and the visitor's reduced-motion setting could not reach any of them.
+
+First I checked whether the ten non-`fold`/`door` portal types were dead code.
+They are not: every one is reached through a hub gate's `worldPortal`, so all
+twelve are on live paths. Worth the five minutes before deleting anything.
+
+Changes Made:
+- `lib/motion.ts` (new) — `EASE` (enter / exit / hinge / motor, asymmetric on
+  purpose), `DUR` (tap 90 → ceremony 1200, a scale so the number comes from
+  somewhere), `transition()`, and the reduced-motion helpers. Deliberately no
+  CSS custom properties: nothing would consume them yet.
+- `components/worlds/PortalTransition.tsx` — all twelve kept as twelve distinct
+  gestures, now with their numbers out of the grammar.
+  - `expand-white` grew its own `width`, `height`, `marginLeft` and `marginTop`
+    under `transition: all`. Now scales a fixed-size circle. This is the door to
+    Contact, Broadcast and the whole lab region, so it was the worst one to have
+    running layout at 60fps.
+  - `letter-expand` animated `font-size` from 14px to twice the viewport —
+    re-rasterising the glyph and re-running text layout every frame. Now scales.
+  - `slide-right` was four seconds. Now `DUR.ceremony`, 1200ms.
+  - `cursor-flood` and `vortex` stopped after a fixed *frame count*, so they ran
+    750ms on a 60Hz panel and 375ms on a 120Hz one. Now driven by elapsed time.
+  - Completion now comes from `transitionend`, with the timer demoted to a
+    fallback. `expand-white` had set its timer to exactly its own 700ms while
+    starting the transition a frame late, so it could call itself finished early.
+  - `scatter` reaches outside React and writes to every `body > *`. It restored
+    those elements to the empty string, discarding any inline style a world had
+    set on itself; it now records and replays the exact prior values.
+  - Reduced motion renders a cut instead of a crossing. This is new behaviour,
+    not a fix to the existing `@media` block — the portals animate through
+    inline styles, which outrank anything in globals.css, so that block was
+    never able to reach them.
+
+Delightful detail:
+`expand-white` carries the real sky over Boulder. Verified against
+`readEnvironment`: at local noon the flood is `rgb(253, 249, 239)`, warm; right
+now, with the sun 60° below the horizon, `rgb(228, 235, 247)`, cold. The same
+white either way until you have crossed it at both ends of a day. Nobody is told.
+
+Verification:
+`tsc --noEmit` clean. `next build` clean, 18/18 static pages, shared JS
+unchanged at 103 kB. All twelve world routes 200 against `next start` (with
+`✓ Ready` confirmed in the log, per the last session's lesson).
+
+In a real Chrome tab, by computed style rather than screenshot: clicking "Enter
+Universe" on World 0 carried world 0 → 1 and `/surface` → `/universe` with the
+portal cleaned up afterward, and mid-flight exactly one element was animating —
+`transitionProperty: "transform"`, `0.88s`, `cubic-bezier(0.4, 0, 0.2, 1)`,
+`matrix3d(...)` part-way through the rotation. That is `DUR.travel` and
+`EASE.hinge` arriving from the grammar, with no layout property in the
+transition.
+
+**Not verified in a real window:** the other eleven portal types. Every trigger
+for them is a hub gate, and the hub is R3F — it never initialises in an
+automation tab (the CLAUDE.md trap). They are code-confirmed and type-checked
+only. `expand-white`, `letter-expand` and `slide-right` changed the most and are
+the ones worth Tyler clicking a gate for.
+
+Discovered:
+1. **An easing inventory is a fast read on whether a site has a grammar.**
+   `grep -ohE "cubic-bezier\([^)]*\)|ease-in-out"` then `sort | uniq -c`. Five
+   spellings of one curve and fourteen `ease-in-out` said more in one table than
+   reading the files did.
+2. **`transition: all` hides from a property grep.** A sweep for
+   `transition:.*\(width|height|top|left\)` came back empty and looked clean —
+   while `expand-white` was animating all four through `all`. Grep the keyword,
+   not just the property names.
+3. **Frame counts are a duration bug on new hardware.** Two canvas portals ran
+   at half length on a 120Hz display. Anything that ends on `if (frame < n)` is
+   measuring the panel, not time.
+4. **An inline style outranks a reduced-motion media query.** The accessibility
+   block in globals.css looked like coverage and was unreachable for every
+   portal on the site.
+
+Next:
+Explorer (`World2Explorer`) is still the world that has gone longest without
+attention, and six hub objects make promises about it. Unchanged from the last
+two entries.
+
+Risk:
+Low. No world's own layout, geometry, routing or mobile surface touched — the
+changes are confined to the shared transition layer plus one new file. The
+geometry change in `expand-white` strictly reduces per-frame work, and the
+mount-time visual size of `letter-expand` is unchanged (14px, now via scale).
