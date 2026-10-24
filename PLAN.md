@@ -76,8 +76,12 @@ EXEs. Don't rebuild it. Close the specific gaps:
 - [ ] **Broadcast:** should read as a live signal environment, not a page with
       static graphics. Channel changes should feel like tuning — signal
       acquisition, not a swap.
-- [ ] **Contact:** a genuine endpoint/signal lock, not a generic mystery reveal.
-      The press-and-hold interaction is good; the space around it isn't a place.
+- [x] **Contact is a place** (2026-10-23). It is the closet the Machine's README
+      already said this site is served out of: shelf, bracket, antenna lead with
+      a strain loop, power strip, taped drywall seam, masking tape reading 88.7.
+      Light under the door runs on the real Boulder clock, and at night there is
+      none — the set's phosphor and one LED are the only light. The corner of
+      the 486 is on the same shelf, three inches of it, out of frame.
 - [ ] **Surface:** an old personal homepage, not a modern landing page wearing
       nostalgia. Mostly there already.
 - [ ] Each world gets one interaction model that is *only* its own.
@@ -123,9 +127,12 @@ and the visitor is never told, so it may as well not.
 - [x] **The hub's duplicate readouts collapsed** (2026-10-23). `scan` and
       `status` were two terminal commands over the same facts, one of them with
       three invented faults. One readout, two names.
-- [ ] Cut repeated mystery phrasing that doesn't reveal new structure.
-      *Remaining known offenders are outside the hub — the Broadcast's station
-      idents and World 2's HUD have not been read with this lens yet.*
+- [x] **Every remaining world read with this lens** (2026-10-23). Only two
+      strings survived it, both in Channel 88, both telling the visitor they
+      were special; they now state facts about the dial, computed from
+      `CHANNELS`. **Broadcast, Garage and Explorer were already clean** — real
+      HLS streams and cities, real Colorado road signs over real FM, real Strava
+      figures. The note above accusing "World 2's HUD" was wrong.
 
 Mystery works when there's something real underneath to find. Fifteen rotating
 strings had nothing underneath.
@@ -206,12 +213,17 @@ measured from automation. Items 3–4 are safe independently of item 2.
 - **Transitions are curtains over a hard cut.** `completePortal()` fires on a
   fixed `setTimeout` that knows nothing about whether the destination mounted.
   Same root problem as the hub loading state.
-- **Give the object a room** — World 9 done (2026-08-26): counter, wall, window
-  light on the visitor's clock, cast shadow, outlet, two cords, mail. Every
-  layer anchored off the machine's own box rather than a viewport percentage,
-  which is the part worth copying. **World 7 is still a centered card on black**
-  and is next.
-- **Explorer is still not a place.** Its session was triage only.
+- **Give the object a room** — World 9 (2026-08-26) and **World 7 (2026-10-23)**
+  are done. Every layer anchors off the object's own box rather than a viewport
+  percentage, which is the part worth copying — and that applies to the *light*
+  too: World 7's door was first pinned at 68% of 100vw and sat behind the
+  receiver at some widths. A second lesson from it: a near-vertical gradient on
+  a 240vh element drifts out of frame; make it exactly 90deg.
+  No world is currently a bare object on black.
+- **Explorer is still not a place.** Its session was triage only. It is now the
+  world that has gone longest without attention, and six hub objects make
+  promises about it (2026-10-23) — but it is on the "leave alone unless
+  discussed" list, so it needs Tyler's go-ahead.
 - **`RESUME.TXT` on the desktop** — proposed in the pivot, never built. World 5
   already has `resume_2019.doc` in `RECYCLED` as a joke about deleting it; an
   earnest one beside it undercuts the better gag. Probably drop.

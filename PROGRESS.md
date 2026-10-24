@@ -552,3 +552,103 @@ Risk:
 Low. No geometry, layout, routing or mobile surface touched — the one removed
 element was a `position: fixed` text layer. Every change is copy, a deletion, or
 a readout now sourced from state that was already there.
+
+---
+
+## 2026-10-23 (2) — The endpoint gets the closet it was always served from
+
+Objective:
+Finish the de-slopping sweep outside World 1, then PLAN.md's "give the object a
+room — **World 7 is still a centered card on black** and is next."
+
+Why:
+Having fixed the hub, I read every remaining world's strings with the same lens
+(reference, not tone) before assuming where the problem was. It mostly wasn't
+there: the Broadcast's lineup is ten real HLS streams with real cities and real
+operator notes; the Garage's road signs are real Colorado ("ELEV 5430", "RUNAWAY
+TRUCK RAMP 1 MILE", "ICES BEFORE ROAD") over real FM streams; Explorer's HUD is
+four Strava figures and a street-coverage percentage. **My own PLAN.md note
+accusing "World 2's HUD" was wrong, and checking took four minutes.**
+
+What was left was two strings and a shape. World 7 was the shape CLAUDE.md names
+as the tell: one well-drawn object centered in a black void.
+
+Changes Made:
+- **`Channel88.tsx`** — two of four `STRANGE_MESSAGES` were ominous about
+  nothing: "IT HAS BEEN WATCHING SINCE BEFORE YOU ARRIVED" and "YOU ARE NOT
+  SUPPOSED TO BE ABLE TO TUNE THIS IN." The second is this site's worst habit —
+  telling the visitor they are special. Replaced with two facts about the dial,
+  **computed from `CHANNELS`** rather than retyped, so they stay true if the
+  lineup changes: "THE DIAL RUNS 02 TO 44. THIS IS 88." and "THE OTHER 9 EACH
+  COME FROM A CITY. YOU CAN LOOK THEM UP. THIS ONE HAS NO CITY."
+- **`World7Contact.tsx` — the room.** The Machine's README already said where
+  this is: the site is served "out of a closet in Boulder, Colorado, on a
+  carrier of 88.7 MHz." So the receiver now sits on a shelf in that closet.
+  Technique copied from World 9, which is the part PLAN.md says to copy: every
+  layer is anchored off the receiver's own box, so the shelf starts exactly
+  where the set's feet stop at any window size.
+  Shelf board and apron · a bracket under it · the antenna lead leaving the back
+  with a strain loop and a zip tie, going up out of frame, which is how a
+  carrier gets out of a closet · a power strip and its cord · a taped drywall
+  seam for scale · **masking tape on the shelf edge with "88.7" on it in
+  marker**, the kind of label a person actually puts on their own gear.
+- **The light under the door is the real Boulder clock** (`lib/environment.ts`,
+  same source the hub and garage read). Daylight down the jamb in the day, warm
+  at dusk, and **at night essentially nothing** — nobody left the hall light on,
+  so after dark the only things lighting the closet are the set's phosphor and
+  one amber LED. Day and night are genuinely different rooms.
+- **A quiet echo, not an inventory:** the corner of the 486 is on the same
+  shelf, three inches of it, mostly out of frame, power LED still on. World 5
+  says the machine is in this closet; this is what that looks like from here.
+  It also fills the left of the frame, which the first pass left empty.
+- The wall behind the set picks up the receiver's phosphor **scaled by the
+  carrier lock**, so the room is downstream of the mechanic rather than a
+  backdrop painted behind it.
+- **The scope was saturating into a solid green rectangle** — noise at ±0.34H
+  with a persistence fill that never cleared enough to show a trace through it.
+  Halved the noise band and deepened the clear; it reads as a noisy trace with
+  an envelope now. The hold mechanic is untouched.
+
+Verification:
+`tsc` and `next build` clean, all gesture assertions pass, all twelve routes 200.
+World 7 is DOM/CSS, so screenshots are trustworthy here (CLAUDE.md's table) and
+it was checked by eye at each step. The **day** variant was verified by
+temporarily hardcoding `phase="day"`, screenshotting, and reverting — the file
+was restored from a backup and re-grepped to confirm no forced state survived.
+The **reveal** was verified the same way, by forcing `locked`/`reveal` true: the
+new three-line copy and the contact rows lay out correctly below the shelf.
+
+Mobile: the resize tool reported success but never changed the rendered
+viewport, so this was checked by measurement instead — `documentElement`, `body`
+and the scroll container all report **0 horizontal overflow**, and the container
+computes `overflow-x: hidden`, which makes that regression structurally
+impossible regardless of width. The room's props hang off `calc(100% + …)` of a
+`min(680px, 90vw)` box, so on a phone they simply sit off-frame. **Not checked
+by eye at phone width.**
+
+Discovered:
+1. **A door jamb has to be plumb.** The light band was `linear-gradient(96deg)`
+   on an element 240vh tall; six degrees of tilt walks it ~200px sideways over
+   that height, so it drifted out of frame and only ever read near the ceiling.
+   It looked like a lighting bug and was a geometry bug.
+2. **Anchor to the object, not the viewport — including the light.** Pinned at
+   68% of 100vw, the jamb sat *behind* the receiver at some widths and beside it
+   at others, because the set has a max-width and the viewport does not. The
+   same rule PLAN.md records for the counter applies to everything in the room.
+3. **The stale-server trap caught me a second time**, in a new costume: I
+   rebuilt, restarted, and screenshotted a tab I had never re-navigated, then
+   spent a minute explaining a "bug" that was just the previous page still on
+   screen. Reload *and* confirm `✓ Ready`, every time.
+4. **Checking beats assuming about one's own notes.** Two worlds I had flagged
+   in writing as probably-sloppy were clean.
+
+Next:
+Explorer. It is the world that has gone longest without attention, its only
+session was triage, and six hub objects now make promises about it — but
+CLAUDE.md lists it under "leave alone unless discussed," so it needs Tyler's
+go-ahead rather than mine.
+
+Risk:
+Low. Broadcast is two strings. World 7 is additive — the room is a set of
+pointer-events-none layers behind the existing receiver; the hold mechanic, the
+audio, the lock math and the reveal are untouched.

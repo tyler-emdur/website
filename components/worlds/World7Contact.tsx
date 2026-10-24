@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useWorldStore } from '@/lib/world-store'
 import { IDENTITY, MAILTO } from '@/lib/identity'
+import { useEnvironment, type DayPhase } from '@/lib/environment'
 import HomeButton from './HomeButton'
 
 // ── THE ENDPOINT ─────────────────────────────────────────────────────────────
@@ -78,6 +79,200 @@ class CarrierAudio {
   stop() { try { this.oscs.forEach(o => { try { o.stop() } catch {} }); this.ctx?.close() } catch {}; this.ctx = null }
 }
 
+// ── THE ROOM ─────────────────────────────────────────────────────────────────
+// World 7 was a receiver centered on black — the exact shape CLAUDE.md names as
+// the tell ("one well-drawn object centered in a black void is the default
+// output of asking for a scene"). It needed a room, and it already had one in
+// canon: the Machine's README says this site is served "out of a closet in
+// Boulder, Colorado, on a carrier of 88.7 MHz." So this is that closet.
+//
+// The technique is World 9's, which is the part PLAN.md says to copy: every
+// layer is positioned off the receiver's own box rather than a viewport
+// percentage, so the shelf starts exactly where the receiver's feet stop and
+// the object sits on something at any window size. The wall grows upward from
+// `bottom: 0` for the same reason it does there — downward growth would extend
+// the scroll area.
+//
+// The light under the door is the shared-reality hook (lib/environment.ts): it
+// is daylight out in the hallway when it is daylight in Boulder, warm at dusk,
+// and almost nothing at 3am. Same clock the hub's survey prints and the garage
+// reads. Nothing here invents a value.
+
+const SHELF = 30   // the sliver of shelf board visible in front of the receiver
+const APRON = 12   // its front edge
+
+type DoorLight = { rgb: [number, number, number]; gap: number; under: number }
+
+const DOOR_LIGHT: Record<DayPhase, DoorLight> = {
+  day:   { rgb: [214, 228, 245], gap: 0.62, under: 0.5 },
+  dusk:  { rgb: [255, 166, 102], gap: 0.34, under: 0.3 },
+  dawn:  { rgb: [255, 196, 140], gap: 0.3,  under: 0.26 },
+  // Nobody left the hall light on. After dark the only thing lighting this
+  // closet is the set, which is the whole point of the world.
+  night: { rgb: [255, 182, 110], gap: 0.02, under: 0.015 },
+}
+
+/**
+ * Everything around the receiver. `lock` is the carrier lock from the hold
+ * gesture — the phosphor pooling on the wall behind the set brightens as the
+ * signal comes in, so the room is downstream of the mechanic rather than a
+ * backdrop painted behind it.
+ */
+function Room({ phase, daylight, lock }: { phase: DayPhase; daylight: number; lock: number }) {
+  const D = DOOR_LIGHT[phase] ?? DOOR_LIGHT.night
+  // `daylight` only scales the two bright phases; a warm bulb at 3am does not
+  // get dimmer because the sun is further down.
+  const scale = phase === 'day' || phase === 'dusk' ? Math.max(0.35, daylight) : 1
+  const door = (a: number) => `rgba(${D.rgb[0]},${D.rgb[1]},${D.rgb[2]},${+(a * scale).toFixed(3)})`
+  const glow = (a: number) => `rgba(70,240,166,${+(a * (0.45 + lock * 0.55)).toFixed(3)})`
+  const span = {
+    position: 'absolute' as const, left: '50%', transform: 'translateX(-50%)',
+    width: '100vw', pointerEvents: 'none' as const,
+  }
+
+  return (
+    <>
+      {/* back wall of the closet — unfinished drywall, and the set's own glow on it */}
+      <div style={{
+        ...span, bottom: 0, height: '240vh', zIndex: 0,
+        background: [
+          `radial-gradient(ellipse 420px 230px at 50% calc(100% + 10px), ${glow(0.16)}, ${glow(0.05)} 42%, transparent 74%)`,
+          `radial-gradient(ellipse 900px 540px at 50% 100%, rgba(70,240,166,0.022), transparent 64%)`,
+          'linear-gradient(180deg, #030604 0%, #050b08 48%, #09150f 82%, #0c1a12 100%)',
+        ].join(','),
+      }} />
+
+      {/* the taped drywall seam behind the set. scale, and nothing else. */}
+      <div style={{
+        position: 'absolute', left: 'calc(50% + 196px)', bottom: 0, width: 2, height: '240vh',
+        background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.028) 30%, rgba(255,255,255,0.045))',
+        pointerEvents: 'none', zIndex: 0,
+      }} />
+
+      {/* The closet door, just off the right edge of the set. Only its light is
+          in here: a hairline down the jamb and the spill it throws on the wall.
+          Both are anchored off the receiver's own box, not a viewport percent —
+          pinned to a percentage the shaft sat *behind* the set at some widths
+          and beside it at others, because the set has a max-width and the
+          viewport does not. */}
+      <div style={{
+        position: 'absolute', left: 'calc(100% + 76px)', bottom: -(SHELF + APRON),
+        width: 4, height: '240vh', zIndex: 0, mixBlendMode: 'screen', pointerEvents: 'none',
+        background: `linear-gradient(90deg, ${door(D.gap * 0.5)}, ${door(D.gap * 1.35)} 45%, ${door(D.gap * 0.5)})`,
+      }} />
+      <div style={{
+        position: 'absolute', left: 'calc(100% + 6px)', bottom: -(SHELF + APRON),
+        width: 220, height: '240vh', zIndex: 0, mixBlendMode: 'screen', pointerEvents: 'none',
+        background: `linear-gradient(90deg, transparent, ${door(D.gap * 0.16)} 34%, transparent 62%)`,
+      }} />
+
+      {/* ── the shelf the receiver is standing on ── */}
+      {/* front edge first, then the board laid over its top lip, so the apron
+          reads as thickness instead of a line under the object */}
+      <div style={{
+        position: 'absolute', left: '50%', transform: 'translateX(-50%)', width: '100vw',
+        top: `calc(100% + ${SHELF}px)`, height: APRON, pointerEvents: 'none', zIndex: 1,
+        background: 'linear-gradient(180deg, #0a0d0b 0%, #060908 60%, #030504 100%)',
+        borderTop: '1px solid rgba(160,200,180,0.07)',
+      }} />
+      <div style={{
+        position: 'absolute', left: '50%', transform: 'translateX(-50%)', width: '100vw',
+        top: '100%', height: SHELF, pointerEvents: 'none', zIndex: 1,
+        background: [
+          `radial-gradient(ellipse 340px 46px at 50% 0%, ${glow(0.12)}, transparent 70%)`,
+          // the door's light landing on the shelf board on that side
+          `radial-gradient(ellipse 260px 26px at calc(50% + 350px) 0%, ${door(D.under * 0.55)}, transparent 72%)`,
+          'linear-gradient(180deg, #0d1210 0%, #090d0b 55%, #070a09 100%)',
+        ].join(','),
+      }} />
+
+      {/* masking tape on the shelf edge, with the frequency written on it in
+          marker. the kind of label a person actually puts on their own gear. */}
+      <div style={{
+        position: 'absolute', left: 'calc(50% - 150px)', top: `calc(100% + ${SHELF - 1}px)`,
+        width: 52, height: APRON + 2, pointerEvents: 'none', zIndex: 2,
+        background: 'rgba(226,214,180,0.16)', transform: 'rotate(-0.8deg)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <span style={{
+          fontFamily: '"Space Mono", monospace', fontSize: 8, letterSpacing: '0.04em',
+          color: 'rgba(235,228,200,0.5)',
+        }}>88.7</span>
+      </div>
+
+      {/* shelf bracket, under the board, off to the left */}
+      <svg width="46" height="40" viewBox="0 0 46 40" style={{
+        position: 'absolute', right: 'calc(100% + 24px)', top: `calc(100% + ${SHELF + APRON - 1}px)`,
+        overflow: 'visible', pointerEvents: 'none', zIndex: 1,
+      }}>
+        <path d="M2 0 L2 34 M2 0 L40 0 M2 26 L30 0" fill="none"
+          stroke="rgba(150,185,170,0.085)" strokeWidth="2" />
+      </svg>
+
+      {/* the antenna lead. it leaves the back of the set, takes a strain loop,
+          and goes up out of frame — which is how the carrier gets out of a closet. */}
+      <svg width="150" height="300" viewBox="0 0 150 300" style={{
+        position: 'absolute', left: 'calc(100% - 42px)', bottom: 'calc(100% - 26px)',
+        overflow: 'visible', pointerEvents: 'none', zIndex: 0,
+      }}>
+        <path d="M14 300 C 14 250, 44 236, 52 206 C 60 176, 26 164, 34 128 C 40 100, 74 92, 78 48 L 80 -40"
+          fill="none" stroke="rgba(14,22,18,0.95)" strokeWidth="5" strokeLinecap="round" />
+        <path d="M14 300 C 14 250, 44 236, 52 206 C 60 176, 26 164, 34 128 C 40 100, 74 92, 78 48 L 80 -40"
+          fill="none" stroke="rgba(150,185,170,0.1)" strokeWidth="1.2" strokeLinecap="round" />
+        {/* the zip tie holding the loop */}
+        <rect x="46" y="200" width="13" height="4" rx="1.5" fill="rgba(150,185,170,0.12)" />
+      </svg>
+
+      {/* the corner of the machine that serves this site, on the same shelf,
+          almost entirely out of frame. World 5's README puts the 486 in this
+          closet; this is the three inches of it you can see from here. */}
+      <div style={{
+        position: 'absolute', right: 'calc(100% + 18px)', top: `calc(100% + ${SHELF}px)`,
+        width: 190, height: 112, pointerEvents: 'none', zIndex: 2,
+        transform: 'translateY(-112px)',
+        background: 'linear-gradient(100deg, #1a1a16 0%, #23231d 62%, #2a2a22 100%)',
+        borderRight: '1px solid rgba(190,186,160,0.1)',
+        borderTop: '1px solid rgba(190,186,160,0.07)',
+        boxShadow: '0 18px 40px rgba(0,0,0,0.8)',
+      }}>
+        {/* vent slots */}
+        {[0, 1, 2, 3, 4].map(i => (
+          <span key={i} style={{
+            position: 'absolute', right: 14, top: 22 + i * 7, width: 34, height: 2,
+            background: 'rgba(0,0,0,0.45)', borderRadius: 1,
+          }} />
+        ))}
+        {/* power LED, amber, still on */}
+        <span style={{
+          position: 'absolute', right: 15, bottom: 20, width: 5, height: 5, borderRadius: '50%',
+          background: 'rgba(255,176,64,0.75)', boxShadow: '0 0 7px 2px rgba(255,150,40,0.3)',
+        }} />
+      </div>
+
+      {/* power strip on the shelf, and the one cord that matters */}
+      <div style={{
+        position: 'absolute', left: 'calc(100% + 30px)', top: `calc(100% + ${SHELF - 20}px)`,
+        width: 86, height: 15, pointerEvents: 'none', zIndex: 2,
+        background: 'linear-gradient(180deg, #121613 0%, #0a0d0b 100%)',
+        border: '1px solid rgba(150,185,170,0.07)', borderRadius: 2,
+        display: 'flex', alignItems: 'center', gap: 7, paddingLeft: 7,
+      }}>
+        <span style={{ width: 4, height: 4, borderRadius: '50%', background: glow(0.5) }} />
+        {[0, 1, 2].map(i => (
+          <span key={i} style={{ width: 7, height: 5, background: 'rgba(0,0,0,0.55)', borderRadius: 1 }} />
+        ))}
+      </div>
+      <svg width="80" height="70" viewBox="0 0 80 70" style={{
+        position: 'absolute', left: 'calc(100% - 6px)', top: `calc(100% + ${SHELF - 14}px)`,
+        overflow: 'visible', pointerEvents: 'none', zIndex: 1,
+      }}>
+        <path d="M0 2 C 16 2, 24 22, 36 22 C 44 22, 44 8, 40 6" fill="none"
+          stroke="rgba(12,18,15,0.95)" strokeWidth="3.5" strokeLinecap="round" />
+      </svg>
+    </>
+  )
+}
+
 // ── the oscilloscope ─────────────────────────────────────────────────────────
 function Scope({ lockRef, holdingRef }: { lockRef: React.MutableRefObject<number>; holdingRef: React.MutableRefObject<boolean> }) {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -92,7 +287,7 @@ function Scope({ lockRef, holdingRef }: { lockRef: React.MutableRefObject<number
       const W = c.width, H = c.height, mid = H / 2
       const lock = lockRef.current
       // phosphor persistence
-      ctx.fillStyle = 'rgba(2,6,4,0.28)'
+      ctx.fillStyle = 'rgba(2,6,4,0.46)'
       ctx.fillRect(0, 0, W, H)
       phase += 0.05 + lock * 0.03
 
@@ -103,7 +298,7 @@ function Scope({ lockRef, holdingRef }: { lockRef: React.MutableRefObject<number
 
       // the trace: static that resolves to a clean carrier
       ctx.beginPath()
-      const noise = (1 - lock) * H * 0.34
+      const noise = (1 - lock) * H * 0.17
       const amp = H * (0.06 + lock * 0.20)
       const freq = 5 + lock * 3
       const settle = lock >= 1 ? 0.15 : 1  // normalized: nearly flat, slow breath
@@ -179,6 +374,8 @@ export default function World7Contact() {
   const endHold = useCallback(() => { holdingRef.current = false }, [])
 
   const pct = Math.round(lock * 100)
+  // The hallway light under the closet door runs on Boulder's real clock.
+  const env = useEnvironment()
 
   return (
     <>
@@ -195,7 +392,7 @@ export default function World7Contact() {
         onPointerCancel={endHold}
         style={{
           position: 'fixed', inset: 0, overflowY: 'auto', overflowX: 'hidden',
-          background: 'radial-gradient(ellipse 90% 70% at 50% 46%, #06120c 0%, #020403 72%)',
+          background: '#020403',
           fontFamily: '"Space Mono", "JetBrains Mono", monospace', cursor: locked ? 'auto' : 'pointer',
           userSelect: 'none',
         }}
@@ -214,20 +411,22 @@ export default function World7Contact() {
 
         <HomeButton />
 
-        {/* header */}
-        <div style={{ textAlign: 'center', marginBottom: 18 }}>
+        {/* header — above the room's wall, which grows up past it */}
+        <div style={{ position: 'relative', zIndex: 3, textAlign: 'center', marginBottom: 18 }}>
           <div style={{ fontSize: 9, letterSpacing: '0.4em', color: 'rgba(70,240,166,0.45)' }}>ENDPOINT · TE-∅</div>
           <div style={{ fontSize: 'clamp(16px,3vw,22px)', letterSpacing: '0.14em', color: 'rgba(200,255,230,0.9)', marginTop: 8 }}>
             {locked ? 'SIGNAL NORMALIZED' : 'CARRIER LOST IN NOISE'}
           </div>
         </div>
 
-        {/* the receiver */}
-        <div style={{
-          width: 'min(680px, 90vw)',
+        {/* the receiver, on a shelf, in the closet the site is served out of */}
+        <div style={{ position: 'relative', width: 'min(680px, 90vw)' }}>
+         <Room phase={env.phase} daylight={env.daylight} lock={lock} />
+         <div style={{
+          position: 'relative', zIndex: 2, width: '100%',
           background: 'linear-gradient(180deg, #0c1712, #060b08)',
           border: '1px solid rgba(70,240,166,0.18)', borderRadius: 10, padding: 14,
-          boxShadow: '0 30px 90px rgba(0,0,0,0.8), inset 0 1px 0 rgba(70,240,166,0.08)',
+          boxShadow: '0 30px 90px rgba(0,0,0,0.8), 0 2px 0 rgba(0,0,0,0.9), inset 0 1px 0 rgba(70,240,166,0.08)',
         }}>
           {/* scope */}
           <div style={{
@@ -271,17 +470,18 @@ export default function World7Contact() {
               )
             })}
           </div>
+         </div>
         </div>
 
         {/* prompt / resolution */}
         {!locked && (
-          <div style={{ marginTop: 20, fontSize: 11, letterSpacing: '0.2em', color: 'rgba(200,255,230,0.55)', textAlign: 'center' }}>
+          <div style={{ position: 'relative', zIndex: 3, marginTop: 20 + SHELF + APRON, fontSize: 11, letterSpacing: '0.2em', color: 'rgba(200,255,230,0.62)', textAlign: 'center' }}>
             {holdingRef.current || lock > 0.02 ? 'HOLD IT STEADY…' : 'PRESS AND HOLD ANYWHERE TO BRING THE SIGNAL IN'}
           </div>
         )}
 
         {locked && reveal && (
-          <div className="ep-in" style={{ marginTop: 22, width: 'min(560px, 90vw)', textAlign: 'center' }}>
+          <div className="ep-in" style={{ position: 'relative', zIndex: 3, marginTop: 22 + SHELF + APRON, width: 'min(560px, 90vw)', textAlign: 'center' }}>
             <div style={{ fontSize: 12, lineHeight: 2, color: 'rgba(200,255,230,0.8)', marginBottom: 20 }}>
               this is the end of the signal.<br />
               one person in boulder wrote all eleven of the rooms behind you.<br />
