@@ -187,3 +187,22 @@ export class LiveRadio {
     this.running = false
   }
 }
+
+/**
+ * A station's country, the way a radio would show it.
+ *
+ * This was three copies of a function that built a flag emoji out of the
+ * two-letter code — `'FR'` → two regional indicators → 🇫🇷 — and fell back to
+ * 📻 when the code was missing. Two problems with that. A dashboard from the
+ * late seventies cannot render a flag, so the emoji broke the one world where
+ * the interface *is* the object; and a flag is a worse label than the thing it
+ * was built from, because `FR` and `FI` are two letters apart and their flags
+ * are a blue-white-red tricolour and a blue-white cross at 8px.
+ *
+ * So the code itself is the label. An unparseable one returns empty — callers
+ * drop the field rather than print a stand-in for a country that isn't there.
+ */
+export function countryTag(code: string | null | undefined): string {
+  if (!code || !/^[A-Za-z]{2}$/.test(code)) return ''
+  return code.toUpperCase()
+}

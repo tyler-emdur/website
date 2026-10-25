@@ -1,6 +1,7 @@
 // The Machine — file system contents for the EMDUR-486.
 // Everything in here is real: real dead experiments, real notes, real regrets.
 import { IDENTITY, MAILTO } from '@/lib/identity'
+import type { IconName } from './icons'
 
 export interface MachineExperiment {
   id: string
@@ -105,14 +106,14 @@ export const RECOVERED_SECTORS = [
 // has never been a world 4. And yet the socket is still on the disk.
 export interface RecycledItem {
   file: string
-  icon: string
+  icon: IconName
   deleted: string   // fake, unresolved delete stamp
   body: string[]
 }
 
 export const RECYCLED: RecycledItem[] = [
   {
-    file: 'WORLD_04.WLD', icon: '🌐', deleted: 'deleted ????-??-??',
+    file: 'WORLD_04.WLD', icon: 'globe', deleted: 'deleted ????-??-??',
     body: [
       'CANNOT RESTORE — CANNOT DELETE',
       '',
@@ -127,7 +128,7 @@ export const RECYCLED: RecycledItem[] = [
     ],
   },
   {
-    file: 'resume_2019.doc', icon: '📄', deleted: 'deleted, again',
+    file: 'resume_2019.doc', icon: 'doc', deleted: 'deleted, again',
     body: [
       'resume_2019.doc',
       '',
@@ -141,7 +142,7 @@ export const RECYCLED: RecycledItem[] = [
     ],
   },
   {
-    file: 'cover_letter_FINAL_final_v4.doc', icon: '📄', deleted: 'deleted before sending',
+    file: 'cover_letter_FINAL_final_v4.doc', icon: 'doc', deleted: 'deleted before sending',
     body: [
       'cover_letter_FINAL_final_v4.doc',
       '',
@@ -154,7 +155,7 @@ export const RECYCLED: RecycledItem[] = [
     ],
   },
   {
-    file: 'the_next_big_thing.ppt', icon: '📊', deleted: 'deleted at slide 3',
+    file: 'the_next_big_thing.ppt', icon: 'chart', deleted: 'deleted at slide 3',
     body: [
       'the_next_big_thing.ppt — 14 slides',
       '',
@@ -169,7 +170,7 @@ export const RECYCLED: RecycledItem[] = [
     ],
   },
   {
-    file: 'NOTES_TO_SELF.txt', icon: '🗒', deleted: 'deleted, ironically',
+    file: 'NOTES_TO_SELF.txt', icon: 'torn', deleted: 'deleted, ironically',
     body: [
       'note to self — undated',
       '',

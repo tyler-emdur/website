@@ -600,7 +600,7 @@ export default function World3Broadcast() {
                   textAlign:'center', fontFamily:'monospace', fontSize:'clamp(6px,0.85vw,8px)',
                   color:'rgba(255,255,255,0.3)', letterSpacing:'0.1em',
                 }}>
-                  CLICK SCREEN FOR SOUND 🔇
+                  CLICK SCREEN FOR SOUND
                 </div>
               )}
             </div>
