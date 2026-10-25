@@ -70,11 +70,14 @@ z-order, a taskbar, a start menu, minimize, right-click context menus,
 Minesweeper, Tetris, a working `C:\` shell with `DIR`/`CD`, and ten program
 EXEs. Don't rebuild it. Close the specific gaps:
 
-- [ ] **Emoji break the era.** `📁` is the PROGRAMS desktop icon
-      (`World5Machine.tsx:978`), `📄` marks RECYCLED files, `📻` and `🔇` sit in
-      the Garage and Broadcast. World 0 already ships a real icon pipeline at
-      `/retro/*.svg` — use it. Era dingbats (`★ ✦ ♦ ✉`) are fine; color emoji
-      are not.
+- [ ] **Emoji break the era.** `📁` is the PROGRAMS desktop icon, `📄` marks
+      RECYCLED files, `💾 🌐 😵 💣 🗑` sit on the desktop and in Minesweeper,
+      `📻` and `🔇` sit in the Garage and Broadcast. World 0 already ships a
+      real icon pipeline at `/retro/*.svg` — use it. Era dingbats
+      (`★ ✦ ♦ ✉`) are fine; color emoji are not.
+      **Blocked on a ruling** (2026-10-24): this is the most era-breaking thing
+      left in World 5, and World 5 is on CLAUDE.md's "done, do not restyle"
+      list. Swapping icons is restyling. Needs Tyler's yes.
 - [ ] **Machine:** window conventions of the era — a menu bar with File/Edit/
       Help that actually opens, modal dialogs with OK/Cancel, a title-bar system
       box, keyboard focus. Convincing beats decorative.
@@ -101,10 +104,10 @@ and the visitor is never told, so it may as well not.
       rather than adding a parallel system. One source for identity, world
       state, discoveries, navigation — the way `lib/identity.ts` is now the one
       source for identity strings.
-- [~] **Shared reality reaches six of eleven worlds** (Departures added
-      2026-10-24). Surface, Garage, Contact, Warehouse, Departures, plus the
-      hub's terminal and the portal flood. Remaining and unblocked: Broadcast,
-      the Directory. Blocked by the leave-alone list: Explorer, the Machine.
+- [~] **Shared reality reaches seven of eleven worlds** (Departures and the
+      Machine added 2026-10-24). Surface, Garage, Contact, Warehouse,
+      Departures, the Machine, plus the hub's terminal and the portal flood.
+      Remaining and unblocked: Broadcast, the Directory. Blocked by the leave-alone list: Explorer.
       **World 9 is a deliberate exception** — it reads the *visitor's* clock on
       purpose ("it's the middle of the night where you are"), and Boulder time
       would break the one thing that world is about. Leave it.
@@ -155,6 +158,18 @@ and the visitor is never told, so it may as well not.
       **Worth remembering:** the string-pool lens does not catch this class.
       These were arithmetic, not prose, and the 2026-10-23 sweep marked
       Departures clean because it was looking for sentences.
+
+- [x] **The machine's invented traffic removed** (2026-10-24). SRVHOST.EXE
+      fabricated its entire log — visitors from ten cities, request times,
+      memory use, a carrier that drifted 15% of the time — under a header
+      reading `visitors now: 3`, hard-coded. It reports the one connection it
+      really has now. The hub terminal's `INTERCEPTED_TRACKS` (seven radio
+      intercepts at invented frequencies) and its `ps` table (invented CPU
+      times, one of them `Math.random()`) went with it.
+      **The lens that found these:** grep `Math.random` and read every hit in a
+      text position. Two October sweeps missed all of it because they were
+      looking for prose, and `visitor #${n} connected (${CITIES[r]})` is a
+      template made of arithmetic.
 
 Mystery works when there's something real underneath to find. Fifteen rotating
 strings had nothing underneath.
