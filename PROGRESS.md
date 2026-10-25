@@ -1057,3 +1057,96 @@ Low, with one note. No layout, routing, geometry or mobile surface was touched
 calls `useEnvironment`, so World 5 joins the shared sky; the weather is read
 through a ref so the heartbeat never captures a stale `env`, which is the exact
 mistake that froze the hub terminal's weather for a whole visit in October.
+
+---
+
+## 2026-10-24 (3) — Three repairs, one new channel, and a tuner that reports
+
+Why:
+The audit in the previous session found the dial lying in three places and left
+a plan. This is the plan.
+
+The worst of it was a contract violation. `channels.ts` says understudies are
+*"different stations from the same place — the city stays the city,"* and two
+lines below it channel 05 listed DW English in Bonn and France 24 in Paris as
+its backups for ISTANBUL. The identical DW URL also backed channel 12, so a bad
+night could have put the same German newsroom on two positions of a dial whose
+entire premise is that each one is somewhere else. Delhi's primary was a hard
+404 that every tune paid for before the cascade quietly covered it. And the
+liveness check in `/api/broadcast` tested only that a body starts with
+`#EXTM3U`, which France 24 was passing while advertising five rungs that
+answered HTTP 400.
+
+Changes Made:
+- `lib/broadcast/channels.ts` — 05's understudies are now Habertürk (Beyoğlu)
+  and TELE1 (Sarıyer), both Istanbul newsrooms, both found in iptv-org's
+  published Turkey list and both checked for CORS; the cities were verified
+  rather than recalled. 02 promotes DD India to primary and drops the corpse.
+  12 gains two more cameras on its own seafront — Lungomare and Volosko marina
+  — and keeps the Bonn drift, demoted to last resort: now a foreign signal only
+  arrives when all three eyes on Opatija are shut.
+- **36 KRONPLATZ** (new) — a webcam at 2275m above Bruneck, from the provider's
+  own index. The dial was harbours and newsrooms; this is a mountain.
+- `app/api/broadcast/route.ts` — a feed is live when it is a playlist, carries
+  segments, hasn't declared `#EXT-X-ENDLIST`, and — for a master — when the
+  rung the player would actually pick up answers all three. Every feed on the
+  dial was measured against both tests before the change: it flips exactly one
+  verdict, France 24's, and darkens nothing that works. The second hop is
+  best-effort, so our own deadline never darkens a station.
+- `lib/broadcast/reception.ts` — `CLEAN_BITRATE` was overfitted to three feeds
+  that happened to sit above 4 Mbps. Frame size decides first now: 1080p or
+  better across three rungs is clean, however few bits it took. No channel on
+  the dial changes verdict; Arirang would have, which is how the bug surfaced.
+- `components/worlds/broadcast/BroadcastScreen.tsx` — the tuning screen stops
+  saying TUNING and starts reporting. **P3 of the plan.**
+- `scripts/find-cams.mjs` (new) — walks a provider's directory for manifests.
+- `Reception` loses `chaotic`. It had never once rendered.
+
+The tuner:
+A channel now reports its own acquisition while it acquires — segment length,
+window depth, and one mark per segment that actually lands. Taipei cuts its
+camera into one-second pieces; Vientiane into twelve-second ones three deep,
+and prints THIN WINDOW because three segments is one late delivery from
+stopping. Istanbul keeps six hundred. Nothing is paced by a timer: the reason
+one channel snaps on and another sits dark for three seconds is that it takes
+longer to make twelve seconds of video than one. If the buffer later empties
+under a running picture, the set says RE-ACQUIRING over the frozen frame
+instead of pretending — the video element's own `waiting` event, held 800ms so
+a hiccup between frames doesn't flash.
+
+Built and verified:
+`next build` clean. Nine channels walked in a real browser at `/broadcast`:
+Delhi, Istanbul, Ulaanbaatar, Opatija, Taipei, Reykjavik, Saxon Harbor,
+Kronplatz and Vientiane all reach `readyState 4` and play. Dushanbe is dark, as
+recorded. The readout was sampled at 50ms through live tunes and prints `SEG 6s
+WINDOW 5` on Kronplatz, `SEG 12s WINDOW 3 / THIN WINDOW` on Vientiane, `SEG 6s
+WINDOW 600` on Istanbul. Liveness and header changes were A/B'd feed by feed
+before shipping, not after.
+
+Discovered:
+1. **A guard can hide the very thing it guards.** The segment marks were
+   counted on `FRAG_BUFFERED` and never appeared once. The element starts
+   playing the moment there is anything to play — *before* hls.js finishes
+   appending the first segment — so by the time the count incremented, the
+   readout was already gone. Counting on `FRAG_LOADED` fixed it. Three rounds
+   of instrumented sampling to see it, because "no marks" looks identical to
+   "feature not wired".
+2. **I inferred a cause from two data points and was wrong.** TELE1 answered
+   404 to the bake and 200 to the probe, and the headers differed, so I wrote a
+   comment attributing it to a missing Referer and shipped that reasoning into
+   two files. Fifteen minutes later it 404'd to every combination, including
+   the one that had just worked. The station flaps. Both comments were
+   rewritten to say what was measured and nothing more.
+3. **Even a real index lists dead cameras.** Mostar's Old Bridge is on
+   whatsupcams' own page with a manifest URL that 404s. Discovery narrows the
+   candidates; it does not vet them.
+
+Next:
+Explorer, still — six entries now. On this dial, thirty-six countries of the
+provider's directory are unwalked.
+
+Risk:
+Low. No layout, routing or mobile surface touched. The one behavioural change
+with teeth is the liveness test, which was measured against every feed before
+shipping; the one with the widest blast radius is the second HTTP hop it costs,
+which is bounded by the same 4s budget and falls back to accepting the master.
