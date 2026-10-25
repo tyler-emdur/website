@@ -1,11 +1,14 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import type { BroadcastChannel, Reception } from '@/lib/broadcast/channels'
+import { receptionFor } from '@/lib/broadcast/reception'
 import Channel88 from './Channel88'
 
-// Per-channel "reception" flavor — small, cheap visual variance so the six
-// real channels don't all look like the same clean feed. Layered on top of
-// the shared CRT bezel effects the parent screen already applies.
+// Per-channel reception, layered on top of the shared CRT bezel effects the
+// parent screen already applies. Which one a channel gets is no longer a
+// decision anybody made by hand: `receptionFor` derives it from the bitrate,
+// resolution and rung count the station's own HLS manifest declares. See
+// lib/broadcast/reception.ts.
 const RECEPTION_FILTER: Record<Reception, string> = {
   clean: 'none',
   grainy: 'contrast(1.05) saturate(0.85) brightness(0.97)',
@@ -198,7 +201,7 @@ export default function BroadcastScreen({ channel, live, preferredUrl, soundOn, 
   }
 
   return (
-    <ReceptionJitter reception={channel.reception}>
+    <ReceptionJitter reception={receptionFor(channel)}>
       <HlsChannel
         url={urls[urlIdx]}
         soundOn={soundOn}

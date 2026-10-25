@@ -857,3 +857,105 @@ Low. Departures' layout, routing and mobile surface are untouched; the hub
 gained a layer that removes itself and a gate on layers that were painting over
 nothing. The one behaviour change worth watching is that the hub's overlays now
 mount a beat later than they used to.
+
+---
+
+## 2026-10-24 — The dial stops guessing how it looks
+
+Objective:
+World 3 Broadcast. The hard rule in CLAUDE.md — if a world presents something
+as data, it must be real — applied to the one field on the dial that was still
+somebody's opinion.
+
+Why:
+`reception` was a hand-written label on each channel (`clean` / `grainy` /
+`unstable` / `chaotic`) driving a CSS filter on the picture. Its own comment
+admitted it: "small, cheap visual variance so the six real channels don't all
+look like the same clean feed." But every signal on the dial is a real HLS
+manifest, and a manifest declares its bitrate, resolution, codecs, rung count
+and segment length out loud. The labels were guesses about a thing that states
+itself.
+
+They were also substantially wrong. Istanbul was marked `grainy` and serves
+2560x1440 at 11.5 Mbps — the best picture on the entire dial. Taipei was marked
+`clean` and is a government traffic camera that declares no bitrate at all.
+Delhi was marked `chaotic` and its primary is a hard 404, so what anyone
+actually watches is the DD India understudy at 1080p.
+
+Changes Made:
+- `scripts/bake-reception.mjs` (new) — reads every manifest on the dial,
+  primaries and understudies, follows each master playlist down to a variant for
+  the segment shape, and records what the station answered. Follows the existing
+  `bake-terrain` / `bake-alpr` pattern: progress to stderr, JSON to stdout.
+- `lib/broadcast/reception.json` (new, 9.6 kB) — the captured record, with a
+  `bakedAt` stamp because nothing on this dial is stable forever. Kept beside
+  `channels.ts` rather than in `public/` because the screen needs it at first
+  paint; a fetch would mean a flash of the wrong picture.
+- `lib/broadcast/reception.ts` (new) — derives reception from the real numbers.
+  `clean` is >=4 Mbps on >=3 rungs; `grainy` is a manifest that declares no
+  bitrate at all, which is every single-playlist webcam and CCTV camera on the
+  dial; `unstable` is a declared-but-low bitrate on a single rung, which cannot
+  drop quality when the connection tightens and stalls instead.
+- `components/worlds/broadcast/BroadcastScreen.tsx` — reads `receptionFor(channel)`
+  instead of `channel.reception`.
+- `lib/broadcast/channels.ts` — the hand label is now documented as the fallback
+  it has become, not the source.
+
+Deliberately not folded in: segment length and window depth. Reykjavik declares
+an 11-second segment and a window only three segments deep, which makes it slow
+to recover but does not make its 1080p any softer. Reliability is already the
+liveness cascade's job in `/api/broadcast`, and the screen already has NO SIGNAL.
+Putting visible noise over a clean picture and calling it honesty would be worse
+than the guess it replaced. It also keeps Reykjavik calm, which is the whole
+reason it is `DEFAULT_CHANNEL_ID`.
+
+Verification:
+`tsc --noEmit` clean. `next build` clean, 18/18 pages, shared JS unchanged at
+103 kB. All twelve routes 200. `scripts/check-gestures.mjs` all passing.
+
+World 3 is DOM/CSS, so a real window is trustworthy here. Stepped the dial
+through all ten positions in Chrome and read the computed `filter` off the
+reception layer at each one. Every channel matched its derived value, including
+all four corrections: Delhi and Istanbul now resolve `clean`, Taipei `grainy`,
+Vientiane `unstable`. Dushanbe correctly fell back to its hand label.
+
+Dushanbe could not be measured at all: its host resolves to 185.121.1.101 but
+never completes a TCP connection from here, even at 25 seconds, across all three
+of its feeds. A bake machine in one city cannot tell a dark station from one
+that declines to talk to it, so that channel keeps its hand label rather than
+inheriting a measurement nobody took.
+
+Discovered:
+1. **`unstable` was dead code and is now earned.** No channel was ever labelled
+   `unstable`, so `ReceptionJitter`'s occasional horizontal nudge had never
+   fired for anyone. Vientiane's four feeds are all single-rung at ~2 Mbps with
+   twelve-second segments, which is exactly the signal that visibly struggles.
+   The jitter runs there now for a reason rather than for flavour.
+2. **`chaotic` is now unreachable, and was already nearly so.** Nothing derives
+   to it, and the only channel still labelled `chaotic` is 88 — which is
+   `kind: 'custom'` and returns `<Channel88 />` before `ReceptionJitter` is ever
+   reached. Its filter has never been applied. Left the value in the union as
+   documentation of intent; it is not wired to anything.
+3. **A liveness check that accepts `#EXTM3U` accepts a slate.** The Reykjavik
+   comment already warned about RÚV geo-restricting via a valid manifest of a
+   rights notice. The bake hit the general form of it too — a feed answering 200
+   with a body that is not a playlist at all. `/api/broadcast` still only tests
+   the first line. Deliberately not touched: tightening liveness risks darkening
+   channels that currently work, and that is its own change with its own
+   verification.
+4. **A `filter: none` probe matches every div on the page.** My first browser
+   check reported all ten channels `clean` because `clean` renders as
+   `filter: none`, which is also the computed default for everything else. The
+   code was right and the probe was wrong. Assert on the distinctive value, not
+   the absent one.
+
+Next:
+Explorer (`World2Explorer`) — unchanged from the last three entries, still the
+world that has gone longest without attention.
+
+Risk:
+Low. One field changes how an existing CSS filter is chosen; no geometry,
+routing, layout or mobile surface touched, and no channel's URL, lineup or
+liveness behaviour changed. The baked file goes stale rather than wrong — when a
+station re-encodes, the numbers describe what it used to serve, and `bakedAt`
+says when. Re-run the script to refresh.

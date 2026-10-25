@@ -14,6 +14,11 @@ export interface BroadcastChannel {
   ch: string // two-digit dial position, as printed on the set
   city: string // the only label the viewer ever sees — no flags, no explanation
   kind: ChannelKind
+  // Fallback only. The screen derives reception from what the station's
+  // manifest actually declares (lib/broadcast/reception.ts) and falls back to
+  // this label for a channel that could not be measured — Dushanbe, whose host
+  // resolves but never completes a connection, and channel 88, which serves no
+  // manifest because it is ours.
   reception: Reception
   hlsUrl?: string
   // Backup feeds for the same dial position — different stations from the same
