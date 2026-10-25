@@ -751,3 +751,109 @@ Low. No world's own layout, geometry, routing or mobile surface touched — the
 changes are confined to the shared transition layer plus one new file. The
 geometry change in `expand-white` strictly reduces per-frame work, and the
 mount-time visual size of `letter-expand` is unchanged (14px, now via scale).
+
+---
+
+## 2026-10-24 — The hub boots, and the departures board moves to Boulder
+
+Why:
+Two findings from reading the repo rather than the roadmap.
+
+The hub lazy-loads three.js — the largest chunk on the site — through
+`dynamic(..., { ssr: false })` with **no loading state at all**. A visitor
+crossed a portal, the portal finished, and then there was an empty black frame.
+That is exactly the line CLAUDE.md draws between mystery and broken, and it was
+the first thing a first-time visitor met.
+
+Departures, meanwhile, printed a clock labelled `BOULDER` that was actually the
+*visitor's* timezone — from Sydney the board claimed Boulder was seven hours
+behind itself — over a TIME column computed as `(i * 7 + cycle * 13) % 60` on a
+hard-coded base hour of 4, so the board opened at 04:00 whatever time you stood
+in front of it and never agreed with its own header six inches away. Under them
+sat `40331 + elapsedSeconds * 3` labelled READS ON FILE: an invented base
+climbing at an invented rate, and the only fake number on a board whose every
+other field is real OpenStreetMap data.
+
+Changes Made:
+- `components/universe/effects/SurveyBoot.tsx` (new) — the hub boots in the
+  corner terminal's dialect, because it is the same instrument warming up.
+  Every line is true: `PLOTTER` tracks whether the renderer actually exists,
+  `CATALOG` is `getAllObjects().length`, `SYNC` is the real Boulder clock.
+- `UniverseCanvas.tsx` — reports two real milestones, `onCreated` for the
+  renderer and a sentinel inside the Suspense boundary for the scene. The panel
+  leaves when there is genuinely something behind it, not on a timer.
+- `UniverseRoot.tsx` — holds the seven DOM overlays until the renderer exists.
+  They would otherwise paint over an empty canvas: the corner terminal printing
+  `OBJECTS 0 IN VIEW` before there was anything to be in view of, the glitch
+  layer muttering about a scene that had not loaded.
+- `World8Departures.tsx` — `boulderClockWithSeconds()` in the header; the board
+  anchored to the real Boulder minute, so the first row *is* the hour in the
+  city the board claims to be in and the rest climb from it; `SHOWN SO FAR
+  n OF 74 READERS`, which counts something that is really happening; and
+  `INDEX OPENSTREETMAP · 07.19.26` out of the payload's own `source` and
+  `generatedAt`, both of which were sitting in `alpr.json` unread. That last
+  one is the Berkshire move — name the document the page is built from.
+
+Delightful detail:
+The boot panel says `CATALOG 50 OBJECTS`. Four seconds later the corner
+terminal in the same spot says `OBJECTS 33 IN VIEW`. Nobody is told why the
+number went down, and the seventeen missing ones are the whole invitation.
+
+Verification:
+`tsc --noEmit` clean, `next build` clean at 18/18 static pages, shared JS
+unchanged at 103 kB, gesture assertions pass, twelve routes 200 against
+`next start` with `✓ Ready` confirmed in the log first.
+
+Departures is DOM, so it was checked by eye: the header reads 18:32:15 and the
+first row reads 18:32 — the board agrees with itself for the first time. The
+panel's four labels land on column 13 by measurement. Zero horizontal overflow
+on `documentElement` and `body`, shell `overflow-x: hidden`.
+
+The hub's boot panel completes in well under a second on localhost, so both of
+its states were reached by temporarily neutering the two readiness callbacks,
+building, screenshotting, then restoring from a backup and re-grepping to
+confirm no forced state survived (`FORCED_FOR_SCREENSHOT` → none). The
+unforced path was then re-verified: panel unmounted, overlays back, gate index
+present.
+
+**Not verified:** how long the gap actually is for a real visitor on a real
+connection. The gap is code-confirmed; its length is not measurable from here,
+and the August figure came from an automation tab and never meant anything.
+
+Discovered:
+1. **Two real defects only showed up because the forced state was reachable.**
+   The stalled panel collided with the corner terminal — both live at
+   `bottom: 28, left: 28` — and in the genuine no-WebGL case the terminal is
+   deliberately on screen, so that collision was real and not an artifact of
+   the forcing. The failure state moved to the middle, where a visitor is
+   already looking.
+2. **drei's `<Html>` z-index has a published ceiling.** It scales each label's
+   distance-to-camera into `zIndexRange`, defaulting to `[16777271, 0]`
+   (`drei/web/Html.js:99`), and every label on the hub uses the default. So
+   16777272 is a bounded answer rather than a big number picked to win an arms
+   race — and without it, seven captions float at full opacity on black for the
+   whole fade-out while the scene they belong to is still hidden.
+3. **`generatedAt` and `source` had been in `alpr.json` since the bake and were
+   never rendered.** The honest provenance line was already in the data; the
+   invented one was in the component.
+4. **The site's own test machine is in Boulder**, so a timezone bug is
+   invisible by observation here. Proved it instead by running the formatter
+   under `TZ=Europe/London` and `TZ=Australia/Sydney`: board 18:32 both times,
+   visitor 01:32 and 11:32.
+
+Next:
+Explorer is still the world that has gone longest without attention, and six
+hub objects make promises about it — unchanged for four entries now, because it
+is on CLAUDE.md's "leave alone unless discussed" list. The shared sky now
+reaches six of eleven worlds; Broadcast, the Answering Machine and the
+Directory are the remaining ones that are not on that list.
+
+**World 9 is a deliberate exception and should stay one.** It reads the
+*visitor's* clock on purpose — "it's the middle of the night where you are" —
+and moving it to Boulder time would break the one thing that world is about.
+
+Risk:
+Low. Departures' layout, routing and mobile surface are untouched; the hub
+gained a layer that removes itself and a gate on layers that were painting over
+nothing. The one behaviour change worth watching is that the hub's overlays now
+mount a beat later than they used to.

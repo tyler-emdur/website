@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import HomeButton from './HomeButton'
 import { useWorldStore } from '@/lib/world-store'
+import { useEnvironment, boulderClockWithSeconds, BOULDER } from '@/lib/environment'
 
 // ── Departures ───────────────────────────────────────────────────────────────
 // An airport flip-board, except the arrivals are you.
@@ -39,6 +40,8 @@ interface Feed {
 }
 interface AlprPayload {
   generatedAt: string
+  /** "OpenStreetMap · man_made=surveillance + surveillance:type=ALPR" */
+  source: string
   count: number
   withStreet: number
   bbox: [number, number, number, number]
@@ -78,6 +81,14 @@ function locationOf(c: Camera): string {
 // Columns need a gutter that truncation cannot eat, or a full-width cell runs
 // into the next one and the board reads as garbage.
 const pad = (s: string, n: number) => (s.length > n - 2 ? s.slice(0, n - 2) : s).padEnd(n)
+
+// `generatedAt` is a UTC instant, and rendering it in the visitor's timezone is
+// the same mistake as the clock in the header — from Sydney the bake lands on
+// the wrong day. The board is in Boulder, so it dates its own index in Boulder.
+const bakedOn = (iso: string) =>
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: BOULDER.tz, month: '2-digit', day: '2-digit', year: '2-digit',
+  }).format(new Date(iso)).replace(/\//g, '.')
 
 // ── one split-flap line ──────────────────────────────────────────────────────
 // Rather than a DOM node per character (thousands of them, thirteen rows deep),
@@ -420,8 +431,11 @@ export default function World8Departures() {
   const [failed, setFailed] = useState(false)
   const [offset, setOffset] = useState(0)
   const [cycle, setCycle] = useState(0)
-  const enteredAt = useRef(Date.now())
-  const [tick, setTick] = useState(0)
+  const [, setTick] = useState(0)
+  // Departures' dialect of the shared sky: a board whose entire job is to print
+  // times had been printing them in whatever timezone the visitor happened to
+  // be standing in, under a header that said BOULDER.
+  const env = useEnvironment()
 
   useEffect(() => {
     fetch('/alpr.json')
@@ -451,15 +465,25 @@ export default function World8Departures() {
     if (cycle >= 3) findSecret('departures-watched-the-board')
   }, [cycle, findSecret])
 
+  // ── the TIME column ──────────────────────────────────────────────────────
+  // These used to be `(i * 7 + cycle * 13) % 60` over a hard-coded base hour of
+  // 4: a board that opened at 04:00 whatever time you stood in front of it, and
+  // never agreed with the clock printed in its own header six inches away.
+  //
+  // The rows are still the board's own ordering rather than observed reads —
+  // nothing here has ever watched your car, and the world says so. What they
+  // are not any more is unanchored. The first row is the real minute in
+  // Boulder and the rest climb down the board from it, so the board moves
+  // through the day with the city it claims to be in, and at 3am it says 3am.
   const rows = useMemo(() => {
     if (!data) return []
+    const nowMins = env.hour * 60 + env.minute
     const out: { key: string; text: string }[] = []
     for (let i = 0; i < ROWS; i++) {
       const idx = (offset + i) % data.cameras.length
       const c = data.cameras[idx]
-      const mins = (i * 7 + cycle * 13) % 60
-      const hrs = (4 + Math.floor((i * 7 + cycle * 13) / 60)) % 24
-      const time = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+      const t = (nowMins + i * 7 + cycle * 13) % 1440
+      const time = `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
       out.push({
         key: `${cycle}-${idx}`,
         text:
@@ -468,10 +492,16 @@ export default function World8Departures() {
       })
     }
     return out
-  }, [data, offset, cycle])
+  }, [data, offset, cycle, env.hour, env.minute])
 
   const activeIdx = data ? (offset + (Math.floor(Date.now() / 900) % ROWS)) % data.cameras.length : 0
-  const reads = 40331 + Math.floor((Date.now() - enteredAt.current) / 1000) * 3
+  // `40331 + elapsedSeconds * 3` used to sit here under the label READS ON
+  // FILE — an invented base climbing at an invented rate, which is the fake
+  // telemetry this project bans, and it was the one number on a board whose
+  // every other field is real OpenStreetMap data. This counts something that
+  // is actually happening: how many of the 74 readers the board has put in
+  // front of you since you arrived.
+  const shown = data ? Math.min(data.cameras.length, (cycle + 1) * ROWS) : 0
 
   const shell: React.CSSProperties = {
     position: 'fixed', inset: 0, background: '#0a0906', overflow: 'hidden',
@@ -496,7 +526,9 @@ export default function World8Departures() {
     )
   }
 
-  const clock = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+  // This said BOULDER and then printed the *visitor's* timezone. From London
+  // the board claimed Boulder was seven hours ahead of itself.
+  const clock = boulderClockWithSeconds()
 
   return (
     <div style={shell}>
@@ -553,8 +585,8 @@ export default function World8Departures() {
             <div style={{ opacity: 0.5, letterSpacing: 2, marginBottom: 4 }}>VEHICLE ON FILE</div>
             <div>PLATE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ███ ████</div>
             <div>FIRST SEEN&nbsp;&nbsp; 2019 · you do not remember 2019</div>
-            <div>READS ON FILE {reads.toLocaleString()}</div>
-            <div>RETENTION&nbsp;&nbsp;&nbsp;&nbsp; 30 DAYS <span style={{ opacity: 0.55 }}>(RENEWING)</span></div>
+            <div>SHOWN SO FAR {shown} OF {data.count} READERS</div>
+            <div>INDEX&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {data.source.split(' · ')[0].toUpperCase()} · {bakedOn(data.generatedAt)}</div>
           </div>
 
           <LiveFeed feeds={data.feeds} readers={data.count} cameras={data.cameras} />

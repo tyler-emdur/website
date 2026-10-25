@@ -54,8 +54,13 @@ be made real, remove it or replace it with something interactive.
       **Blind spot worth remembering:** a lowercase-pattern grep missed all 16
       caps-locked `CartographyLayer` labels. Grep the rendered DOM, not just the
       source.
-- [ ] Where a value must stay fictional, give it a rule inside the world that
+- [~] Where a value must stay fictional, give it a rule inside the world that
       generates it, so it behaves consistently instead of randomly.
+      *(Worked example, 2026-10-24: Departures' TIME column. The rows are still
+      the board's own ordering rather than observed reads — nothing there has
+      ever watched your car — but they run from the real Boulder minute now
+      instead of a hard-coded 04:00, so at 3am the board says 3am. Fiction with
+      a rule, anchored to something true.)*
 
 ## P2 — Distinct interface identity
 
@@ -96,6 +101,13 @@ and the visitor is never told, so it may as well not.
       rather than adding a parallel system. One source for identity, world
       state, discoveries, navigation — the way `lib/identity.ts` is now the one
       source for identity strings.
+- [~] **Shared reality reaches six of eleven worlds** (Departures added
+      2026-10-24). Surface, Garage, Contact, Warehouse, Departures, plus the
+      hub's terminal and the portal flood. Remaining and unblocked: Broadcast,
+      the Directory. Blocked by the leave-alone list: Explorer, the Machine.
+      **World 9 is a deliberate exception** — it reads the *visitor's* clock on
+      purpose ("it's the middle of the night where you are"), and Boulder time
+      would break the one thing that world is about. Leave it.
 - [ ] **Make shared state physical and visible:**
       the station tuned in the Garage keeps playing while you walk Warehouse 14 ·
       the item taken in the aisle stays in your basket across worlds ·
@@ -134,6 +146,16 @@ and the visitor is never told, so it may as well not.
       HLS streams and cities, real Colorado road signs over real FM, real Strava
       figures. The note above accusing "World 2's HUD" was wrong.
 
+- [x] **Departures' fake telemetry removed** (2026-10-24). `READS ON FILE
+      40,331`, climbing three a second from an invented base, was the only
+      invented number on a board of real OpenStreetMap cameras. It counts
+      something real now. The clock above it said BOULDER and printed the
+      visitor's own timezone; the index line below it names the actual source
+      and bake date, both of which were in `alpr.json` and unread.
+      **Worth remembering:** the string-pool lens does not catch this class.
+      These were arithmetic, not prose, and the 2026-10-23 sweep marked
+      Departures clean because it was looking for sentences.
+
 Mystery works when there's something real underneath to find. Fifteen rotating
 strings had nothing underneath.
 
@@ -145,17 +167,21 @@ strings had nothing underneath.
       existed. Now opens from the first second; labels stay mangled, so the
       contents are still unknown. Mystery in the contents, not the door.
 - [x] **Every world reachable by URL** (2026-08-10).
-- [ ] Clear path back to the hub from all of them.
+- [x] Clear path back to the hub from all of them. `HomeButton` is in all nine
+      worlds that need one; the two without it are the front door and the hub
+      itself.
 - [ ] **Contrast floor:** any string teaching a control gets
       `rgba(255,255,255,0.55)` minimum. Atmosphere text stays dim. Interaction
       copy currently sits at `0.2`–`0.3`, below WCAG AA.
-- [ ] **Hub loading state.** `UniverseRoot.tsx:14` lazy-loads ~1.2 MB of
-      three.js *after* the portal commits, with no `loading` state — an empty
-      black frame with nothing separating "loading" from "broken." Prefetch
-      during Surface; give the wait a voice (World 2's `READING THE TRACE..` is
-      the model). *Timing caveat: the duration measured in August came from an
-      automation tab and isn't trustworthy. The gap is code-confirmed; its
-      length isn't.*
+- [x] **Hub loading state** (2026-10-24). The hub boots now, in the corner
+      terminal's dialect, and every line on the panel is true — `PLOTTER`
+      tracks whether the renderer exists, `CATALOG` is the real catalog size,
+      `SYNC` is the real Boulder clock. The honest answer to "is this loading
+      or broken" turned out not to be a progress bar (invented progress is the
+      banned kind of telemetry) but one number that is really moving. The seven
+      DOM overlays now wait for the renderer instead of painting over an empty
+      canvas. *Still open: prefetching the chunk during Surface. And the
+      length of the gap remains unmeasurable from here.*
 - [ ] Strangeness shouldn't become friction. Opaque is fine; unnavigable isn't.
 
 ---
@@ -230,6 +256,9 @@ measured from automation. Items 3–4 are safe independently of item 2.
 
 ## Housekeeping
 
-Untracked `.md` (17 KB, 2026-06-06) at repo root — an early scaffolding prompt
-for "tylerAndrew.com" / "Tyler Andrew", a different name and site. Recommend
-deleting.
+Clear. The untracked `tylerAndrew.com` scaffolding prompt is gone; the only
+`.md` files at the root are `CLAUDE.md`, `PLAN.md` and `PROGRESS.md`.
+
+**Unmerged and undeployed:** `main` is at `ea95353`. Four sessions of work sit
+on `hub-plain-language` → `motion-grammar` → `shared-sky` and the live site has
+none of it. Vercel auto-deploys `main`, so that merge is Tyler's call.
