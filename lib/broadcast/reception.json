@@ -1,0 +1,368 @@
+{
+ "bakedAt": "2026-10-25T00:37:46.019Z",
+ "channels": {
+  "delhi": {
+   "ch": "02",
+   "city": "DELHI",
+   "kind": "hls",
+   "feeds": [
+    {
+     "url": "https://cdn-2.pishow.tv/live/12/master.m3u8",
+     "reachable": false,
+     "status": 404,
+     "error": "http 404"
+    },
+    {
+     "url": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/ceda14583477426aa162a65392d8ea07/index.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 5,
+     "topBandwidth": 4219512,
+     "topResolution": "1920x1080",
+     "floorBandwidth": 408839,
+     "codecs": "avc1.640028,mp4a.40.2",
+     "frameRate": 25,
+     "targetDuration": 6,
+     "segments": 10,
+     "live": true,
+     "mediaFrom": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/ceda14583477426aa162a65392d8ea07/index_1.m3u8"
+    },
+    {
+     "url": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/0811cd8c37ca4c409d5385a6cd2fa18b/index.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 5,
+     "topBandwidth": 4218821,
+     "topResolution": "1920x1080",
+     "floorBandwidth": 407594,
+     "codecs": "avc1.640028,mp4a.40.2",
+     "frameRate": 25,
+     "targetDuration": 6,
+     "segments": 10,
+     "live": true,
+     "mediaFrom": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/0811cd8c37ca4c409d5385a6cd2fa18b/index_1.m3u8"
+    }
+   ]
+  },
+  "istanbul": {
+   "ch": "05",
+   "city": "ISTANBUL",
+   "kind": "hls",
+   "feeds": [
+    {
+     "url": "https://tv-trtworld.medya.trt.com.tr/master.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 5,
+     "topBandwidth": 11545600,
+     "topResolution": "2560x1440",
+     "floorBandwidth": 563200,
+     "codecs": "avc1.640033,mp4a.40.2",
+     "frameRate": 25,
+     "targetDuration": 6,
+     "segments": 600,
+     "live": true,
+     "mediaFrom": "https://tv-trtworld.medya.trt.com.tr/master_1080.m3u8"
+    },
+    {
+     "url": "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 5,
+     "topBandwidth": 6221313,
+     "topResolution": "1920x1080",
+     "floorBandwidth": 1061313,
+     "codecs": "avc1.64002A,mp4a.40.2",
+     "frameRate": 50,
+     "targetDuration": 6,
+     "segments": 300,
+     "live": true,
+     "mediaFrom": "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/stream01/streamPlaylist.m3u8"
+    },
+    {
+     "url": "https://static.france24.com/live/F24_EN_HI_HLS/live_web.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 8,
+     "topBandwidth": 5270851,
+     "topResolution": "1920x1080",
+     "floorBandwidth": 673025,
+     "codecs": "avc1.640028,mp4a.40.2",
+     "frameRate": null,
+     "targetDuration": null,
+     "segments": 0,
+     "live": true,
+     "mediaFrom": null
+    }
+   ]
+  },
+  "ulaanbaatar": {
+   "ch": "08",
+   "city": "ULAANBAATAR",
+   "kind": "hls",
+   "feeds": [
+    {
+     "url": "https://live.mnb.mn/hls/mnb.stream.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 0,
+     "topBandwidth": null,
+     "topResolution": null,
+     "floorBandwidth": null,
+     "codecs": null,
+     "frameRate": null,
+     "targetDuration": 3,
+     "segments": 20,
+     "live": true,
+     "mediaFrom": null
+    },
+    {
+     "url": "https://live.mnb.mn/hls/mnb_sport.stream.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 0,
+     "topBandwidth": null,
+     "topResolution": null,
+     "floorBandwidth": null,
+     "codecs": null,
+     "frameRate": null,
+     "targetDuration": 3,
+     "segments": 20,
+     "live": true,
+     "mediaFrom": null
+    }
+   ]
+  },
+  "opatija": {
+   "ch": "12",
+   "city": "OPATIJA",
+   "kind": "hls",
+   "feeds": [
+    {
+     "url": "https://cdn-006.whatsupcams.com/hls/hr_opatija01.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 0,
+     "topBandwidth": null,
+     "topResolution": null,
+     "floorBandwidth": null,
+     "codecs": null,
+     "frameRate": null,
+     "targetDuration": 5,
+     "segments": 6,
+     "live": true,
+     "mediaFrom": null
+    },
+    {
+     "url": "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 5,
+     "topBandwidth": 6221313,
+     "topResolution": "1920x1080",
+     "floorBandwidth": 1061313,
+     "codecs": "avc1.64002A,mp4a.40.2",
+     "frameRate": 50,
+     "targetDuration": 6,
+     "segments": 300,
+     "live": true,
+     "mediaFrom": "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/stream01/streamPlaylist.m3u8"
+    }
+   ]
+  },
+  "taipei": {
+   "ch": "17",
+   "city": "TAIPEI",
+   "kind": "hls",
+   "feeds": [
+    {
+     "url": "https://jtmctrafficcctv2.gov.taipei/NVR/86104b6f-41b6-433b-9086-8736467eb5bf/live.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 0,
+     "topBandwidth": null,
+     "topResolution": null,
+     "floorBandwidth": null,
+     "codecs": null,
+     "frameRate": null,
+     "targetDuration": 1,
+     "segments": 6,
+     "live": true,
+     "mediaFrom": null
+    },
+    {
+     "url": "https://live.streamingfast.net/osmflivech1.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 3,
+     "topBandwidth": 4000000,
+     "topResolution": "1920x1080",
+     "floorBandwidth": 1200000,
+     "codecs": "avc1.4d4028,mp4a.40.2",
+     "frameRate": 29.97,
+     "targetDuration": 8,
+     "segments": 6,
+     "live": true,
+     "mediaFrom": "https://live.streamingfast.net/hls-live/goodtv/_definst_/liveevent/live-ch1-3.m3u8"
+    },
+    {
+     "url": "https://5ddce30eb4b55.streamlock.net/bltvhd/bltv1/playlist.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 1,
+     "topBandwidth": 2612467,
+     "topResolution": "1280x720",
+     "floorBandwidth": 2612467,
+     "codecs": "avc1.64001f,mp4a.40.2",
+     "frameRate": null,
+     "targetDuration": 8,
+     "segments": 12,
+     "live": true,
+     "mediaFrom": "https://5ddce30eb4b55.streamlock.net/bltvhd/bltv1/chunklist_w835398243.m3u8"
+    }
+   ]
+  },
+  "reykjavik": {
+   "ch": "23",
+   "city": "REYKJAVIK",
+   "kind": "hls",
+   "feeds": [
+    {
+     "url": "https://live.visir.is/hls-live/visir.smil/playlist.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 3,
+     "topBandwidth": 4736000,
+     "topResolution": "1920x1080",
+     "floorBandwidth": 1152000,
+     "codecs": null,
+     "frameRate": null,
+     "targetDuration": 11,
+     "segments": 3,
+     "live": true,
+     "mediaFrom": "https://live.visir.is/hls-live/visir.smil/chunklist_b4736000.m3u8"
+    }
+   ]
+  },
+  "dushanbe": {
+   "ch": "27",
+   "city": "DUSHANBE",
+   "kind": "hls",
+   "feeds": [
+    {
+     "url": "https://live.teleradiocom.tj/7/3m.m3u8",
+     "reachable": false,
+     "status": 0,
+     "error": "timeout"
+    },
+    {
+     "url": "https://live.teleradiocom.tj/1/3m.m3u8",
+     "reachable": false,
+     "status": 0,
+     "error": "timeout"
+    },
+    {
+     "url": "https://live.teleradiocom.tj/2/3m.m3u8",
+     "reachable": false,
+     "status": 0,
+     "error": "timeout"
+    }
+   ]
+  },
+  "somewhere": {
+   "ch": "31",
+   "city": "SAXON HARBOR",
+   "kind": "hls",
+   "feeds": [
+    {
+     "url": "https://cdn-004.whatsupcams.com/hls/hr_pula01.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 0,
+     "topBandwidth": null,
+     "topResolution": null,
+     "floorBandwidth": null,
+     "codecs": null,
+     "frameRate": null,
+     "targetDuration": 6,
+     "segments": 5,
+     "live": true,
+     "mediaFrom": null
+    }
+   ]
+  },
+  "vientiane": {
+   "ch": "44",
+   "city": "VIENTIANE",
+   "kind": "hls",
+   "feeds": [
+    {
+     "url": "https://livefta.malimarcdn.com/ftaedge00/laonet.sdp/playlist.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 1,
+     "topBandwidth": 2003580,
+     "topResolution": "1280x720",
+     "floorBandwidth": 2003580,
+     "codecs": "avc1.77.40,mp4a.40.2",
+     "frameRate": null,
+     "targetDuration": 12,
+     "segments": 3,
+     "live": true,
+     "mediaFrom": "https://livefta.malimarcdn.com/ftaedge00/laonet.sdp/chunklist.m3u8"
+    },
+    {
+     "url": "https://livefta.malimarcdn.com/ftaedge00/ningtv.sdp/playlist.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 1,
+     "topBandwidth": 3093792,
+     "topResolution": "1280x720",
+     "floorBandwidth": 3093792,
+     "codecs": "avc1.66.31,mp4a.40.2",
+     "frameRate": null,
+     "targetDuration": 12,
+     "segments": 3,
+     "live": true,
+     "mediaFrom": "https://livefta.malimarcdn.com/ftaedge00/ningtv.sdp/chunklist.m3u8"
+    },
+    {
+     "url": "https://livefta.malimarcdn.com/ftaedge00/ohmuanglao.stream/playlist.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 1,
+     "topBandwidth": 1772195,
+     "topResolution": "1920x1080",
+     "floorBandwidth": 1772195,
+     "codecs": "avc1.77.40,mp4a.40.2",
+     "frameRate": null,
+     "targetDuration": 13,
+     "segments": 3,
+     "live": true,
+     "mediaFrom": "https://livefta.malimarcdn.com/ftaedge00/ohmuanglao.stream/chunklist.m3u8"
+    },
+    {
+     "url": "https://livefta.malimarcdn.com/ftaedge00/ichannel.sdp/playlist.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 1,
+     "topBandwidth": 2269981,
+     "topResolution": "1280x720",
+     "floorBandwidth": 2269981,
+     "codecs": "avc1.66.42,mp4a.40.2",
+     "frameRate": null,
+     "targetDuration": 12,
+     "segments": 3,
+     "live": true,
+     "mediaFrom": "https://livefta.malimarcdn.com/ftaedge00/ichannel.sdp/chunklist.m3u8"
+    }
+   ]
+  },
+  "unknown": {
+   "ch": "88",
+   "city": "UNKNOWN",
+   "kind": "custom",
+   "feeds": []
+  }
+ }
+}

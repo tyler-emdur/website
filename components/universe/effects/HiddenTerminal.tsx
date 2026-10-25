@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useUniverseStore, REGIONS, getAllObjects } from '@/lib/universe-store'
 import { IDENTITY } from '@/lib/identity'
 import { useSiteCommits, type SiteCommit } from '@/hooks/use-site-commits'
+import { useEnvironment, type Environment } from '@/lib/environment'
 
 const MORSE: Record<string, string> = {
   A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',
@@ -41,24 +42,6 @@ const PROCESSES = [
   ` 012  s1  S+   ${(Math.random()*100).toFixed(2)} terminal.sh`,
 ]
 
-const ARCHIVE_RECORDS = [
-  'RECORD 904 // Core temperature decaying. Delta: -0.04/hr.',
-  'RECORD 112 // Signal reacquisition failed in SECTOR 04-Δ. Retrying...',
-  'RECORD 047 // Multiple duplicate frames detected during index sync.',
-  'RECORD 887 // FM transmitter frequency drifting. Resonance detected at 88.7 MHz.',
-  'RECORD 009 // White room coordinate boundaries confirmed stable. Exit vector locked.',
-  'RECORD 309 // Diagnostic warning: 47 files remain unprocessed. Access restricted.',
-  'RECORD 404 // Trace heavy isotope levels in SECTOR 02-B path: elevated.',
-  'RECORD 104 // Gravity lens anomaly at coordinates [-2500, 1800, -1200] is expanding.',
-]
-
-const VOID_READOUTS = [
-  'SENSOR DETECT // BARO: 0.00 PSI | GRAVITY: +0.02g | RAD: 42 mSv/h',
-  'SENSOR DETECT // BARO: 0.00 PSI | GRAVITY: -0.14g | RAD: 12 mSv/h',
-  'SENSOR DETECT // BARO: 0.00 PSI | GRAVITY: NOMINAL | RAD: 104 mSv/h',
-  'SENSOR DETECT // BARO: 0.00 PSI | GRAVITY: FLUCTUATING | RAD: 88 mSv/h',
-]
-
 const INTERCEPTED_TRACKS = [
   'INTERCEPT // FREQ: 94.2MHz - Khruangbin — People Everywhere (Still Alive)',
   'INTERCEPT // FREQ: 88.7MHz - Tame Impala — Eventually',
@@ -75,8 +58,28 @@ function buildCommands(
   flyTo: (pos: [number,number,number]) => void,
   discoveredIds: string[],
   commits: SiteCommit[] | null,
+  env: Environment,
 ) {
   const R = (text: string, cls?: string): Line => ({ text, cls })
+
+  // `scan` and `status` used to be two commands over the same facts — one
+  // counting objects, one printing six hardcoded sector states with three
+  // invented faults among them. One readout, built from the store, under both
+  // names, because a shell having an alias is normal and a shell having two
+  // commands that disagree about the same thing is not.
+  const all = getAllObjects()
+  const visibleNow = all.filter(o => useUniverseStore.getState().isVisible(o)).length
+  const survey: Line[] = [
+    R('THE SURVEY', 'hi'),
+    R('────────────────────────────────────────'),
+    ...REGIONS.map(r => {
+      const seen = r.objects.filter(o => discoveredIds.includes(o.id)).length
+      return R(`  ${r.designation.padEnd(26)} ${seen}/${r.objects.length} opened`)
+    }),
+    R(''),
+    R(`  ${visibleNow} of ${all.length} objects have surfaced so far.`, 'cy'),
+    R(`  ${discoveredIds.length} opened. the rest arrive on their own, or once you have opened enough.`, 'dim'),
+  ]
 
   return {
     help: [
@@ -85,12 +88,10 @@ function buildCommands(
       R('  runs         race log'),
       R('  contact      how to reach'),
       R('  goto [name]  navigate to a sector'),
-      R('  scan         scan the universe'),
-      R('  status       sector status report'),
-      R('  weather      void sensor readouts'),
+      R('  status       what is on the map, and what you have opened'),
+      R('  weather      the weather in boulder'),
       R('  time         current time, multiple zones'),
       R('  music        audio band intercepts'),
-      R('  fortune      archived record entries'),
       R('  ascii        banner'),
       R('  ls           list sectors'),
       R('  pwd          current path'),
@@ -100,16 +101,15 @@ function buildCommands(
     ],
 
     about: [
-      R('OPERATOR — T. EMDUR', 'hi'),
+      R('T. EMDUR', 'hi'),
       R('────────────────────────'),
-      R('one person. boulder, colorado.'),
+      R('one person, in boulder, colorado.'),
       R(''),
-      R('builds places and then leaves the lights on'),
-      R('in them. this survey is one of the places.'),
+      R('this site is eleven rooms and a map of them.'),
+      R('nothing on it was commissioned by anyone.'),
       R(''),
-      R('currently: somewhere above 5000ft', 'dim'),
-      R('typically: awake later than intended', 'dim'),
-      R('status: still transmitting', 'cy'),
+      R(`the whole thing is in one repo: ${IDENTITY.repoSlug}`, 'dim'),
+      R('type "git log" to see what changed most recently.', 'dim'),
     ],
 
     runs: [
@@ -136,35 +136,20 @@ function buildCommands(
       R('response time: usually fast, sometimes slow', 'dim'),
     ],
 
-    scan: [
-      R('SCANNING UNIVERSE...', 'dim'),
-      R(''),
-      R(`SECTORS DETECTED: ${REGIONS.length}`, 'hi'),
-      ...REGIONS.map(r => R(`  ${r.designation.padEnd(10)} ${r.label.padEnd(14)} ${r.objects.length} objects`)),
-      R(''),
-      R(`TOTAL OBJECTS: ${getAllObjects().length}`, 'cy'),
-      R(`DISCOVERED: ${discoveredIds.length} / ${getAllObjects().length}`),
-      R(`UNDISCOVERED: ${getAllObjects().length - discoveredIds.length}`),
-      R(''),
-      R('ANOMALIES: present · WORMHOLES: sealed · COMETS: active', 'dim'),
-    ],
+    scan: survey,
 
-    status: [
-      R('UNIVERSE STATUS REPORT', 'hi'),
-      R('────────────────────────'),
-      R('SECTOR 01-A  INDEX         ■ ONLINE'),
-      R('SECTOR 02-B  RUNNING       ■ ONLINE'),
-      R('SECTOR 03-Ω  ARCHIVES      ▲ DEGRADED — database fault detected'),
-      R('SECTOR 04-Δ  EXPLORE       ■ ONLINE'),
-      R('SECTOR 05-Ψ  LAB           ▲ UNSTABLE — experimental cycles running'),
-      R('SECTOR 06-∅  UNMAPPED      ▲ UNVERIFIED — signal leak detected'),
-      R('ORIGIN       TE-∅          ■ NOMINAL'),
-      R(''),
-      R('COMET NETWORK: active · SIGNAL RELAY: broadcasting', 'dim'),
-      R('WORMHOLE ARCHIVE-DEEP: sealed · requires 6 discoveries', 'dim'),
-    ],
+    status: survey,
 
-    weather: [R(VOID_READOUTS[Math.floor(Math.random() * VOID_READOUTS.length)], 'cy')],
+    weather: env.weather
+      ? [
+          R('BOULDER, COLORADO', 'hi'),
+          R('────────────────────────'),
+          R(`  ${env.weather.tempF}°F · ${env.weather.label}`, 'cy'),
+          R(`  ${env.clock} ${env.meridiem} · sun ${env.sunAltitude >= 0 ? 'up' : 'down'}`),
+          R(''),
+          R('same sky in all eleven worlds.', 'dim'),
+        ]
+      : [R('no reading yet.', 'dim')],
 
     time: [
       R('CURRENT TIME', 'hi'),
@@ -183,31 +168,34 @@ function buildCommands(
       R('← source frequency drifting · origin unresolved', 'dim'),
     ],
 
-    fortune: [R(ARCHIVE_RECORDS[Math.floor(Math.random() * ARCHIVE_RECORDS.length)], 'cy')],
-
     ascii: ASCII_TYLER.trim().split('\n').map(l => R(l, 'hi')),
 
     ls: [
       R('SECTORS:', 'hi'),
-      ...REGIONS.map(r => R(`  ${r.designation.padEnd(10)} ${r.label}   →  ${r.id}/`)),
+      ...REGIONS.map(r => R(`  ${r.designation.padEnd(26)} →  ${r.id}/`)),
     ],
 
     pwd: [R('/universe/tyler-emdur/website', 'cy')],
 
     whoami: [
-      R('visitor · unclassified · access-level-0', 'cy'),
+      R('a visitor, in a browser.', 'cy'),
       R(''),
-      R('subject: unknown', 'dim'),
-      R('entry vector: browser', 'dim'),
-      R('threat level: minimal', 'dim'),
+      R(`you have opened ${discoveredIds.length} of ${getAllObjects().length} objects on this map.`, 'dim'),
+      R('that number is kept in your own browser and nowhere else.', 'dim'),
     ],
 
     uname: [R('Universe-OS 0.1.0 (tyler-emdur) GLSL/WebGL arm64 NextJS', 'cy')],
 
-    uptime: [
-      R(`uptime: ${Math.floor(Date.now() / 86400000)} days since epoch`, 'cy'),
-      R('load average: 0.42, 0.38, 0.35', 'dim'),
-    ],
+    // Was "days since epoch" and an invented load average. The store has been
+    // holding the real start of this visit the whole time.
+    uptime: (() => {
+      const secs = Math.max(0, Math.round((Date.now() - useUniverseStore.getState().visitStartTime) / 1000))
+      const mins = Math.floor(secs / 60)
+      return [
+        R(`you have been in the hub for ${mins > 0 ? `${mins}m ` : ''}${secs % 60}s.`, 'cy'),
+        R('objects keep surfacing the longer you stay.', 'dim'),
+      ]
+    })(),
 
     ps: PROCESSES.map(l => R(l, l.includes('terminal') ? 'cy' : undefined)),
 
@@ -239,7 +227,7 @@ function buildCommands(
 
     cowsay: [
       R('ERROR: GRAPHIC GENERATOR OFFLINE', 'er'),
-      R('Unsanctioned telemetry detected at Sector 06-∅.', 'dim'),
+      R('there was never a cow on this disk.', 'dim'),
     ],
 
     date: [R(new Date().toString(), 'cy')],
@@ -331,6 +319,21 @@ function buildCommands(
       R('  3. Sector 06-∅ remains hidden at coordinates [-2400, -1800, 500].'),
     ],
 
+    // 88.7 MHz is stamped on the machine's README, the broadcast dial, the
+    // garage radio and the carrier in the endpoint — five worlds carrying the
+    // same number and nothing that answers when you type it. Not in `help`;
+    // it is for whoever noticed.
+    '88.7': [
+      R('88.7 MHz', 'hi'),
+      R('────────────────────────'),
+      R('carrier present. 50 watts, out of a closet in boulder.', 'cy'),
+      R(''),
+      R('SRVHOST.EXE is what is on it. it serves this site.'),
+      R('the dial in BROADCST.WLD stops here too — channel 88,'),
+      R('which is the one that is not a real city.'),
+      R(''),
+      R('type "goto lab" for the monitor that watches it.', 'dim'),
+    ],
     morse: null,
 
     hex: null,
@@ -342,6 +345,8 @@ type Commands = ReturnType<typeof buildCommands>
 export default function HiddenTerminal() {
   // `git log` prints this repo's actual history, not a story about it.
   const { commits } = useSiteCommits(4)
+  // Real Boulder weather, for a command that used to invent it.
+  const env = useEnvironment()
   const [open, setOpen] = useState(false)
   const [lines, setLines] = useState<Line[]>([{ text: 'UNIVERSE OS v0.1 · type "help" for commands', cls: 'dim' }])
   const [input, setInput] = useState('')
@@ -385,7 +390,7 @@ export default function HiddenTerminal() {
     if (!cmd) { setLines(prev => [...prev, echo]); return }
     if (cmd === 'clear') { setLines([]); return }
 
-    const cmds = buildCommands(flyTo, discoveredIds, commits)
+    const cmds = buildCommands(flyTo, discoveredIds, commits, env)
 
     if (cmd.startsWith('goto ')) {
       const target = cmd.slice(5).trim()
@@ -430,16 +435,8 @@ export default function HiddenTerminal() {
       return
     }
 
-    if (cmd === 'status') {
-      const statusLines = [
-        { text: `UNIVERSE STATUS · ${new Date().toLocaleTimeString()}`, cls: 'hi' },
-        ...((cmds as any).status as Line[]),
-      ]
-      setLines(prev => [...prev, echo, ...statusLines])
-      return
-    }
-
-    const result = (cmds as any)[cmd] as Line[] | null | undefined
+    const key = /^88\.?7\s*(mhz)?$/.test(cmd) ? '88.7' : cmd
+    const result = (cmds as any)[key] as Line[] | null | undefined
     if (Array.isArray(result)) {
       setLines(prev => [...prev, echo, ...result])
     } else {
@@ -448,7 +445,11 @@ export default function HiddenTerminal() {
         { text: 'type "help" to see known commands', cls: 'dim' },
       ])
     }
-  }, [flyTo, discoveredIds, commits])
+    // `env` belongs here: the weather lands a second or two after mount, and
+    // without it this callback keeps the first render's environment forever —
+    // the `weather` command would report the station unreachable for the whole
+    // visit while the request had already come back 200.
+  }, [flyTo, discoveredIds, commits, env])
 
   const clsColor = (cls?: string) => {
     switch (cls) {
@@ -514,7 +515,7 @@ export default function HiddenTerminal() {
             }
             if (e.key === 'Tab') {
               e.preventDefault()
-              const cmds = buildCommands(flyTo, discoveredIds, commits)
+              const cmds = buildCommands(flyTo, discoveredIds, commits, env)
               const partial = input.toLowerCase()
               const match = Object.keys(cmds).find(k => k.startsWith(partial) && k !== partial)
               if (match) setInput(match)

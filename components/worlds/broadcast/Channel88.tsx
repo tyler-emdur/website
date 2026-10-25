@@ -17,11 +17,22 @@ const WORLD_LABEL: Record<WorldId, string> = {
 
 const OTHER_CHANNEL_COUNT = CHANNELS.filter(c => c.kind !== 'custom').length
 
+// The dial positions the set really carries, read off the lineup rather than
+// retyped — so these cards stay true if a channel is ever added or dropped.
+const REAL_DIAL = CHANNELS.filter(c => c.kind !== 'custom').map(c => c.ch).sort()
+const DIAL_LOW = REAL_DIAL[0]
+const DIAL_HIGH = REAL_DIAL[REAL_DIAL.length - 1]
+
+// Two of these used to be ominous about nothing: "IT HAS BEEN WATCHING SINCE
+// BEFORE YOU ARRIVED" and "YOU ARE NOT SUPPOSED TO BE ABLE TO TUNE THIS IN."
+// The second is the worst habit this site has — telling the visitor they are
+// special. The gap in the dial is strange enough on its own, and it is a fact
+// about the lineup you can check by turning the knob.
 const STRANGE_MESSAGES = [
-  `IT WATCHES THE OTHER ${OTHER_CHANNEL_COUNT}.\nIT HAS BEEN WATCHING SINCE BEFORE YOU ARRIVED.`,
   'SOMEONE IN BOULDER IS STILL AWAKE.\nTHIS IS WHAT THAT LOOKS LIKE FROM HERE.',
-  'YOU ARE NOT SUPPOSED TO BE ABLE TO TUNE THIS IN.',
   `THE OTHER ${OTHER_CHANNEL_COUNT} ARE REAL. THIS ONE IS NOT SUPPOSED TO BE.`,
+  `THE DIAL RUNS ${DIAL_LOW} TO ${DIAL_HIGH}.\nTHIS IS 88.`,
+  `THE OTHER ${OTHER_CHANNEL_COUNT} EACH COME FROM A CITY.\nYOU CAN LOOK THEM UP. THIS ONE HAS NO CITY.`,
 ]
 
 const FLASH_CITIES = CHANNELS.filter(c => c.kind !== 'custom').map(c => c.city)

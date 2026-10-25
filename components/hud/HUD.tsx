@@ -8,8 +8,6 @@ function pad(n: number, w = 5) { return String(Math.abs(Math.round(n))).padStart
 
 function CoordinateDisplay() {
   const [coords, setCoords] = useState({ x: 0, y: 0, z: 1200 })
-  const [glitching, setGlitching] = useState(false)
-  const [glitchCoords, setGlitchCoords] = useState({ x: 0, y: 0, z: 0 })
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -19,35 +17,22 @@ function CoordinateDisplay() {
     return () => clearInterval(id)
   }, [])
 
-  // Randomly corrupt the display for 200–800ms
-  useEffect(() => {
-    const schedule = () => {
-      const delay = 8000 + Math.random() * 22000
-      return setTimeout(() => {
-        setGlitchCoords({ x: (Math.random() - 0.5) * 9999, y: (Math.random() - 0.5) * 9999, z: Math.random() * 1400 })
-        setGlitching(true)
-        setTimeout(() => setGlitching(false), 200 + Math.random() * 600)
-        schedule()
-      }, delay)
-    }
-    const t = schedule()
-    return () => clearTimeout(t)
-  }, [])
-
-  const display = glitching ? glitchCoords : coords
+  // This readout used to corrupt itself every 8-30 seconds and swap the zone
+  // for one of ['ERR_0','NULL','???','LOST']. The camera position is real and
+  // the zone follows from it; faking a fault on top of a true number only made
+  // the true number look invented too.
   const zone = coords.z > 800 ? 'UNIVERSE' : coords.z > 300 ? 'APPROACH' : coords.z > 100 ? 'SYSTEM' : 'SURFACE'
-  const glitchZones = ['ERR_0', 'NULL', '???', 'LOST']
 
   return (
-    <div className="hud-coords" style={{ opacity: glitching ? 0.7 : 1 }}>
+    <div className="hud-coords">
       <div className="hud-label">COORDINATES</div>
-      <div className="hud-value" style={{ color: glitching ? 'rgba(168,85,247,0.9)' : undefined }}>
-        X:{display.x > 0 ? '+' : '-'}{pad(display.x)} &nbsp;
-        Y:{display.y > 0 ? '+' : '-'}{pad(display.y)} &nbsp;
-        Z:{pad(display.z, 4)}
+      <div className="hud-value">
+        X:{coords.x > 0 ? '+' : '-'}{pad(coords.x)} &nbsp;
+        Y:{coords.y > 0 ? '+' : '-'}{pad(coords.y)} &nbsp;
+        Z:{pad(coords.z, 4)}
       </div>
       <div className="hud-label mt-1">ZONE</div>
-      <div className="hud-accent">{glitching ? glitchZones[Math.floor(Math.random() * glitchZones.length)] : zone}</div>
+      <div className="hud-accent">{zone}</div>
     </div>
   )
 }
@@ -104,30 +89,28 @@ function DiscoveryNotification() {
   )
 }
 
-function getClassificationStamp(obj: UniverseObject) {
-  if (obj.id.startsWith('forgotten-')) return 'LOST'
-  if (obj.id === 'void-dark-anomaly') return 'DO NOT CATALOG'
-  switch (obj.type) {
-    case 'anomaly': return 'CORRUPTED'
-    case 'fragment': return 'ARCHIVED'
-    case 'signal': return 'UNRESOLVED'
-    case 'wormhole': return 'UNKNOWN'
-    case 'station': return 'STABLE'
-    default: return 'CLASSIFIED'
-  }
+// What the panel stamps on an object used to be a switch on `obj.type`, so
+// every anomaly read CORRUPTED and every station read STABLE — the type
+// restated in scarier letters, carrying no information the label didn't.
+//
+// It now reads the one piece of state the hub actually has and has never
+// shown: `visited` in the world store, which persists across sessions. The map
+// marks which doors you have already been through. (PLAN.md P3 — `visited_worlds`
+// has persisted for months with nothing consuming it.)
+type Stamp = 'VISITED' | 'OPEN' | 'NEVER BUILT' | 'NO EXIT'
+
+function getStamp(obj: UniverseObject, visited: WorldId[]): Stamp {
+  if (obj.worldId === 4) return 'NEVER BUILT'   // the socket that was never wired to anything
+  if (obj.worldId == null && !obj.href) return 'NO EXIT'
+  if (obj.worldId != null && visited.includes(obj.worldId as WorldId)) return 'VISITED'
+  return 'OPEN'
 }
 
-function redact(text?: string, isUnstable = false) {
-  if (!text) return ''
-  if (!isUnstable) return text
-  const words = text.split(' ')
-  return words.map((w, i) => {
-    // 20% chance to redact word if it's an unstable/corrupted object
-    if (Math.sin(i * 4.3 + w.length) > 0.6) {
-      return '██████'
-    }
-    return w
-  }).join(' ')
+const STAMP_COLOR: Record<Stamp, string> = {
+  VISITED: 'rgba(255,255,255,0.45)',
+  OPEN: '#fde047',
+  'NEVER BUILT': '#dc2626',
+  'NO EXIT': 'rgba(255,255,255,0.3)',
 }
 
 function ObjectPanel() {
@@ -136,6 +119,7 @@ function ObjectPanel() {
   const beginNullDescent = useUniverseStore(s => s.beginNullDescent)
   const navigateTo = useWorldStore(s => s.navigateTo)
   const findSecret = useWorldStore(s => s.findSecret)
+  const visited = useWorldStore(s => s.visited)
   const [transitioning, setTransitioning] = useState(false)
 
   const allObjects = getAllObjects()
@@ -174,21 +158,8 @@ function ObjectPanel() {
   if (!obj || mode === 'exploring') return null
 
   const region = REGIONS.find(r => r.id === obj.region)
-  const stamp = getClassificationStamp(obj)
-  
-  const stampColor = () => {
-    switch (stamp) {
-      case 'CORRUPTED': return '#ef4444'
-      case 'LOST': return '#f59e0b'
-      case 'ARCHIVED': return '#b45309'
-      case 'UNRESOLVED': return '#10b981'
-      case 'UNKNOWN': return '#a855f7'
-      case 'DO NOT CATALOG': return '#dc2626'
-      default: return 'rgba(255,255,255,0.4)'
-    }
-  }
-
-  const isUnstable = obj.type === 'anomaly' || obj.id.startsWith('forgotten-') || stamp === 'DO NOT CATALOG'
+  const stamp = getStamp(obj, visited)
+  const stampColor = STAMP_COLOR[stamp]
 
   return (
     <>
@@ -198,16 +169,13 @@ function ObjectPanel() {
       <div className="hud-panel">
         <div className="hud-panel-type">
           {obj.type.toUpperCase()} · {region?.designation ?? 'UNKNOWN'}
-          {obj.worldId != null && (
-            <span style={{ marginLeft: 10, color: 'rgba(253,224,71,0.7)', letterSpacing: '0.1em' }}>▼ DEEP</span>
-          )}
           <span style={{
             display: 'inline-block',
             padding: '1px 5px',
             fontSize: '8px',
             letterSpacing: '0.1em',
-            border: `1px dashed ${stampColor()}`,
-            color: stampColor(),
+            border: `1px dashed ${stampColor}`,
+            color: stampColor,
             background: 'rgba(0,0,0,0.5)',
             marginLeft: '10px',
             fontWeight: 'bold',
@@ -217,8 +185,7 @@ function ObjectPanel() {
           </span>
         </div>
         <h2 className="hud-panel-name">{obj.label}</h2>
-        <p className="hud-panel-desc">{redact(obj.description, isUnstable)}</p>
-        {obj.lore && <p className="hud-panel-lore">{redact(obj.lore, isUnstable)}</p>}
+        <p className="hud-panel-desc">{obj.description}</p>
 
         <div className="hud-panel-coords">
           X:{(obj.position[0] > 0 ? '+' : '') + obj.position[0].toFixed(0)} / 

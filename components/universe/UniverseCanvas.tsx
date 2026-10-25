@@ -1,9 +1,28 @@
 'use client'
 import { Canvas } from '@react-three/fiber'
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 import UniverseScene from './UniverseScene'
 
-export default function UniverseCanvas() {
+/**
+ * Fires once the scene has resolved out of Suspense and mounted — which is the
+ * real "there is something on the screen now" milestone, and the one the boot
+ * panel waits for. A component rather than a `useEffect` in UniverseScene so
+ * that scene stays about the scene.
+ */
+function SceneReady({ onReady }: { onReady: () => void }) {
+  useEffect(onReady, [onReady])
+  return null
+}
+
+export default function UniverseCanvas({
+  onRenderer,
+  onScene,
+}: {
+  /** The WebGL renderer exists. Everything after this is drawing, not loading. */
+  onRenderer?: () => void
+  /** The scene has mounted. */
+  onScene?: () => void
+}) {
   return (
     <Canvas
       camera={{ position: [120, -80, 1640], fov: 52, near: 1, far: 45000 }}
@@ -16,9 +35,11 @@ export default function UniverseCanvas() {
       style={{ background: '#00000d', touchAction: 'none' }}
       dpr={[1, 1.5]}
       gl={{ antialias: true, alpha: false }}
+      onCreated={() => onRenderer?.()}
     >
       <Suspense fallback={null}>
         <UniverseScene />
+        {onScene && <SceneReady onReady={onScene} />}
       </Suspense>
     </Canvas>
   )

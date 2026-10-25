@@ -428,3 +428,534 @@ Risk:
 Low on desktop — the mouse path is the same one-pointer branch it always was,
 and it was exercised. Medium on touch only in the sense that it is new
 behaviour nobody has felt yet.
+
+---
+
+## 2026-10-23 — The hub stops making things up
+
+Objective:
+P1 ("hub object descriptions are fake telemetry over real facts") and P4 ("cut
+filler", "cut anything that exists only to sound cool"), triggered by Tyler
+reading the site cold: *"a lot of it just sounds super AI language... some of it
+just needs to go back to the basics, think berkshirehathaway.com."*
+
+Why:
+The complaint localised almost entirely to World 1. Across the hub there were
+**151 invented strings**, and 41 of the 50 object descriptions were the same
+sentence:
+
+    [Adjective] [technical noun]. [Label]: [value]. [Label]: [value].
+
+Not one of the values was real. The template was the tell — a reader does not
+consciously count to forty-one, they just stop believing the screen. Meanwhile
+Warehouse 14, `catalogue-data.ts`, Departures and World 9 are written in a voice
+nobody would mistake for generated text ("A dollar fifty. It has been a dollar
+fifty since 1985 and it will be a dollar fifty after the building is gone").
+
+The difference is not tone, it is **reference**: the good copy names something
+you could point at, the filler names a category and bolts a number to it. That
+is also the actual lesson of the Berkshire page — it is plain because every link
+goes to a real document. Plainness is the residue of having something real
+underneath. The hub was ornate because it had nothing underneath yet.
+
+Changes Made:
+- **`lib/universe-store.ts`** — all 50 descriptions rewritten to one true
+  sentence; the `lore` field and its 35 strings **deleted from the interface**,
+  so the second voice can't come back. `PEAK-14115 / Local gravity variance:
+  +1.2%` is now *"Pikes Peak. 14,115 feet, 13.3 miles of it uphill, three hours
+  exactly."* Region designations carry what the sector holds (`SECTOR 02-B ·
+  RUNS`) instead of an invented fault (`[SURVEY DETAILED]`).
+  Five objects now describe **their own real reveal rule** — BEACON-04-Δ says it
+  only surfaces after twenty seconds, RELAY-00 says it appeared once you had
+  opened four things. P3's "an unannounced consequence is indistinguishable from
+  no consequence", paid for by copy rather than new machinery.
+- **`AmbientTransmissions.tsx` deleted** (43-string pool). Its `DEEP` band
+  flattered the reader — *"classification: patient · rare"*, *"you have stayed
+  longer than most · the map remembers this"*. The map did not remember this.
+  The hub still has three text layers, all reading real state.
+- **`CartographyLayer.tsx`** — 16 floating annotations → 7. Every grid, arc,
+  ring and crosshair kept (that geometry is what makes the void a room); the
+  labels now sit on something really at that coordinate: `DATUM · 40.0150°N
+  105.2705°W`, `WORLD 4 · NEVER BUILT` on the gate that points at nothing.
+- **`components/hud/HUD.tsx`** — `getClassificationStamp()` was a `switch` on
+  `obj.type`, so every anomaly read CORRUPTED and every station read STABLE: the
+  type restated in scarier letters. It now reads `visited` from the world store
+  — VISITED / OPEN / NEVER BUILT / NO EXIT. **That store has persisted for
+  months with nothing consuming it** (PLAN.md P3). Also deleted: `redact()`,
+  which blanked random words with `██████` off `Math.sin(i * 4.3 + w.length)`,
+  and the coordinate readout's self-corruption into `['ERR_0','NULL','???','LOST']`.
+  Faking a fault on top of a true number only makes the true number look
+  invented too.
+- **`HiddenTerminal.tsx`** — `weather` printed four invented sensor lines
+  (barometric pressure, gravity, a dose in mSv/h) while `lib/environment.ts` was
+  already holding the real Boulder temperature, shared by every world. It now
+  prints it. `scan` and `status` were two commands over the same facts, one of
+  them with three invented faults; collapsed to one readout under both names.
+  `ARCHIVE_RECORDS` and `VOID_READOUTS` pools gone with `fortune`. `uptime` was
+  "days since epoch" and a fake load average — now the real length of this visit
+  from `visitStartTime`. `about` and `whoami` plainer.
+- **`World7Contact.tsx`** — the worst sentence on the site (*"it was only ever
+  one person, in boulder, making things at 3am and pointing them at the dark"*)
+  replaced with *"the address below is real, and goes to a person rather than a
+  form."* Its `47 OBJECTS CATALOGUED` fragment was stale besides — AbstractIndex
+  stopped claiming 47 in August — now `ELEVEN WORLDS`, which is checkable.
+- **`lib/identity.ts`** — `doing: 'Builder of worlds'` → `'Amateur webmaster'`.
+  `role` already makes the serious claim; this is what a homepage of World 0's
+  vintage would actually have said.
+- **The detail this session ships:** `88.7` is a real command in the hub
+  terminal. The frequency is stamped on the machine's README, the broadcast
+  dial, the garage radio and the endpoint's carrier — five worlds carrying one
+  number with nothing that answered to it. `88.7`, `88.7 mhz` and `887` all
+  resolve. Not in `help`.
+
+Net: **−427 / +232**, 195 lines of filler gone.
+
+Verification:
+`tsc --noEmit` and `next build` clean. All gesture assertions still pass. Against
+the production build in a real Chrome tab, by DOM text rather than screenshot:
+the seven cartography labels render, `status` prints the per-sector opened counts
+off the store, `88.7 mhz` resolves through the alias, and `weather` returns
+**63°F · overcast · 9:27 PM · sun down** — correct for Boulder this evening.
+All eleven world routes return 200.
+
+**Not verified in a real window:** the object panel's new VISITED/OPEN stamp.
+Reaching it means clicking a 3D object, and R3F never initialises in an
+automation tab — the CLAUDE.md trap. The stamp is code-confirmed and type-checked
+only. Worth thirty seconds of Tyler clicking a gate.
+
+Discovered:
+1. **An all-caps grep blind spot.** My first sweep for filler matched on a
+   lowercase `[a-z] [a-z]` pattern and so missed all 16 `CartographyLayer`
+   labels, including `FIELD INTEGRITY CHECK: PASSING` — which PLAN.md had
+   *already* flagged as invented. They only turned up when the hub's DOM text
+   was read in a browser. **Grep the rendered page, not just the source.**
+2. **A stale `next start` will lie to you convincingly.** `pkill` then immediate
+   restart raced: the new server hit `EADDRINUSE` and the old process kept
+   serving the previous build, so a verified-looking browser check showed all 16
+   old labels still present after a clean edit and a clean build. Always confirm
+   `✓ Ready` in the server log, not just a 200.
+3. **I introduced a stale-closure bug and the honest message hid it.** Adding
+   `env` to `buildCommands` without adding it to the `run` callback's dep array
+   meant the handler kept the first render's environment forever: `weather`
+   reported the station unreachable for an entire visit while the request had
+   already returned 200. `commits` was in the deps, which is why `git log`
+   worked and masked it. The fallback copy now says "no reading yet." rather
+   than asserting a failure it cannot distinguish from a pending fetch.
+
+Next:
+Explorer (`World2Explorer`) — its one session was triage only, it is the world
+that has gone longest without attention, and six hub objects now make promises
+about it. Then World 7's room: the endpoint copy is honest now but it is still a
+centered card on black, which PLAN.md already has queued behind World 9.
+
+Risk:
+Low. No geometry, layout, routing or mobile surface touched — the one removed
+element was a `position: fixed` text layer. Every change is copy, a deletion, or
+a readout now sourced from state that was already there.
+
+---
+
+## 2026-10-23 (2) — The endpoint gets the closet it was always served from
+
+Objective:
+Finish the de-slopping sweep outside World 1, then PLAN.md's "give the object a
+room — **World 7 is still a centered card on black** and is next."
+
+Why:
+Having fixed the hub, I read every remaining world's strings with the same lens
+(reference, not tone) before assuming where the problem was. It mostly wasn't
+there: the Broadcast's lineup is ten real HLS streams with real cities and real
+operator notes; the Garage's road signs are real Colorado ("ELEV 5430", "RUNAWAY
+TRUCK RAMP 1 MILE", "ICES BEFORE ROAD") over real FM streams; Explorer's HUD is
+four Strava figures and a street-coverage percentage. **My own PLAN.md note
+accusing "World 2's HUD" was wrong, and checking took four minutes.**
+
+What was left was two strings and a shape. World 7 was the shape CLAUDE.md names
+as the tell: one well-drawn object centered in a black void.
+
+Changes Made:
+- **`Channel88.tsx`** — two of four `STRANGE_MESSAGES` were ominous about
+  nothing: "IT HAS BEEN WATCHING SINCE BEFORE YOU ARRIVED" and "YOU ARE NOT
+  SUPPOSED TO BE ABLE TO TUNE THIS IN." The second is this site's worst habit —
+  telling the visitor they are special. Replaced with two facts about the dial,
+  **computed from `CHANNELS`** rather than retyped, so they stay true if the
+  lineup changes: "THE DIAL RUNS 02 TO 44. THIS IS 88." and "THE OTHER 9 EACH
+  COME FROM A CITY. YOU CAN LOOK THEM UP. THIS ONE HAS NO CITY."
+- **`World7Contact.tsx` — the room.** The Machine's README already said where
+  this is: the site is served "out of a closet in Boulder, Colorado, on a
+  carrier of 88.7 MHz." So the receiver now sits on a shelf in that closet.
+  Technique copied from World 9, which is the part PLAN.md says to copy: every
+  layer is anchored off the receiver's own box, so the shelf starts exactly
+  where the set's feet stop at any window size.
+  Shelf board and apron · a bracket under it · the antenna lead leaving the back
+  with a strain loop and a zip tie, going up out of frame, which is how a
+  carrier gets out of a closet · a power strip and its cord · a taped drywall
+  seam for scale · **masking tape on the shelf edge with "88.7" on it in
+  marker**, the kind of label a person actually puts on their own gear.
+- **The light under the door is the real Boulder clock** (`lib/environment.ts`,
+  same source the hub and garage read). Daylight down the jamb in the day, warm
+  at dusk, and **at night essentially nothing** — nobody left the hall light on,
+  so after dark the only things lighting the closet are the set's phosphor and
+  one amber LED. Day and night are genuinely different rooms.
+- **A quiet echo, not an inventory:** the corner of the 486 is on the same
+  shelf, three inches of it, mostly out of frame, power LED still on. World 5
+  says the machine is in this closet; this is what that looks like from here.
+  It also fills the left of the frame, which the first pass left empty.
+- The wall behind the set picks up the receiver's phosphor **scaled by the
+  carrier lock**, so the room is downstream of the mechanic rather than a
+  backdrop painted behind it.
+- **The scope was saturating into a solid green rectangle** — noise at ±0.34H
+  with a persistence fill that never cleared enough to show a trace through it.
+  Halved the noise band and deepened the clear; it reads as a noisy trace with
+  an envelope now. The hold mechanic is untouched.
+
+Verification:
+`tsc` and `next build` clean, all gesture assertions pass, all twelve routes 200.
+World 7 is DOM/CSS, so screenshots are trustworthy here (CLAUDE.md's table) and
+it was checked by eye at each step. The **day** variant was verified by
+temporarily hardcoding `phase="day"`, screenshotting, and reverting — the file
+was restored from a backup and re-grepped to confirm no forced state survived.
+The **reveal** was verified the same way, by forcing `locked`/`reveal` true: the
+new three-line copy and the contact rows lay out correctly below the shelf.
+
+Mobile: the resize tool reported success but never changed the rendered
+viewport, so this was checked by measurement instead — `documentElement`, `body`
+and the scroll container all report **0 horizontal overflow**, and the container
+computes `overflow-x: hidden`, which makes that regression structurally
+impossible regardless of width. The room's props hang off `calc(100% + …)` of a
+`min(680px, 90vw)` box, so on a phone they simply sit off-frame. **Not checked
+by eye at phone width.**
+
+Discovered:
+1. **A door jamb has to be plumb.** The light band was `linear-gradient(96deg)`
+   on an element 240vh tall; six degrees of tilt walks it ~200px sideways over
+   that height, so it drifted out of frame and only ever read near the ceiling.
+   It looked like a lighting bug and was a geometry bug.
+2. **Anchor to the object, not the viewport — including the light.** Pinned at
+   68% of 100vw, the jamb sat *behind* the receiver at some widths and beside it
+   at others, because the set has a max-width and the viewport does not. The
+   same rule PLAN.md records for the counter applies to everything in the room.
+3. **The stale-server trap caught me a second time**, in a new costume: I
+   rebuilt, restarted, and screenshotted a tab I had never re-navigated, then
+   spent a minute explaining a "bug" that was just the previous page still on
+   screen. Reload *and* confirm `✓ Ready`, every time.
+4. **Checking beats assuming about one's own notes.** Two worlds I had flagged
+   in writing as probably-sloppy were clean.
+
+Next:
+Explorer. It is the world that has gone longest without attention, its only
+session was triage, and six hub objects now make promises about it — but
+CLAUDE.md lists it under "leave alone unless discussed," so it needs Tyler's
+go-ahead rather than mine.
+
+Risk:
+Low. Broadcast is two strings. World 7 is additive — the room is a set of
+pointer-events-none layers behind the existing receiver; the hold mechanic, the
+audio, the lock math and the reveal are untouched.
+
+---
+
+## 2026-10-23 (3) — One motion grammar under twelve doors
+
+Objective:
+PLAN.md goal 2 — interface identity — approached from the one surface every
+world shares. Not a world: the portal layer between them.
+
+Why:
+A grep for easing turned up eleven hand-rolled bezier curves, five different
+spellings of `cubic-bezier(0.4,0,0.2,1)`, and fourteen uses of `ease-in-out`.
+Symmetric easing is the single clearest tell that nobody chose the motion — real
+interfaces decelerate into arrivals and accelerate out of departures. Underneath
+that, three of the twelve portals were animating properties that force layout,
+and the visitor's reduced-motion setting could not reach any of them.
+
+First I checked whether the ten non-`fold`/`door` portal types were dead code.
+They are not: every one is reached through a hub gate's `worldPortal`, so all
+twelve are on live paths. Worth the five minutes before deleting anything.
+
+Changes Made:
+- `lib/motion.ts` (new) — `EASE` (enter / exit / hinge / motor, asymmetric on
+  purpose), `DUR` (tap 90 → ceremony 1200, a scale so the number comes from
+  somewhere), `transition()`, and the reduced-motion helpers. Deliberately no
+  CSS custom properties: nothing would consume them yet.
+- `components/worlds/PortalTransition.tsx` — all twelve kept as twelve distinct
+  gestures, now with their numbers out of the grammar.
+  - `expand-white` grew its own `width`, `height`, `marginLeft` and `marginTop`
+    under `transition: all`. Now scales a fixed-size circle. This is the door to
+    Contact, Broadcast and the whole lab region, so it was the worst one to have
+    running layout at 60fps.
+  - `letter-expand` animated `font-size` from 14px to twice the viewport —
+    re-rasterising the glyph and re-running text layout every frame. Now scales.
+  - `slide-right` was four seconds. Now `DUR.ceremony`, 1200ms.
+  - `cursor-flood` and `vortex` stopped after a fixed *frame count*, so they ran
+    750ms on a 60Hz panel and 375ms on a 120Hz one. Now driven by elapsed time.
+  - Completion now comes from `transitionend`, with the timer demoted to a
+    fallback. `expand-white` had set its timer to exactly its own 700ms while
+    starting the transition a frame late, so it could call itself finished early.
+  - `scatter` reaches outside React and writes to every `body > *`. It restored
+    those elements to the empty string, discarding any inline style a world had
+    set on itself; it now records and replays the exact prior values.
+  - Reduced motion renders a cut instead of a crossing. This is new behaviour,
+    not a fix to the existing `@media` block — the portals animate through
+    inline styles, which outrank anything in globals.css, so that block was
+    never able to reach them.
+
+Delightful detail:
+`expand-white` carries the real sky over Boulder. Verified against
+`readEnvironment`: at local noon the flood is `rgb(253, 249, 239)`, warm; right
+now, with the sun 60° below the horizon, `rgb(228, 235, 247)`, cold. The same
+white either way until you have crossed it at both ends of a day. Nobody is told.
+
+Verification:
+`tsc --noEmit` clean. `next build` clean, 18/18 static pages, shared JS
+unchanged at 103 kB. All twelve world routes 200 against `next start` (with
+`✓ Ready` confirmed in the log, per the last session's lesson).
+
+In a real Chrome tab, by computed style rather than screenshot: clicking "Enter
+Universe" on World 0 carried world 0 → 1 and `/surface` → `/universe` with the
+portal cleaned up afterward, and mid-flight exactly one element was animating —
+`transitionProperty: "transform"`, `0.88s`, `cubic-bezier(0.4, 0, 0.2, 1)`,
+`matrix3d(...)` part-way through the rotation. That is `DUR.travel` and
+`EASE.hinge` arriving from the grammar, with no layout property in the
+transition.
+
+**Not verified in a real window:** the other eleven portal types. Every trigger
+for them is a hub gate, and the hub is R3F — it never initialises in an
+automation tab (the CLAUDE.md trap). They are code-confirmed and type-checked
+only. `expand-white`, `letter-expand` and `slide-right` changed the most and are
+the ones worth Tyler clicking a gate for.
+
+Discovered:
+1. **An easing inventory is a fast read on whether a site has a grammar.**
+   `grep -ohE "cubic-bezier\([^)]*\)|ease-in-out"` then `sort | uniq -c`. Five
+   spellings of one curve and fourteen `ease-in-out` said more in one table than
+   reading the files did.
+2. **`transition: all` hides from a property grep.** A sweep for
+   `transition:.*\(width|height|top|left\)` came back empty and looked clean —
+   while `expand-white` was animating all four through `all`. Grep the keyword,
+   not just the property names.
+3. **Frame counts are a duration bug on new hardware.** Two canvas portals ran
+   at half length on a 120Hz display. Anything that ends on `if (frame < n)` is
+   measuring the panel, not time.
+4. **An inline style outranks a reduced-motion media query.** The accessibility
+   block in globals.css looked like coverage and was unreachable for every
+   portal on the site.
+
+Next:
+Explorer (`World2Explorer`) is still the world that has gone longest without
+attention, and six hub objects make promises about it. Unchanged from the last
+two entries.
+
+Risk:
+Low. No world's own layout, geometry, routing or mobile surface touched — the
+changes are confined to the shared transition layer plus one new file. The
+geometry change in `expand-white` strictly reduces per-frame work, and the
+mount-time visual size of `letter-expand` is unchanged (14px, now via scale).
+
+---
+
+## 2026-10-24 — The hub boots, and the departures board moves to Boulder
+
+Why:
+Two findings from reading the repo rather than the roadmap.
+
+The hub lazy-loads three.js — the largest chunk on the site — through
+`dynamic(..., { ssr: false })` with **no loading state at all**. A visitor
+crossed a portal, the portal finished, and then there was an empty black frame.
+That is exactly the line CLAUDE.md draws between mystery and broken, and it was
+the first thing a first-time visitor met.
+
+Departures, meanwhile, printed a clock labelled `BOULDER` that was actually the
+*visitor's* timezone — from Sydney the board claimed Boulder was seven hours
+behind itself — over a TIME column computed as `(i * 7 + cycle * 13) % 60` on a
+hard-coded base hour of 4, so the board opened at 04:00 whatever time you stood
+in front of it and never agreed with its own header six inches away. Under them
+sat `40331 + elapsedSeconds * 3` labelled READS ON FILE: an invented base
+climbing at an invented rate, and the only fake number on a board whose every
+other field is real OpenStreetMap data.
+
+Changes Made:
+- `components/universe/effects/SurveyBoot.tsx` (new) — the hub boots in the
+  corner terminal's dialect, because it is the same instrument warming up.
+  Every line is true: `PLOTTER` tracks whether the renderer actually exists,
+  `CATALOG` is `getAllObjects().length`, `SYNC` is the real Boulder clock.
+- `UniverseCanvas.tsx` — reports two real milestones, `onCreated` for the
+  renderer and a sentinel inside the Suspense boundary for the scene. The panel
+  leaves when there is genuinely something behind it, not on a timer.
+- `UniverseRoot.tsx` — holds the seven DOM overlays until the renderer exists.
+  They would otherwise paint over an empty canvas: the corner terminal printing
+  `OBJECTS 0 IN VIEW` before there was anything to be in view of, the glitch
+  layer muttering about a scene that had not loaded.
+- `World8Departures.tsx` — `boulderClockWithSeconds()` in the header; the board
+  anchored to the real Boulder minute, so the first row *is* the hour in the
+  city the board claims to be in and the rest climb from it; `SHOWN SO FAR
+  n OF 74 READERS`, which counts something that is really happening; and
+  `INDEX OPENSTREETMAP · 07.19.26` out of the payload's own `source` and
+  `generatedAt`, both of which were sitting in `alpr.json` unread. That last
+  one is the Berkshire move — name the document the page is built from.
+
+Delightful detail:
+The boot panel says `CATALOG 50 OBJECTS`. Four seconds later the corner
+terminal in the same spot says `OBJECTS 33 IN VIEW`. Nobody is told why the
+number went down, and the seventeen missing ones are the whole invitation.
+
+Verification:
+`tsc --noEmit` clean, `next build` clean at 18/18 static pages, shared JS
+unchanged at 103 kB, gesture assertions pass, twelve routes 200 against
+`next start` with `✓ Ready` confirmed in the log first.
+
+Departures is DOM, so it was checked by eye: the header reads 18:32:15 and the
+first row reads 18:32 — the board agrees with itself for the first time. The
+panel's four labels land on column 13 by measurement. Zero horizontal overflow
+on `documentElement` and `body`, shell `overflow-x: hidden`.
+
+The hub's boot panel completes in well under a second on localhost, so both of
+its states were reached by temporarily neutering the two readiness callbacks,
+building, screenshotting, then restoring from a backup and re-grepping to
+confirm no forced state survived (`FORCED_FOR_SCREENSHOT` → none). The
+unforced path was then re-verified: panel unmounted, overlays back, gate index
+present.
+
+**Not verified:** how long the gap actually is for a real visitor on a real
+connection. The gap is code-confirmed; its length is not measurable from here,
+and the August figure came from an automation tab and never meant anything.
+
+Discovered:
+1. **Two real defects only showed up because the forced state was reachable.**
+   The stalled panel collided with the corner terminal — both live at
+   `bottom: 28, left: 28` — and in the genuine no-WebGL case the terminal is
+   deliberately on screen, so that collision was real and not an artifact of
+   the forcing. The failure state moved to the middle, where a visitor is
+   already looking.
+2. **drei's `<Html>` z-index has a published ceiling.** It scales each label's
+   distance-to-camera into `zIndexRange`, defaulting to `[16777271, 0]`
+   (`drei/web/Html.js:99`), and every label on the hub uses the default. So
+   16777272 is a bounded answer rather than a big number picked to win an arms
+   race — and without it, seven captions float at full opacity on black for the
+   whole fade-out while the scene they belong to is still hidden.
+3. **`generatedAt` and `source` had been in `alpr.json` since the bake and were
+   never rendered.** The honest provenance line was already in the data; the
+   invented one was in the component.
+4. **The site's own test machine is in Boulder**, so a timezone bug is
+   invisible by observation here. Proved it instead by running the formatter
+   under `TZ=Europe/London` and `TZ=Australia/Sydney`: board 18:32 both times,
+   visitor 01:32 and 11:32.
+
+Next:
+Explorer is still the world that has gone longest without attention, and six
+hub objects make promises about it — unchanged for four entries now, because it
+is on CLAUDE.md's "leave alone unless discussed" list. The shared sky now
+reaches six of eleven worlds; Broadcast, the Answering Machine and the
+Directory are the remaining ones that are not on that list.
+
+**World 9 is a deliberate exception and should stay one.** It reads the
+*visitor's* clock on purpose — "it's the middle of the night where you are" —
+and moving it to Boulder time would break the one thing that world is about.
+
+Risk:
+Low. Departures' layout, routing and mobile surface are untouched; the hub
+gained a layer that removes itself and a gate on layers that were painting over
+nothing. The one behaviour change worth watching is that the hub's overlays now
+mount a beat later than they used to.
+
+---
+
+## 2026-10-24 — The dial stops guessing how it looks
+
+Objective:
+World 3 Broadcast. The hard rule in CLAUDE.md — if a world presents something
+as data, it must be real — applied to the one field on the dial that was still
+somebody's opinion.
+
+Why:
+`reception` was a hand-written label on each channel (`clean` / `grainy` /
+`unstable` / `chaotic`) driving a CSS filter on the picture. Its own comment
+admitted it: "small, cheap visual variance so the six real channels don't all
+look like the same clean feed." But every signal on the dial is a real HLS
+manifest, and a manifest declares its bitrate, resolution, codecs, rung count
+and segment length out loud. The labels were guesses about a thing that states
+itself.
+
+They were also substantially wrong. Istanbul was marked `grainy` and serves
+2560x1440 at 11.5 Mbps — the best picture on the entire dial. Taipei was marked
+`clean` and is a government traffic camera that declares no bitrate at all.
+Delhi was marked `chaotic` and its primary is a hard 404, so what anyone
+actually watches is the DD India understudy at 1080p.
+
+Changes Made:
+- `scripts/bake-reception.mjs` (new) — reads every manifest on the dial,
+  primaries and understudies, follows each master playlist down to a variant for
+  the segment shape, and records what the station answered. Follows the existing
+  `bake-terrain` / `bake-alpr` pattern: progress to stderr, JSON to stdout.
+- `lib/broadcast/reception.json` (new, 9.6 kB) — the captured record, with a
+  `bakedAt` stamp because nothing on this dial is stable forever. Kept beside
+  `channels.ts` rather than in `public/` because the screen needs it at first
+  paint; a fetch would mean a flash of the wrong picture.
+- `lib/broadcast/reception.ts` (new) — derives reception from the real numbers.
+  `clean` is >=4 Mbps on >=3 rungs; `grainy` is a manifest that declares no
+  bitrate at all, which is every single-playlist webcam and CCTV camera on the
+  dial; `unstable` is a declared-but-low bitrate on a single rung, which cannot
+  drop quality when the connection tightens and stalls instead.
+- `components/worlds/broadcast/BroadcastScreen.tsx` — reads `receptionFor(channel)`
+  instead of `channel.reception`.
+- `lib/broadcast/channels.ts` — the hand label is now documented as the fallback
+  it has become, not the source.
+
+Deliberately not folded in: segment length and window depth. Reykjavik declares
+an 11-second segment and a window only three segments deep, which makes it slow
+to recover but does not make its 1080p any softer. Reliability is already the
+liveness cascade's job in `/api/broadcast`, and the screen already has NO SIGNAL.
+Putting visible noise over a clean picture and calling it honesty would be worse
+than the guess it replaced. It also keeps Reykjavik calm, which is the whole
+reason it is `DEFAULT_CHANNEL_ID`.
+
+Verification:
+`tsc --noEmit` clean. `next build` clean, 18/18 pages, shared JS unchanged at
+103 kB. All twelve routes 200. `scripts/check-gestures.mjs` all passing.
+
+World 3 is DOM/CSS, so a real window is trustworthy here. Stepped the dial
+through all ten positions in Chrome and read the computed `filter` off the
+reception layer at each one. Every channel matched its derived value, including
+all four corrections: Delhi and Istanbul now resolve `clean`, Taipei `grainy`,
+Vientiane `unstable`. Dushanbe correctly fell back to its hand label.
+
+Dushanbe could not be measured at all: its host resolves to 185.121.1.101 but
+never completes a TCP connection from here, even at 25 seconds, across all three
+of its feeds. A bake machine in one city cannot tell a dark station from one
+that declines to talk to it, so that channel keeps its hand label rather than
+inheriting a measurement nobody took.
+
+Discovered:
+1. **`unstable` was dead code and is now earned.** No channel was ever labelled
+   `unstable`, so `ReceptionJitter`'s occasional horizontal nudge had never
+   fired for anyone. Vientiane's four feeds are all single-rung at ~2 Mbps with
+   twelve-second segments, which is exactly the signal that visibly struggles.
+   The jitter runs there now for a reason rather than for flavour.
+2. **`chaotic` is now unreachable, and was already nearly so.** Nothing derives
+   to it, and the only channel still labelled `chaotic` is 88 — which is
+   `kind: 'custom'` and returns `<Channel88 />` before `ReceptionJitter` is ever
+   reached. Its filter has never been applied. Left the value in the union as
+   documentation of intent; it is not wired to anything.
+3. **A liveness check that accepts `#EXTM3U` accepts a slate.** The Reykjavik
+   comment already warned about RÚV geo-restricting via a valid manifest of a
+   rights notice. The bake hit the general form of it too — a feed answering 200
+   with a body that is not a playlist at all. `/api/broadcast` still only tests
+   the first line. Deliberately not touched: tightening liveness risks darkening
+   channels that currently work, and that is its own change with its own
+   verification.
+4. **A `filter: none` probe matches every div on the page.** My first browser
+   check reported all ten channels `clean` because `clean` renders as
+   `filter: none`, which is also the computed default for everything else. The
+   code was right and the probe was wrong. Assert on the distinctive value, not
+   the absent one.
+
+Next:
+Explorer (`World2Explorer`) — unchanged from the last three entries, still the
+world that has gone longest without attention.
+
+Risk:
+Low. One field changes how an existing CSS filter is chosen; no geometry,
+routing, layout or mobile surface touched, and no channel's URL, lineup or
+liveness behaviour changed. The baked file goes stale rather than wrong — when a
+station re-encodes, the numbers describe what it used to serve, and `bakedAt`
+says when. Re-run the script to refresh.
