@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useEffect, useState } from 'react'
 import type { RadioStation } from '@/app/api/radio/route'
-import type { RadioStatus } from './live-radio'
+import { countryTag, type RadioStatus } from './live-radio'
 import { useIsTouchDevice } from '@/lib/use-touch-device'
 
 // The drive. A 2D-canvas night highway out of the garage, rendered with a real
@@ -17,11 +17,6 @@ interface NightDriveProps {
   onSeek: (dir: number) => void
   onExit: () => void
   onLongDrive: () => void
-}
-
-function flag(code: string) {
-  if (!/^[A-Za-z]{2}$/.test(code)) return '📻'
-  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 127397 + c.charCodeAt(0)))
 }
 
 interface Sign { label: string; sub: string }
@@ -835,7 +830,9 @@ export default function NightDrive({ freq, station, status, onSeek, onExit, onLo
           </div>
           <div style={{ fontSize: 9, color: 'rgba(255,236,205,0.75)', marginTop: 4, minHeight: 12,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 300 }}>
-            {station ? `${flag(station.country)} ${station.name}${station.city ? ` · ${station.city}` : ''}` : '— between stations —'}
+            {station
+              ? [countryTag(station.country), station.name, station.city].filter(Boolean).join(' · ')
+              : '— between stations —'}
           </div>
           <div style={{ fontSize: 7, color: 'rgba(255,255,255,0.35)', marginTop: 4, letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 8 }}>
             {isTouch ? (
