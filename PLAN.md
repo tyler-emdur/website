@@ -70,11 +70,14 @@ z-order, a taskbar, a start menu, minimize, right-click context menus,
 Minesweeper, Tetris, a working `C:\` shell with `DIR`/`CD`, and ten program
 EXEs. Don't rebuild it. Close the specific gaps:
 
-- [ ] **Emoji break the era.** `📁` is the PROGRAMS desktop icon
-      (`World5Machine.tsx:978`), `📄` marks RECYCLED files, `📻` and `🔇` sit in
-      the Garage and Broadcast. World 0 already ships a real icon pipeline at
-      `/retro/*.svg` — use it. Era dingbats (`★ ✦ ♦ ✉`) are fine; color emoji
-      are not.
+- [ ] **Emoji break the era.** `📁` is the PROGRAMS desktop icon, `📄` marks
+      RECYCLED files, `💾 🌐 😵 💣 🗑` sit on the desktop and in Minesweeper,
+      `📻` and `🔇` sit in the Garage and Broadcast. World 0 already ships a
+      real icon pipeline at `/retro/*.svg` — use it. Era dingbats
+      (`★ ✦ ♦ ✉`) are fine; color emoji are not.
+      **Blocked on a ruling** (2026-10-24): this is the most era-breaking thing
+      left in World 5, and World 5 is on CLAUDE.md's "done, do not restyle"
+      list. Swapping icons is restyling. Needs Tyler's yes.
 - [ ] **Machine:** window conventions of the era — a menu bar with File/Edit/
       Help that actually opens, modal dialogs with OK/Cancel, a title-bar system
       box, keyboard focus. Convincing beats decorative.
@@ -101,10 +104,10 @@ and the visitor is never told, so it may as well not.
       rather than adding a parallel system. One source for identity, world
       state, discoveries, navigation — the way `lib/identity.ts` is now the one
       source for identity strings.
-- [~] **Shared reality reaches six of eleven worlds** (Departures added
-      2026-10-24). Surface, Garage, Contact, Warehouse, Departures, plus the
-      hub's terminal and the portal flood. Remaining and unblocked: Broadcast,
-      the Directory. Blocked by the leave-alone list: Explorer, the Machine.
+- [~] **Shared reality reaches seven of eleven worlds** (Departures and the
+      Machine added 2026-10-24). Surface, Garage, Contact, Warehouse,
+      Departures, the Machine, plus the hub's terminal and the portal flood.
+      Remaining and unblocked: Broadcast, the Directory. Blocked by the leave-alone list: Explorer.
       **World 9 is a deliberate exception** — it reads the *visitor's* clock on
       purpose ("it's the middle of the night where you are"), and Boulder time
       would break the one thing that world is about. Leave it.
@@ -155,6 +158,18 @@ and the visitor is never told, so it may as well not.
       **Worth remembering:** the string-pool lens does not catch this class.
       These were arithmetic, not prose, and the 2026-10-23 sweep marked
       Departures clean because it was looking for sentences.
+
+- [x] **The machine's invented traffic removed** (2026-10-24). SRVHOST.EXE
+      fabricated its entire log — visitors from ten cities, request times,
+      memory use, a carrier that drifted 15% of the time — under a header
+      reading `visitors now: 3`, hard-coded. It reports the one connection it
+      really has now. The hub terminal's `INTERCEPTED_TRACKS` (seven radio
+      intercepts at invented frequencies) and its `ps` table (invented CPU
+      times, one of them `Math.random()`) went with it.
+      **The lens that found these:** grep `Math.random` and read every hit in a
+      text position. Two October sweeps missed all of it because they were
+      looking for prose, and `visitor #${n} connected (${CITIES[r]})` is a
+      template made of arithmetic.
 
 Mystery works when there's something real underneath to find. Fifteen rotating
 strings had nothing underneath.
@@ -253,6 +268,90 @@ measured from automation. Items 3–4 are safe independently of item 2.
 - **`RESUME.TXT` on the desktop** — proposed in the pivot, never built. World 5
   already has `resume_2019.doc` in `RECYCLED` as a joke about deleting it; an
   earnest one beside it undercuts the better gag. Probably drop.
+
+## Broadcast — execution plan (2026-10-24)
+
+From a full audit of the dial: every feed probed for CORS, playlist validity,
+declared signal and segment shape, plus thirty candidate channels vetted.
+`scripts/probe-stream.mjs` is the tool; `lib/broadcast/reception.json` is the
+record. Ordered so the repairs land before the additions — there is no point
+widening a dial that is lying in three places.
+
+**Found, and worth knowing before anything else:** finding new channels cannot
+be done from memory. Thirty candidates assembled by analogy with the working
+ones returned twenty-three dead, including twelve webcam IDs invented by
+incrementing the two real ones. Camera IDs must come out of the provider's own
+index. The one hit from a real index — `it_kronplatz07`, pulled off
+whatsupcams' front page — needed its CDN host found by probe.
+
+### P0 — repair the existing dial
+
+- [ ] **Channel 05 does not show Istanbul when TRT drops.** Its understudies
+      are DW English (Bonn) and France 24 (Paris), against a contract stated in
+      `channels.ts`: *"different stations from the same place — the city stays
+      the city."* Tune 05, lose the primary, and a German newsroom is labelled
+      ISTANBUL. Either find real Istanbul feeds, or adopt Opatija's honest
+      framing — *"a foreign signal drifting in when the cam drops"* — and say so
+      in the comment. Opatija's version is deliberate and good; 05's is a
+      shortcut wearing the same clothes.
+- [ ] **One stream is the understudy on two dial positions.** The identical DW
+      Bonn URL backs both 05 and 12. If TRT and the Opatija cam are both down,
+      05 and 12 are the same picture on a dial whose whole premise is that each
+      position is a different place. One has to go, and 12's is the one with a
+      reason to exist.
+- [ ] **Delhi's primary is a hard 404** (`cdn-2.pishow.tv/live/12/master.m3u8`),
+      confirmed across every probe. The cascade covers it silently, so what
+      anyone actually watches is the DD India understudy — but every tune to 02
+      pays a failed request first. Promote the understudy, drop the corpse.
+- [ ] **`chaotic` is unreachable.** Nothing derives to it, and channel 88 is
+      `kind: 'custom'` and returns `<Channel88 />` before `ReceptionJitter` is
+      ever reached, so its filter has never once been applied. Either wire it or
+      cut it from the union.
+- [ ] **Liveness still accepts a slate.** `/api/broadcast` tests only that the
+      body starts with `#EXTM3U`, which is exactly how a geo-blocked station
+      serving a rights notice reads as live — the RÚV trap, already written down
+      in `channels.ts`. The probe script knows the stronger test: segment count
+      above zero and no `#EXT-X-ENDLIST`. Tightening it risks darkening channels
+      that currently work, so measure every feed against the new test first and
+      only then change the route.
+
+### P1 — recalibrate from the new data
+
+- [ ] **`CLEAN_BITRATE` is overfitted.** 4 Mbps was picked from a dial whose
+      clean feeds happened to sit at 4.2, 4.7 and 11.5. Arirang Seoul measures
+      1920x1080 at 3.26 Mbps across four rungs and derives `grainy`, which is
+      almost certainly wrong for adaptive full HD. Make the rule
+      resolution-aware (1080p or better on three or more rungs is clean) rather
+      than nudging the number until Seoul passes.
+- [ ] **Window depth is measured and unused.** Reykjavik, Vientiane and Arirang
+      all run three-segment windows; Istanbul runs six hundred. A three-deep
+      window is one late segment away from stopping, and that — not bitrate — is
+      what predicts a stall mid-watch. It should drive something.
+
+### P2 — additions, both verified
+
+- [ ] **KRONPLATZ** — `cdn-006.whatsupcams.com/hls/it_kronplatz07.m3u8`.
+      CORS `*`, single playlist, no declared bitrate, 6s segments, 5-deep
+      window; derives `grainy`, the same shape as Opatija and Saxon Harbor. A
+      Dolomites ski slope is a kind of place this dial does not have — it is all
+      harbours and newsrooms. Strongest single addition found.
+- [ ] **ARIRANG, Seoul** — adaptive 1080p, CORS `*`, 4s segments. Real and
+      usable, but it is a branded international broadcaster, nearer to TRT and
+      DW than to the dial's obscure character. Hold until P1 fixes the bitrate
+      rule, then decide on character rather than availability.
+- [ ] **A real discovery pass.** whatsupcams' index exposed seven genuine IDs
+      and the manifest URLs live on the per-camera pages, not the index. Walking
+      those pages is the only honest way to widen the cam side of the dial.
+
+### P3 — what this unlocks
+
+The standing Broadcast item above asks for *"signal acquisition, not a swap."*
+That is now buildable without inventing anything: a channel's real segment
+length and window depth say how long it genuinely takes to fill a buffer.
+Vientiane at twelve-second segments three deep should take visibly longer to
+come in than Istanbul at six seconds six hundred deep. Tuning time derived from
+the manifest, rather than a random delay dressed up as one.
+
 
 ## Housekeeping
 

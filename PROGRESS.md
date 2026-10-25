@@ -959,3 +959,101 @@ routing, layout or mobile surface touched, and no channel's URL, lineup or
 liveness behaviour changed. The baked file goes stale rather than wrong — when a
 station re-encodes, the numbers describe what it used to serve, and `bakedAt`
 says when. Re-run the script to refresh.
+
+---
+
+## 2026-10-24 (2) — The machine stops inventing its own traffic
+
+Why:
+Tyler, right after the deploy: *"make sure there is no lore and everything
+feels authentic and working."* The string-pool sweep in October had already
+been run twice. This pass used the lens that caught Departures the same day —
+invented **numbers**, not invented prose — and it found the biggest offender on
+the site still running.
+
+SRVHOST.EXE is the reason World 5 exists: a 486 in a closet serving
+tyleremdur.com, and a hub object points straight at it ("the process keeping
+this site on the air"). Its log was almost entirely fabricated traffic —
+`visitor #1247 connected (ULAANBAATAR)`, `GET /world/garage · 200 · 94ms`,
+`mem 6.8MB/8.0MB · disk ok · fan ok`, a carrier that read "good" 85% of the
+time and "drifting" the other 15% — and a visitor counter seeded at
+`1200 + random(90)` that disagreed with the `#1247` printed four lines above
+it. The window header said `visitors now: 3`, hard-coded, forever.
+
+Changes Made:
+- `World5Machine.tsx` — the log reports the one connection it actually has.
+  How old it is, what the browser asked for, how many world files are warm
+  because you really opened them, what the sun and the weather are doing
+  outside the closet. Nothing invented, and the result is stranger than the
+  invention was: a stranger in Ulaanbaatar is a stock photo, and **`client
+  clock is set to Europe/London · serving anyway`** is a line that actually
+  noticed you. It only prints for visitors who aren't in Mountain time.
+  `visitors now: 3` became `serving 1 browser`, which is true.
+- `World5Machine.tsx` — the log stamped the *visitor's* clock. The machine is
+  in a closet in Boulder, so it stamps Boulder. Same bug as the departures
+  board, found the same way.
+- `HiddenTerminal.tsx` — `INTERCEPTED_TRACKS` deleted: seven radio intercepts
+  at invented frequencies, captured by nothing, under a line about the source
+  frequency drifting. `music` now points at the two worlds that genuinely make
+  sound, and says neither starts until you ask — which is also the audio rule.
+- `HiddenTerminal.tsx` — `ps` and `top` were a twelve-line process table with
+  invented CPU times, one of them `(Math.random()*100).toFixed(2)`, so the
+  shell's own process time changed on every render. The probes are the real
+  regions now and their counts are the store's; the only figure that moves is
+  `terminal.sh`, which is the real age of this visit.
+- `HiddenTerminal.tsx` — `sudo` said "ACTION LOGGED". Nothing is logged and
+  there is nowhere to log it, and saying so is funnier than the threat.
+
+Delightful detail:
+The tray clock in the corner of the machine is a *deliberate* fiction with a
+rule — it starts at 11:47 PM, the minute `RECOVERED/DEPLOY.DAT` records v1
+shipping, and runs 1.7% fast forever because this machine's clock was never
+right. That is exactly what the rules ask for and it stays. But it now sits in
+the same window as a log stamping real Boulder time, and two clocks disagreeing
+reads as a bug unless the machine says which one it trusts. So it does:
+`clock: stamping off the carrier. the tray clock has been wrong since 2024.`
+
+Verification:
+`tsc --noEmit` clean, `next build` clean at 18/18, shared JS unchanged at
+103 kB, gesture assertions pass, eleven world routes 200.
+
+World 5 is DOM, so SRVHOST was opened and read by eye in a real window: nine
+`cache warm · WORLD_n.WLD` lines matching the worlds actually walked, `9 of 11
+world files warm`, `serving WORLD_5.WLD to this browser — boot #2`, `sun down
+over the closet · night`, keepalives counting real seconds. The hub terminal's
+`ps`, `music` and `sudo` were run in a real tab and read back from the DOM.
+
+Final sweep for the removed values across the whole tree returns only the
+comments that explain their removal.
+
+Discovered:
+1. **The string-pool lens does not catch arithmetic.** Two sweeps in October
+   marked these worlds clean because they were looking for sentences. `visitor
+   #${n} connected (${CITIES[random]})` is a template too, and it had survived
+   both. Grep `Math.random` and read every hit that lands in a text position.
+2. **A fiction with a rule is not the same thing as filler**, and the
+   difference is worth protecting in both directions. The tray clock invents a
+   time, but it invents it the same way every visit, for a stated reason, from
+   a date that exists elsewhere in the world. Deleting that would have made the
+   machine *less* real, not more.
+3. **The honest version was the better writing.** Every line cut here was
+   trying to make the machine feel busy. What makes it feel alive is that it
+   knows your screen size.
+
+Next:
+Explorer, still. Five entries now.
+
+**One thing needs Tyler's ruling:** World 5's desktop icons are colour emoji —
+`💾 🌐 😵 💣 🗑 📁` — which on a modern Mac render as Apple's 2026 glyph art
+inside a 1994 Windows shell. It is the most era-breaking thing left in that
+world, and `PLAN.md` P2 asks for it. But CLAUDE.md lists World 5 under "done,
+do not restyle", and swapping icons *is* restyling, so it is not mine to do.
+World 0 already ships a real icon pipeline at `/retro/*.svg` if the answer is
+yes.
+
+Risk:
+Low, with one note. No layout, routing, geometry or mobile surface was touched
+— the changes are data sources and copy. The note is that `ServerMonitor` now
+calls `useEnvironment`, so World 5 joins the shared sky; the weather is read
+through a ref so the heartbeat never captures a stale `env`, which is the exact
+mistake that froze the hub terminal's weather for a whole visit in October.

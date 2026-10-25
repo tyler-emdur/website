@@ -26,31 +26,16 @@ const ASCII_TYLER = `
   | |  | |  | | |_| | |_| |  _ <
   |_|  |_|  |_|____/ \\___/|_| \\_\\`
 
-const PROCESSES = [
-  'PID  TT  STAT    TIME COMMAND',
-  ' 001  ??  Ss   0:00.01 universe-core',
-  ' 002  ??  S    0:00.44 signal-monitor',
-  ' 003  ??  R    2:18.99 discovery-engine',
-  ' 004  ??  S    0:00.08 comet-system',
-  ' 005  ??  Ss   0:00.12 nebula-renderer',
-  ' 006  ??  S    0:00.03 region-probe [index]',
-  ' 007  ??  S    0:00.03 region-probe [running]',
-  ' 008  ??  S    0:00.03 region-probe [archives]',
-  ' 009  ??  S    0:00.03 region-probe [explore]',
-  ' 010  ??  S    0:00.03 region-probe [lab]',
-  ' 011  ??  S    0:28.72 cursor-physics',
-  ` 012  s1  S+   ${(Math.random()*100).toFixed(2)} terminal.sh`,
-]
-
-const INTERCEPTED_TRACKS = [
-  'INTERCEPT // FREQ: 94.2MHz - Khruangbin — People Everywhere (Still Alive)',
-  'INTERCEPT // FREQ: 88.7MHz - Tame Impala — Eventually',
-  'INTERCEPT // FREQ: 101.5MHz - Mac DeMarco — Chamber of Reflection',
-  'INTERCEPT // FREQ: 92.0MHz - FKJ — Ylang Ylang',
-  'INTERCEPT // FREQ: 96.6MHz - Hiatus Kaiyote — Laputa',
-  'INTERCEPT // FREQ: 89.1MHz - Unknown Mortal Orchestra — Multi-Love',
-  'INTERCEPT // FREQ: 90.8MHz - Bon Iver — Holocene',
-]
+// `PROCESSES` and `INTERCEPTED_TRACKS` used to live here.
+//
+// The first was a twelve-line `ps` with invented CPU times, one of them
+// `(Math.random()*100).toFixed(2)` — so the shell's own process time changed
+// every single render. The second was seven intercepted radio transmissions at
+// made-up frequencies ("FREQ: 94.2MHz — Khruangbin"), captured by nothing, over
+// a line about the source frequency drifting. Nobody intercepted anything.
+//
+// `ps` is built from the store now, so its numbers are the survey's real ones;
+// `music` points at the two worlds that genuinely make sound.
 
 type Line = { text: string; cls?: string }
 
@@ -81,6 +66,22 @@ function buildCommands(
     R(`  ${discoveredIds.length} opened. the rest arrive on their own, or once you have opened enough.`, 'dim'),
   ]
 
+  // ── ps ─────────────────────────────────────────────────────────────────────
+  // A process table with no fake numbers in it. The probes are the real
+  // regions, their counts are the store's, and the only figure that moves is
+  // the shell's own age — which is the real length of this visit.
+  const held = Math.max(0, Math.round((Date.now() - useUniverseStore.getState().visitStartTime) / 1000))
+  const survey_ps: Line[] = [
+    R('PID  STAT  TIME      COMMAND', 'dim'),
+    R(' 001  R     —         universe-scene (webgl)'),
+    R(' 002  R     —         cartography-layer'),
+    ...REGIONS.map((r, i) => {
+      const seen = r.objects.filter(o => discoveredIds.includes(o.id)).length
+      return R(` ${String(i + 3).padStart(3, '0')}  S     —         region-probe [${r.id}] · ${seen}/${r.objects.length} opened`)
+    }),
+    R(` ${String(REGIONS.length + 3).padStart(3, '0')}  S+    ${`${Math.floor(held / 60)}:${String(held % 60).padStart(2, '0')}`.padEnd(9)} terminal.sh`, 'cy'),
+  ]
+
   return {
     help: [
       R('── KNOWN COMMANDS ─────────────────────────────', 'dim'),
@@ -91,7 +92,7 @@ function buildCommands(
       R('  status       what is on the map, and what you have opened'),
       R('  weather      the weather in boulder'),
       R('  time         current time, multiple zones'),
-      R('  music        audio band intercepts'),
+      R('  music        what makes sound here, and where'),
       R('  ascii        banner'),
       R('  ls           list sectors'),
       R('  pwd          current path'),
@@ -161,11 +162,15 @@ function buildCommands(
     ],
 
     music: [
-      R('INTERCEPTED TRANSMISSIONS', 'hi'),
+      R('AUDIO', 'hi'),
       R('────────────────────────'),
-      R(INTERCEPTED_TRACKS[Math.floor(Math.random() * INTERCEPTED_TRACKS.length)], 'cy'),
+      R('nothing plays in the hub.', 'cy'),
       R(''),
-      R('← source frequency drifting · origin unresolved', 'dim'),
+      R('two worlds make sound, and both of them are live'),
+      R('broadcasts rather than files — the garage carries'),
+      R('internet radio, the dial carries city television.'),
+      R(''),
+      R('neither one starts until you ask it to.', 'dim'),
     ],
 
     ascii: ASCII_TYLER.trim().split('\n').map(l => R(l, 'hi')),
@@ -197,17 +202,23 @@ function buildCommands(
       ]
     })(),
 
-    ps: PROCESSES.map(l => R(l, l.includes('terminal') ? 'cy' : undefined)),
+    ps: survey_ps,
 
     top: [
-      R('UNIVERSE PROCESSES (sorted by interestingness)', 'hi'),
+      R('UNIVERSE PROCESSES', 'hi'),
       R(''),
-      ...PROCESSES.map(l => R(l)),
+      ...survey_ps,
       R(''),
       R('[q] to stop watching, but there is no q', 'dim'),
     ],
 
-    sudo: [R('ACCESS PRIVILEGE VIOLATION // ACTION LOGGED', 'er')],
+    // Said "ACTION LOGGED". Nothing is logged; there is no server here and
+    // nothing you type leaves your browser. The refusal is funnier when it is
+    // also true.
+    sudo: [
+      R('ACCESS PRIVILEGE VIOLATION', 'er'),
+      R('nothing was logged. there is nowhere to log it.', 'dim'),
+    ],
 
     vi:   [R('ERROR: WRITE PRIVILEGE DENIED', 'er'), R('Terminal is in read-only archive mode.', 'dim')],
     vim:  [R('ERROR: WRITE PRIVILEGE DENIED', 'er'), R('Terminal is in read-only archive mode.', 'dim')],

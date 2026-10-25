@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
 import { useWorldStore, type WorldId } from '@/lib/world-store'
 import { IDENTITY } from '@/lib/identity'
+import { useEnvironment, boulderClockWithSeconds } from '@/lib/environment'
 import { useSiteCommits } from '@/hooks/use-site-commits'
 import HomeButton from '../HomeButton'
 import Tetris from './Tetris'
@@ -103,35 +104,55 @@ function ProgramWindow({ progId }: { progId: string }) {
 }
 
 // ── SRVHOST.EXE — the server monitor ─────────────────────────────────────────
-// The reason this machine exists: it is serving tyleremdur.com, right now,
-// to you. The log is a mix of the truth (worlds you have actually visited,
-// damage that is actually on the disk) and the machine's own bookkeeping.
-const SRV_EPOCH = new Date('2024-11-09T23:47:00').getTime() // the night the server first went up
-const SRV_CITIES = [
-  'BOULDER, CO', 'PORTLAND, OR', 'BROOKLYN, NY', 'DELHI', 'REYKJAVIK',
-  'TAIPEI', 'ULAANBAATAR', 'ISTANBUL', 'DUSHANBE', 'SAXON HARBOR, WI',
-]
+// The reason this machine exists: it is serving tyleremdur.com, right now, to
+// you.
+//
+// It used to invent the traffic. `visitor #1247 connected (ULAANBAATAR)`,
+// `GET /world/garage · 200 · 94ms`, `mem 6.8MB/8.0MB · disk ok · fan ok`,
+// `carrier — signal good` 85% of the time and `drifting` the other 15% — none
+// of it had happened, and a counter seeded at `1200 + random(90)` disagreed
+// with the `#1247` printed four lines above it. The header said `visitors now:
+// 3`, hard-coded, forever.
+//
+// A server does know things, though, and all of them are about the one
+// connection it has. This one logs those: how old this connection is, what the
+// browser asked for, what the weather is doing outside the closet, which world
+// files are warm because you really did open them. Nothing invented, and the
+// result is stranger than the invented version was — a stranger in Ulaanbaatar
+// is a stock photo, and `client clock is 7h ahead of this machine` is a thing
+// that actually noticed you.
+const SRV_EPOCH = new Date('2024-11-09T23:47:00').getTime() // RECOVERED/DEPLOY.DAT, the night v1 shipped
 let srvSeq = 0
 function ServerMonitor({ bootCount }: { bootCount: number }) {
   const visited = useWorldStore(s => s.visited)
   const current = useWorldStore(s => s.current)
   const [lines, setLines] = useState<{ id: number; text: string; color?: string }[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
-  const visitorRef = useRef(1200 + Math.floor(Math.random() * 90))
+  const openedAt = useRef(Date.now())
+  const env = useEnvironment()
+  // The log reads from a ref so the heartbeat never needs `env` in its deps —
+  // the mistake that once froze the hub terminal's weather for a whole visit.
+  const envRef = useRef(env)
+  envRef.current = env
 
-  const stamp = () => {
-    const d = new Date()
-    return `[${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}]`
-  }
+  // The machine is in a closet in Boulder, so it stamps its log in Boulder —
+  // it was using whatever clock the visitor's own computer was set to.
+  const stamp = () => `[${boulderClockWithSeconds()}]`
 
   useEffect(() => {
     const damaged = Math.max(0, RECOVERED_SECTORS.length - Math.max(0, bootCount - 1))
     const boot: { id: number; text: string; color?: string }[] = [
       { id: ++srvSeq, text: 'SRVHOST.EXE v4.86 — tyleremdur.com', color: '#5ecbe0' },
       { id: ++srvSeq, text: `carrier 88.7 MHz · listening`, color: '#5ecbe0' },
+      // The tray clock in the corner is a deliberate fiction with a rule —
+      // it starts at 11:47 PM, the minute DEPLOY.DAT records v1 shipping, and
+      // runs 1.7% fast forever because this machine's clock was never right.
+      // The log stamps real Boulder time. Two clocks disagreeing in one window
+      // reads as a bug unless the machine says which one it trusts, so it does.
+      { id: ++srvSeq, text: 'clock: stamping off the carrier. the tray clock has been wrong since 2024.', color: '#2a5a3a' },
       { id: ++srvSeq, text: '' },
       ...visited.map(w => ({ id: ++srvSeq, text: `${stamp()} cache warm · WORLD_${w}.WLD (visited this session)` })),
-      { id: ++srvSeq, text: `${stamp()} serving WORLD_${current}.WLD to visitor #1247 — that's you`, color: '#f6c66a' },
+      { id: ++srvSeq, text: `${stamp()} serving WORLD_${current}.WLD to this browser — boot #${bootCount}`, color: '#f6c66a' },
       ...(damaged > 0 ? [{ id: ++srvSeq, text: `${stamp()} WARN ${damaged} damaged sector(s) — recovery on next boot`, color: '#f66' }] : []),
     ]
     setLines(boot)
@@ -139,27 +160,40 @@ function ServerMonitor({ bootCount }: { bootCount: number }) {
     let tid: ReturnType<typeof setTimeout>
     const tick = () => {
       tid = setTimeout(() => {
-        const r = Math.random()
-        let text = ''
-        let color: string | undefined
-        if (r < 0.42) {
-          const w = WORLD_FILES[Math.floor(Math.random() * WORLD_FILES.length)]
-          text = `${stamp()} GET /world/${w.world} · 200 · ${8 + Math.floor(Math.random() * 120)}ms`
-        } else if (r < 0.62) {
-          visitorRef.current += 1
-          text = `${stamp()} visitor #${visitorRef.current} connected (${SRV_CITIES[Math.floor(Math.random() * SRV_CITIES.length)]})`
-        } else if (r < 0.78) {
-          text = `${stamp()} carrier 88.7 MHz — signal ${Math.random() < 0.85 ? 'good' : 'drifting'}`
-        } else if (r < 0.9) {
-          text = `${stamp()} mem ${(6.2 + Math.random() * 1.6).toFixed(1)}MB/8.0MB · disk ok · fan ok`
-        } else if (r < 0.97) {
-          text = `${stamp()} keepalive → visitor #1247 · you're still here`
-          color = '#f6c66a'
-        } else {
-          text = `${stamp()} visitor #0000 connected (40.0150°N 105.2705°W)`
-          color = '#f472b6'
+        // Every branch below reports something that is true at the moment it
+        // prints. The randomness picks which true thing to say, not what the
+        // value is.
+        const e = envRef.current
+        const held = Math.round((Date.now() - openedAt.current) / 1000)
+        const mmss = `${String(Math.floor(held / 60)).padStart(2, '0')}:${String(held % 60).padStart(2, '0')}`
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+        const facts: { text: string; color?: string }[] = [
+          { text: `${stamp()} keepalive · this connection is ${mmss} old`, color: '#f6c66a' },
+          { text: `${stamp()} carrier 88.7 MHz · listening` },
+          { text: `${stamp()} client ${window.innerWidth}x${window.innerHeight} · dpr ${window.devicePixelRatio}` },
+          { text: `${stamp()} ${visited.length} of 11 world files warm on this connection` },
+          { text: `${stamp()} sun ${e.sunAltitude >= 0 ? 'up' : 'down'} over the closet · ${e.phase}` },
+        ]
+
+        // Weather is null until it lands, and the contract is to render the
+        // absence rather than substitute a number.
+        if (e.weather) {
+          facts.push({ text: `${stamp()} outside: ${e.weather.tempF}°F, ${e.weather.label}` })
         }
-        setLines(prev => [...prev.slice(-140), { id: ++srvSeq, text, color }])
+
+        // The one line that is only true for some visitors, which is what
+        // makes it worth printing. The machine keeps Boulder time; if your
+        // computer doesn't, it says so.
+        if (tz && tz !== 'America/Denver') {
+          facts.push({
+            text: `${stamp()} client clock is set to ${tz} · serving anyway`,
+            color: '#f472b6',
+          })
+        }
+
+        const pick = facts[Math.floor(Math.random() * facts.length)]
+        setLines(prev => [...prev.slice(-140), { id: ++srvSeq, ...pick }])
         tick()
       }, 1200 + Math.random() * 2600)
     }
@@ -176,7 +210,10 @@ function ServerMonitor({ bootCount }: { bootCount: number }) {
     <div style={{ background: '#000', height: '100%', display: 'flex', flexDirection: 'column', fontFamily: '"Courier New", monospace', fontSize: 12 }}>
       <div style={{ padding: '5px 10px', borderBottom: '1px solid #1c3a2c', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <span style={{ color: '#5ecbe0' }}>STATUS: <span style={{ color: '#6ee86e' }}>ON THE AIR</span></span>
-        <span style={{ color: '#3a7a3a' }}>up {upDays}d · visitors now: 3</span>
+        {/* `visitors now: 3` lived here, hard-coded, while the log underneath
+            invented a different number every few seconds. One browser is the
+            true answer, and it is the better line. */}
+        <span style={{ color: '#3a7a3a' }}>up {upDays}d · serving 1 browser</span>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3fae4a', boxShadow: '0 0 6px rgba(63,174,74,0.9)', animation: 'm5-blink 1.8s step-end infinite' }} />
       </div>
       <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '6px 10px', lineHeight: 1.65 }}>
