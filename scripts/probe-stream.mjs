@@ -99,7 +99,12 @@ async function probe(url) {
   // hand; it is three lines, and a candidate report is worth little if it does
   // not say which picture the dial would give it.
   const bw = top?.bandwidth ?? null
-  const reception = bw === null ? 'grainy' : bw >= 4_000_000 && variants.length >= 3 ? 'clean' : variants.length <= 1 ? 'unstable' : 'grainy'
+  const height = Number(top?.resolution?.match(/\d+\s*[x×]\s*(\d+)/)?.[1] ?? NaN)
+  const broadcastGrade = Number.isFinite(height) ? height >= 1080 : bw >= 4_000_000
+  const reception = bw === null ? 'grainy'
+    : variants.length >= 3 && broadcastGrade ? 'clean'
+    : variants.length <= 1 ? 'unstable'
+    : 'grainy'
 
   return {
     verdict: 'OK',

@@ -1,17 +1,11 @@
 {
- "bakedAt": "2026-10-25T00:37:46.019Z",
+ "bakedAt": "2026-10-25T04:54:26.009Z",
  "channels": {
   "delhi": {
    "ch": "02",
    "city": "DELHI",
    "kind": "hls",
    "feeds": [
-    {
-     "url": "https://cdn-2.pishow.tv/live/12/master.m3u8",
-     "reachable": false,
-     "status": 404,
-     "error": "http 404"
-    },
     {
      "url": "https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/ceda14583477426aa162a65392d8ea07/index.m3u8",
      "reachable": true,
@@ -65,34 +59,25 @@
      "mediaFrom": "https://tv-trtworld.medya.trt.com.tr/master_1080.m3u8"
     },
     {
-     "url": "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8",
+     "url": "https://tv.ensonhaber.com/haberturk/haberturk.m3u8",
      "reachable": true,
      "status": 200,
-     "variantCount": 5,
-     "topBandwidth": 6221313,
+     "variantCount": 4,
+     "topBandwidth": 2500000,
      "topResolution": "1920x1080",
-     "floorBandwidth": 1061313,
-     "codecs": "avc1.64002A,mp4a.40.2",
-     "frameRate": 50,
-     "targetDuration": 6,
-     "segments": 300,
+     "floorBandwidth": 450000,
+     "codecs": null,
+     "frameRate": null,
+     "targetDuration": 10,
+     "segments": 6,
      "live": true,
-     "mediaFrom": "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/stream01/streamPlaylist.m3u8"
+     "mediaFrom": "https://tv.ensonhaber.com/haberturk/haberturk_1080p.m3u8"
     },
     {
-     "url": "https://static.france24.com/live/F24_EN_HI_HLS/live_web.m3u8",
-     "reachable": true,
-     "status": 200,
-     "variantCount": 8,
-     "topBandwidth": 5270851,
-     "topResolution": "1920x1080",
-     "floorBandwidth": 673025,
-     "codecs": "avc1.640028,mp4a.40.2",
-     "frameRate": null,
-     "targetDuration": null,
-     "segments": 0,
-     "live": true,
-     "mediaFrom": null
+     "url": "https://tele1-live.ercdn.net/tele1/tele1.m3u8",
+     "reachable": false,
+     "status": 404,
+     "error": "http 404"
     }
    ]
   },
@@ -154,6 +139,36 @@
      "mediaFrom": null
     },
     {
+     "url": "https://wowza.3tcable.hr/Madona/Madona.stream/chunklist.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 0,
+     "topBandwidth": null,
+     "topResolution": null,
+     "floorBandwidth": null,
+     "codecs": null,
+     "frameRate": null,
+     "targetDuration": 12,
+     "segments": 3,
+     "live": true,
+     "mediaFrom": null
+    },
+    {
+     "url": "https://wowza.3tcable.hr/VoloskoMul/VoloskoMul.stream/chunklist.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 0,
+     "topBandwidth": null,
+     "topResolution": null,
+     "floorBandwidth": null,
+     "codecs": null,
+     "frameRate": null,
+     "targetDuration": 11,
+     "segments": 3,
+     "live": true,
+     "mediaFrom": null
+    },
+    {
      "url": "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8",
      "reachable": true,
      "status": 200,
@@ -210,15 +225,15 @@
      "reachable": true,
      "status": 200,
      "variantCount": 1,
-     "topBandwidth": 2612467,
+     "topBandwidth": 2488386,
      "topResolution": "1280x720",
-     "floorBandwidth": 2612467,
+     "floorBandwidth": 2488386,
      "codecs": "avc1.64001f,mp4a.40.2",
      "frameRate": null,
      "targetDuration": 8,
      "segments": 12,
      "live": true,
-     "mediaFrom": "https://5ddce30eb4b55.streamlock.net/bltvhd/bltv1/chunklist_w835398243.m3u8"
+     "mediaFrom": "https://5ddce30eb4b55.streamlock.net/bltvhd/bltv1/chunklist_w1257219921.m3u8"
     }
    ]
   },
@@ -291,6 +306,28 @@
     }
    ]
   },
+  "kronplatz": {
+   "ch": "36",
+   "city": "KRONPLATZ",
+   "kind": "hls",
+   "feeds": [
+    {
+     "url": "https://cdn-006.whatsupcams.com/hls/it_kronplatz07.m3u8",
+     "reachable": true,
+     "status": 200,
+     "variantCount": 0,
+     "topBandwidth": null,
+     "topResolution": null,
+     "floorBandwidth": null,
+     "codecs": null,
+     "frameRate": null,
+     "targetDuration": 6,
+     "segments": 5,
+     "live": true,
+     "mediaFrom": null
+    }
+   ]
+  },
   "vientiane": {
    "ch": "44",
    "city": "VIENTIANE",
@@ -301,9 +338,9 @@
      "reachable": true,
      "status": 200,
      "variantCount": 1,
-     "topBandwidth": 2003580,
+     "topBandwidth": 1984949,
      "topResolution": "1280x720",
-     "floorBandwidth": 2003580,
+     "floorBandwidth": 1984949,
      "codecs": "avc1.77.40,mp4a.40.2",
      "frameRate": null,
      "targetDuration": 12,
@@ -316,9 +353,9 @@
      "reachable": true,
      "status": 200,
      "variantCount": 1,
-     "topBandwidth": 3093792,
+     "topBandwidth": 2870972,
      "topResolution": "1280x720",
-     "floorBandwidth": 3093792,
+     "floorBandwidth": 2870972,
      "codecs": "avc1.66.31,mp4a.40.2",
      "frameRate": null,
      "targetDuration": 12,
@@ -331,9 +368,9 @@
      "reachable": true,
      "status": 200,
      "variantCount": 1,
-     "topBandwidth": 1772195,
+     "topBandwidth": 1786319,
      "topResolution": "1920x1080",
-     "floorBandwidth": 1772195,
+     "floorBandwidth": 1786319,
      "codecs": "avc1.77.40,mp4a.40.2",
      "frameRate": null,
      "targetDuration": 13,
@@ -346,9 +383,9 @@
      "reachable": true,
      "status": 200,
      "variantCount": 1,
-     "topBandwidth": 2269981,
+     "topBandwidth": 2245533,
      "topResolution": "1280x720",
-     "floorBandwidth": 2269981,
+     "floorBandwidth": 2245533,
      "codecs": "avc1.66.42,mp4a.40.2",
      "frameRate": null,
      "targetDuration": 12,

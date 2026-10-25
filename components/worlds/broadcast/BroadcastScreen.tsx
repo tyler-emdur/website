@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import type { BroadcastChannel, Reception } from '@/lib/broadcast/channels'
-import { receptionFor } from '@/lib/broadcast/reception'
+import { acquisitionFor, receptionFor, THIN_WINDOW } from '@/lib/broadcast/reception'
+import { DUR, EASE, transition } from '@/lib/motion'
 import Channel88 from './Channel88'
 
 // Per-channel reception, layered on top of the shared CRT bezel effects the
@@ -13,7 +14,6 @@ const RECEPTION_FILTER: Record<Reception, string> = {
   clean: 'none',
   grainy: 'contrast(1.05) saturate(0.85) brightness(0.97)',
   unstable: 'contrast(1.1) saturate(0.9)',
-  chaotic: 'contrast(1.18) saturate(1.25)',
 }
 
 function ReceptionJitter({ reception, children }: { reception: Reception; children: React.ReactNode }) {
@@ -79,14 +79,47 @@ function OffAirScreen({ city }: { city: string }) {
   )
 }
 
-function TuningScreen() {
+/**
+ * What the set knows about the signal it is pulling in, while it pulls it in.
+ *
+ * Every number here is the station's own: the longest segment it will hand out,
+ * how many of them it keeps at the live edge, and one mark for each segment that
+ * has actually arrived. Nothing is paced by a timer — the reason
+ * Taipei snaps on and Vientiane sits here for a few seconds is that Taipei cuts
+ * its camera into one-second pieces and Vientiane into twelve-second ones, and
+ * no player can make twelve seconds of video arrive in less than twelve
+ * seconds' worth of encoding. Acquisition, not a swap.
+ */
+interface Acquisition {
+  segmentSeconds: number | null
+  windowSegments: number | null
+  /** Segments that have arrived so far, counted from the player's own events. */
+  fragments: number
+}
+
+function TuningScreen({ acq, reacquiring }: { acq: Acquisition; reacquiring?: boolean }) {
+  const { segmentSeconds: seg, windowSegments: win } = acq
+  const declared = [seg != null ? `SEG ${seg}s` : null, win != null ? `WINDOW ${win}` : null]
+    .filter(Boolean).join('   ')
   return (
     <div style={{
-      position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', gap: '0.55em',
       fontFamily: 'monospace', fontSize: 'clamp(7px,1vw,9px)', color: 'rgba(255,255,255,0.35)',
-      letterSpacing: '0.2em', background: '#000',
+      letterSpacing: '0.2em', textAlign: 'center',
+      // Over a frozen picture the readout sits on smoked glass; from black it
+      // is the whole screen.
+      background: reacquiring ? 'rgba(0,0,0,0.72)' : '#000',
     }}>
-      TUNING…
+      <div>{reacquiring ? 'RE-ACQUIRING' : 'TUNING…'}</div>
+      {declared && <div style={{ opacity: 0.62 }}>{declared}</div>}
+      {/* One mark per segment that has arrived. Empty until the first lands. */}
+      <div style={{ minHeight: '1em', letterSpacing: '0.35em', opacity: 0.8 }}>
+        {'▪'.repeat(Math.min(acq.fragments, 24))}
+      </div>
+      {win != null && win <= THIN_WINDOW && (
+        <div style={{ opacity: 0.4 }}>THIN WINDOW</div>
+      )}
     </div>
   )
 }
@@ -95,9 +128,22 @@ function HlsChannel({ url, soundOn, onRequestSound, onAdvance, onDead }: {
   url: string; soundOn: boolean; onRequestSound: () => void; onAdvance: () => void; onDead: () => void
 }) {
   const [live, setLive] = useState(false)
+  // Set when the picture was running and the buffer ran out from under it — the
+  // video's own `waiting` event, held for most of a second so a hiccup between
+  // frames doesn't flash a readout over a working channel.
+  const [reacquiring, setReacquiring] = useState(false)
+  // What the last bake heard this exact feed declare, so the readout has
+  // something true to print before the player has loaded anything. The live
+  // manifest overwrites it the moment it arrives.
+  const [acq, setAcq] = useState<Acquisition>(() => ({
+    segmentSeconds: null, windowSegments: null, fragments: 0, ...acquisitionFor(url),
+  }))
   const videoRef = useRef<HTMLVideoElement>(null)
   const onDeadRef = useRef(onDead)
   useEffect(() => { onDeadRef.current = onDead }, [onDead])
+  // Read inside player callbacks, which outlive any one render.
+  const liveRef = useRef(false)
+  const reacquiringRef = useRef(false)
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = !soundOn
@@ -105,6 +151,10 @@ function HlsChannel({ url, soundOn, onRequestSound, onAdvance, onDead }: {
 
   useEffect(() => {
     setLive(false)
+    liveRef.current = false
+    setReacquiring(false)
+    reacquiringRef.current = false
+    setAcq({ segmentSeconds: null, windowSegments: null, fragments: 0, ...acquisitionFor(url) })
     const video = videoRef.current
     if (!video) return
     video.muted = !soundOn
@@ -113,7 +163,34 @@ function HlsChannel({ url, soundOn, onRequestSound, onAdvance, onDead }: {
     let hls: import('hls.js').default | null = null
 
     const fail = () => { if (cancelled || resolved) return; resolved = true; onDeadRef.current() }
-    const succeed = () => { if (cancelled || resolved) return; resolved = true; setLive(true) }
+    const succeed = () => {
+      if (cancelled || resolved) return
+      resolved = true
+      liveRef.current = true
+      setLive(true)
+    }
+
+    // The buffer emptying under a running picture is the one thing the window
+    // depth in the readout predicts, so when it happens the set says so instead
+    // of showing a frozen frame and pretending.
+    let stallTimer: ReturnType<typeof setTimeout> | undefined
+    const onWaiting = () => {
+      if (!liveRef.current || reacquiringRef.current) return
+      clearTimeout(stallTimer)
+      stallTimer = setTimeout(() => {
+        reacquiringRef.current = true
+        setReacquiring(true)
+        setAcq(a => ({ ...a, fragments: 0 })) // count this fill, not the last one
+      }, 800)
+    }
+    const onResume = () => {
+      clearTimeout(stallTimer)
+      if (!reacquiringRef.current) return
+      reacquiringRef.current = false
+      setReacquiring(false)
+    }
+    video.addEventListener('waiting', onWaiting)
+    video.addEventListener('playing', onResume)
 
     // Two tuning deadlines: a short one for streams where nothing happens at
     // all, and a long one for streams that are demonstrably alive but slow —
@@ -135,7 +212,27 @@ function HlsChannel({ url, soundOn, onRequestSound, onAdvance, onDead }: {
         hls.loadSource(url)
         hls.attachMedia(video)
         hls.on(Hls.Events.ERROR, (_e, data) => { if (data.fatal) fail() })
-        hls.on(Hls.Events.LEVEL_LOADED, stillTrying)
+        hls.on(Hls.Events.LEVEL_LOADED, (_e, data) => {
+          stillTrying()
+          // The live manifest, which outranks the baked copy: this is the rung
+          // the player actually picked up, as it is right now.
+          setAcq(a => ({
+            ...a,
+            segmentSeconds: data.details?.targetduration ?? a.segmentSeconds,
+            windowSegments: data.details?.fragments?.length ?? a.windowSegments,
+          }))
+        })
+        // Counted on arrival rather than on buffer append: the element starts
+        // playing the moment there is anything to play, which is *before*
+        // hls.js finishes appending the first segment, so counting the appends
+        // hid every mark behind a picture that was already up.
+        //
+        // Only while the readout is on screen — once the picture is there, the
+        // marks have nothing left to report and the counting stops.
+        hls.on(Hls.Events.FRAG_LOADED, () => {
+          if (liveRef.current && !reacquiringRef.current) return
+          setAcq(a => ({ ...a, fragments: a.fragments + 1 }))
+        })
         // hls.js attaches the stream via MediaSource, which doesn't reliably
         // trigger the <video autoplay> heuristic on its own — without an
         // explicit play() call the element just sits fully buffered and
@@ -156,7 +253,10 @@ function HlsChannel({ url, soundOn, onRequestSound, onAdvance, onDead }: {
     return () => {
       cancelled = true
       clearTimeout(timer)
+      clearTimeout(stallTimer)
       video.removeEventListener('playing', succeed)
+      video.removeEventListener('waiting', onWaiting)
+      video.removeEventListener('playing', onResume)
       hls?.destroy()
     }
   }, [url])
@@ -165,9 +265,9 @@ function HlsChannel({ url, soundOn, onRequestSound, onAdvance, onDead }: {
     <div onClick={() => (soundOn ? onAdvance() : onRequestSound())} style={{ position: 'relative', width: '100%', height: '100%', background: '#000', cursor: 'pointer' }}>
       <video ref={videoRef} autoPlay muted={!soundOn} playsInline style={{
         position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
-        opacity: live ? 1 : 0, transition: 'opacity 0.3s ease',
+        opacity: live ? 1 : 0, transition: transition('opacity', DUR.move, EASE.enter),
       }} />
-      {!live && <TuningScreen />}
+      {(!live || reacquiring) && <TuningScreen acq={acq} reacquiring={reacquiring} />}
     </div>
   )
 }

@@ -44,8 +44,28 @@ function firstReachable(id: string): Feed | null {
   return CHANNELS_BAKED[id]?.feeds?.find(f => f.reachable) ?? null
 }
 
-/** A broadcast-grade picture. Everything at or above this had five rungs or three. */
+/**
+ * A broadcast-grade picture, for a station that declares a bitrate but no
+ * frame size.
+ *
+ * This number used to be the whole rule, and it was overfitted: 4 Mbps came
+ * from a dial whose three clean feeds happened to sit at 4.2, 4.7 and 11.5.
+ * Arirang Seoul serves adaptive 1920x1080 across four rungs at 3.26 Mbps and
+ * derived `grainy` under it, which is wrong — a 1080p rung is 1080p however
+ * efficiently it was encoded, and a modern encoder reaching full HD at 3 Mbps
+ * is better at its job, not worse. Frame size decides first now; this is the
+ * fallback for the manifests that keep it to themselves.
+ */
 const CLEAN_BITRATE = 4_000_000
+
+/** A rung this tall is a broadcast picture regardless of how few bits it took. */
+const CLEAN_HEIGHT = 1080
+
+/** The vertical half of a declared RESOLUTION, e.g. 1920x1080 -> 1080. */
+function declaredHeight(resolution: string | null | undefined): number | null {
+  const h = Number(resolution?.match(/\d+\s*[x×]\s*(\d+)/)?.[1] ?? NaN)
+  return Number.isFinite(h) ? h : null
+}
 
 /**
  * What the signal looks like, or null when nothing was measured.
@@ -67,7 +87,12 @@ export function measuredReception(id: string): Reception | null {
   // because nobody encoded them to be anything else.
   if (bandwidth === null) return 'grainy'
 
-  if (bandwidth >= CLEAN_BITRATE && rungs >= 3) return 'clean'
+  // Three rungs or more means the station can hold its picture when the
+  // connection tightens; a 1080p top rung means there is a picture worth
+  // holding. Either a declared frame size that tall, or — for the stations that
+  // publish bitrate and no resolution — enough bits that it must be.
+  const height = declaredHeight(feed.topResolution)
+  if (rungs >= 3 && (height !== null ? height >= CLEAN_HEIGHT : bandwidth >= CLEAN_BITRATE)) return 'clean'
 
   // A declared bitrate, but a low one, on a manifest with a single rung: it
   // cannot drop quality when the connection tightens, so it stalls instead.
@@ -77,9 +102,14 @@ export function measuredReception(id: string): Reception | null {
   return 'grainy'
 }
 
-/** The measurement where there is one, the hand-written label where there isn't. */
+/**
+ * The measurement where there is one, the hand-written label where there isn't,
+ * and soft where there is neither — a channel added since the last bake has
+ * nothing to go on, and a signal nobody has measured is likelier to be a webcam
+ * than a broadcast truck.
+ */
 export function receptionFor(channel: BroadcastChannel): Reception {
-  return measuredReception(channel.id) ?? channel.reception
+  return measuredReception(channel.id) ?? channel.reception ?? 'grainy'
 }
 
 /**
@@ -102,3 +132,39 @@ export function declaredSignal(id: string): {
     segmentSeconds: feed.targetDuration ?? null,
   }
 }
+
+/**
+ * How long this exact feed takes to come in, as far as its manifest will say.
+ *
+ * `targetDuration` is the longest segment the station will ever hand out, and
+ * the window is how many of them it keeps at the live edge. Together they are
+ * the real reason one channel appears almost at once and another sits dark for
+ * several seconds: Taipei cuts its camera into one-second pieces, Vientiane
+ * into twelve-second ones, and nothing a player does can make the twelve-second
+ * one arrive faster than twelve seconds' worth of video takes to encode.
+ *
+ * Looked up by exact URL rather than by channel, because a dial position may be
+ * showing any feed in its cascade by the time anyone is watching. Returns null
+ * for a feed that was never baked — a channel added since the last bake, which
+ * then simply has nothing to report until `scripts/bake-reception.mjs` runs.
+ */
+export function acquisitionFor(url: string): { segmentSeconds: number | null; windowSegments: number | null } | null {
+  for (const channel of Object.values(CHANNELS_BAKED)) {
+    const feed = channel.feeds?.find(f => f.url === url)
+    if (!feed) continue
+    if (!feed.reachable) return null
+    return {
+      segmentSeconds: feed.targetDuration ?? null,
+      windowSegments: feed.segments ?? null,
+    }
+  }
+  return null
+}
+
+/**
+ * A live window this shallow is one late segment from stopping. It is the
+ * number that actually predicts a stall — Reykjavik keeps three segments and
+ * Istanbul keeps six hundred — and it is nothing to do with how the picture
+ * looks, which is why reception ignores it and the tuner prints it instead.
+ */
+export const THIN_WINDOW = 3

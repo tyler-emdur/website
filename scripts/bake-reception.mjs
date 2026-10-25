@@ -1,4 +1,4 @@
-// What the nine real signals actually serve.
+// What the real signals on the dial actually serve.
 //
 // Reception used to be a hand-written label on each channel — someone decided
 // Delhi looked "chaotic" and Taipei looked "clean" and the screen applied a CSS
@@ -12,7 +12,10 @@
 // own declarations, not measurements of the picture, and a feed that is dark
 // from here is recorded as dark rather than guessed at.
 //
-//   node scripts/bake-reception.mjs > public/reception.json
+//   node scripts/bake-reception.mjs > lib/broadcast/reception.json
+//
+// It lives under lib/ and not public/ because the screen needs it at first
+// paint, before any fetch could have come back.
 //
 // Re-bake when the lineup changes. Nothing on the dial is stable forever; the
 // point is that the file says when it was true.
@@ -22,12 +25,19 @@ import { CHANNELS } from '../lib/broadcast/channels.ts'
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
 const TIMEOUT_MS = 9000
 
+// Ask as the site, because the site is who the record is about. This script
+// used to send the stream's own origin as its Referer — a request from a
+// station to itself, which is nobody. No feed currently answers differently,
+// but a measurement taken as a different client is a measurement of a
+// different thing, and the probe script has always asked this way.
+const ORIGIN = 'https://tyleremdur.com'
+
 async function get(url) {
   const controller = new AbortController()
   const t = setTimeout(() => controller.abort(), TIMEOUT_MS)
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': UA, Referer: new URL(url).origin + '/' },
+      headers: { 'User-Agent': UA, Origin: ORIGIN, Referer: ORIGIN + '/' },
       cache: 'no-store',
       signal: controller.signal,
       redirect: 'follow',

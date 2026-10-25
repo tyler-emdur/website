@@ -268,95 +268,40 @@ measured from automation. Items 3–4 are safe independently of item 2.
   already has `resume_2019.doc` in `RECYCLED` as a joke about deleting it; an
   earnest one beside it undercuts the better gag. Probably drop.
 
-## Broadcast — execution plan (2026-10-24)
+## Broadcast — what the audit left (2026-10-24)
 
-From a full audit of the dial: every feed probed for CORS, playlist validity,
-declared signal and segment shape, plus thirty candidate channels vetted.
-`scripts/probe-stream.mjs` is the tool; `lib/broadcast/reception.json` is the
-record. Ordered so the repairs land before the additions — there is no point
-widening a dial that is lying in three places.
+The audit's repairs and recalibration are done, and the tuner now reports the
+real acquisition instead of the word TUNING (see `PROGRESS.md`). What is left:
 
-**Found, and worth knowing before anything else:** finding new channels cannot
-be done from memory. Thirty candidates assembled by analogy with the working
-ones returned twenty-three dead, including twelve webcam IDs invented by
-incrementing the two real ones. Camera IDs must come out of the provider's own
-index. The one hit from a real index — `it_kronplatz07`, pulled off
-whatsupcams' front page — needed its CDN host found by probe.
-
-### P0 — repair the existing dial
-
-- [ ] **Channel 05 does not show Istanbul when TRT drops.** Its understudies
-      are DW English (Bonn) and France 24 (Paris), against a contract stated in
-      `channels.ts`: *"different stations from the same place — the city stays
-      the city."* Tune 05, lose the primary, and a German newsroom is labelled
-      ISTANBUL. Either find real Istanbul feeds, or adopt Opatija's honest
-      framing — *"a foreign signal drifting in when the cam drops"* — and say so
-      in the comment. Opatija's version is deliberate and good; 05's is a
-      shortcut wearing the same clothes.
-- [ ] **One stream is the understudy on two dial positions.** The identical DW
-      Bonn URL backs both 05 and 12. If TRT and the Opatija cam are both down,
-      05 and 12 are the same picture on a dial whose whole premise is that each
-      position is a different place. One has to go, and 12's is the one with a
-      reason to exist.
-- [ ] **Delhi's primary is a hard 404** (`cdn-2.pishow.tv/live/12/master.m3u8`),
-      confirmed across every probe. The cascade covers it silently, so what
-      anyone actually watches is the DD India understudy — but every tune to 02
-      pays a failed request first. Promote the understudy, drop the corpse.
-- [ ] **`chaotic` is unreachable.** Nothing derives to it, and channel 88 is
-      `kind: 'custom'` and returns `<Channel88 />` before `ReceptionJitter` is
-      ever reached, so its filter has never once been applied. Either wire it or
-      cut it from the union.
-- [ ] **Liveness still accepts a slate.** `/api/broadcast` tests only that the
-      body starts with `#EXTM3U`, which is exactly how a geo-blocked station
-      serving a rights notice reads as live — the RÚV trap, already written down
-      in `channels.ts`. The probe script knows the stronger test: segment count
-      above zero and no `#EXT-X-ENDLIST`. Tightening it risks darkening channels
-      that currently work, so measure every feed against the new test first and
-      only then change the route.
-
-### P1 — recalibrate from the new data
-
-- [ ] **`CLEAN_BITRATE` is overfitted.** 4 Mbps was picked from a dial whose
-      clean feeds happened to sit at 4.2, 4.7 and 11.5. Arirang Seoul measures
-      1920x1080 at 3.26 Mbps across four rungs and derives `grainy`, which is
-      almost certainly wrong for adaptive full HD. Make the rule
-      resolution-aware (1080p or better on three or more rungs is clean) rather
-      than nudging the number until Seoul passes.
-- [ ] **Window depth is measured and unused.** Reykjavik, Vientiane and Arirang
-      all run three-segment windows; Istanbul runs six hundred. A three-deep
-      window is one late segment away from stopping, and that — not bitrate — is
-      what predicts a stall mid-watch. It should drive something.
-
-### P2 — additions, both verified
-
-- [ ] **KRONPLATZ** — `cdn-006.whatsupcams.com/hls/it_kronplatz07.m3u8`.
-      CORS `*`, single playlist, no declared bitrate, 6s segments, 5-deep
-      window; derives `grainy`, the same shape as Opatija and Saxon Harbor. A
-      Dolomites ski slope is a kind of place this dial does not have — it is all
-      harbours and newsrooms. Strongest single addition found.
-- [ ] **ARIRANG, Seoul** — adaptive 1080p, CORS `*`, 4s segments. Real and
-      usable, but it is a branded international broadcaster, nearer to TRT and
-      DW than to the dial's obscure character. Hold until P1 fixes the bitrate
-      rule, then decide on character rather than availability.
-- [ ] **A real discovery pass.** whatsupcams' index exposed seven genuine IDs
-      and the manifest URLs live on the per-camera pages, not the index. Walking
-      those pages is the only honest way to widen the cam side of the dial.
-
-### P3 — what this unlocks
-
-The standing Broadcast item above asks for *"signal acquisition, not a swap."*
-That is now buildable without inventing anything: a channel's real segment
-length and window depth say how long it genuinely takes to fill a buffer.
-Vientiane at twelve-second segments three deep should take visibly longer to
-come in than Istanbul at six seconds six hundred deep. Tuning time derived from
-the manifest, rather than a random delay dressed up as one.
-
+- [ ] **The discovery pass is only started.** whatsupcams' directory is four
+      levels deep — country, region, place, camera — and the manifest URL lives
+      on the camera page. `scripts/find-cams.mjs` walks it. The first full walk
+      produced one new manifest beyond Kronplatz, Mostar's Old Bridge, and that
+      one 404s from the provider's own page: even a real index lists dead
+      cameras, so every candidate still has to answer `probe-stream.mjs`. The
+      cam side of the dial is where it can still grow — it is mostly newsrooms.
+- [ ] **Arirang, Seoul — decided against, not blocked.** It measured clean and
+      usable, and under the new resolution-aware rule it would derive `clean`
+      rather than `grainy`. It is a branded international broadcaster, and the
+      dial already carries TRT and DW; a third one buys availability at the cost
+      of the character the obscure feeds give it. Revisit only if two cities go
+      dark at once.
+- [ ] **Dushanbe still cannot be measured.** Its host resolves and never
+      completes a connection from here, through every header combination, at 25
+      seconds. It is the one channel left wearing a hand-written reception
+      label, and there is no way to tell a dark station from one that declines
+      to talk to this machine without asking from somewhere else.
+- [ ] **TELE1 flaps.** Istanbul's third feed answers 200 one minute and 404 for
+      the next ten, with no pattern in the headers. It sits third in a cascade
+      and costs nothing when it is down, but it is the reason the baked record
+      shows a live newsroom as dark: a bake is a snapshot, and a flapping
+      station is whatever it was at the moment it was asked.
 
 ## Housekeeping
 
 Clear. The untracked `tylerAndrew.com` scaffolding prompt is gone; the only
 `.md` files at the root are `CLAUDE.md`, `PLAN.md` and `PROGRESS.md`.
 
-**Unmerged and undeployed:** `main` is at `ea95353`. Four sessions of work sit
-on `hub-plain-language` → `motion-grammar` → `shared-sky` and the live site has
-none of it. Vercel auto-deploys `main`, so that merge is Tyler's call.
+**Merged.** Everything that was stacked up on `hub-plain-language` →
+`motion-grammar` → `shared-sky` → `authentic-sweep` → `no-emoji` → `dial-repair`
+is on `main`, and `main` auto-deploys, so the live site now has all of it.
