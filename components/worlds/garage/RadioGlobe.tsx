@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import { Html, Stars } from '@react-three/drei'
 import * as THREE from 'three'
 import type { RadioStation } from '@/app/api/radio/route'
+import { countryTag } from './live-radio'
 
 // The world radio, seen as a place instead of a dial — a slow-turning night
 // Earth with a signal rising from every city that's on the air. Same live
@@ -24,11 +25,6 @@ function toVec3(lat: number, lon: number, r: number): [number, number, number] {
     r * Math.cos(phi),
     r * Math.sin(phi) * Math.sin(theta),
   ]
-}
-
-function countryFlag(code: string) {
-  if (!/^[A-Za-z]{2}$/.test(code)) return '📻'
-  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 127397 + c.charCodeAt(0)))
 }
 
 // A clean lat/lon graticule (no triangulated wireframe diagonals): a ring at
@@ -155,7 +151,7 @@ function StationPoint({
             background: 'rgba(4,8,10,0.9)', border: `1px solid ${active ? 'rgba(255,228,163,0.45)' : 'rgba(138,255,192,0.35)'}`,
             borderRadius: 3, padding: '3px 8px', lineHeight: 1.5,
           }}>
-            <div>{countryFlag(station.country)} {station.name}</div>
+            <div>{[countryTag(station.country), station.name].filter(Boolean).join(' · ')}</div>
             <div style={{ fontSize: 8, opacity: 0.6 }}>{station.city} · {station.freq.toFixed(1)}</div>
           </div>
         </Html>

@@ -372,7 +372,7 @@ export default function World0Surface() {
   }, [])
 
   useEffect(() => {
-    const chars = ['★', '✦', '✺', '·', '*', '♦', '✨']
+    const chars = ['★', '✦', '✺', '·', '*', '♦', '✧']
     const colors = ['#ffff00', '#ff00ff', '#00ffff', '#ff8800', '#00ff00', '#ffffff', '#ff00aa']
     const onMove = (e: MouseEvent) => {
       const now = performance.now()

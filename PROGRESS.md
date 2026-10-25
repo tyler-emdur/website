@@ -1058,8 +1058,6 @@ calls `useEnvironment`, so World 5 joins the shared sky; the weather is read
 through a ref so the heartbeat never captures a stale `env`, which is the exact
 mistake that froze the hub terminal's weather for a whole visit in October.
 
----
-
 ## 2026-10-24 (3) — Three repairs, one new channel, and a tuner that reports
 
 Why:
@@ -1150,3 +1148,77 @@ Low. No layout, routing or mobile surface touched. The one behavioural change
 with teeth is the liveness test, which was measured against every feed before
 shipping; the one with the widest blast radius is the second HTTP hop it costs,
 which is bounded by the same 4s budget and falls back to accepting the master.
+
+## 2026-10-25 — The emoji come off the machine
+
+Tyler's ruling on the one thing the last session left open: the colour emoji go.
+Swept the whole site rather than just World 5, because the same glyphs turned up
+in two other worlds.
+
+**What was wrong.** The EMDUR-486 is a shell from 1994 — two-pixel outset
+borders, a `#000080 → #1084d0` title ramp, Arial at 9px — and its desktop was
+decorated with 💾 🌐 😵 💣 🗑 📁, which a modern Mac resolves to Apple Color
+Emoji: rounded, gradient-shaded, soft-shadowed artwork drawn in 2026. Nothing
+else in that world dated itself so badly.
+
+**What replaced them.** `machine/icons.tsx` — twenty-one icons on a 16×16 grid,
+drawn in the sixteen colours of the IBM VGA palette and nothing else. Each one
+is stored as the grid itself, one character per pixel, which is both how this
+art was authored at the time and the only form in which it can be read and
+corrected by hand. `compile()` turns a grid into horizontal runs, so a row of
+six identical pixels ships as one `<rect>`; the whole set is under 4kB inline
+and fetches nothing. It throws at import on a row that isn't 16 wide or a
+colour outside the palette — which earned its keep immediately, catching a
+redraw that silently lost a row of the globe.
+
+**The garage was the bigger find.** Three copies of a function that *built* flag
+emoji out of a station's country code — `'FR'` → two regional indicators → 🇫🇷,
+falling back to 📻. Wrong twice over: a dashboard from the late seventies cannot
+render a flag, and a flag is a worse label than the thing it was built from,
+because at 8px the French and Dutch tricolours are the same three stripes. One
+`countryTag()` now returns the code itself. The dial reads `US FR US US GB GB
+FR` across its station marks, which is more legible *and* says something true
+about the dial's shape that the flags hid.
+
+Also: Broadcast's `CLICK SCREEN FOR SOUND 🔇`, the hub's Konami payoff (whose
+`⬆⬆⬇⬇⬅➡` mixed emoji-presentation arrows with text ones, so half rendered in
+colour and half in mono — now `↑↑↓↓←→←→`), and one `✨` hiding in World 0's
+cursor-trail array among its five text-presentation stars.
+
+**One more fabrication, found in passing.** The shut-down dialog still said
+`SRVHOST.EXE is still serving 3 visitors. One of them appears to be you.` — the
+same invented count the server window stopped printing yesterday. It serves one
+browser, and the joke survives being true: *It appears to be yours.*
+
+Built and verified:
+`tsc` clean, `next build` 18/18 at 103 kB shared (unchanged), gesture checks
+pass, twelve routes 200. World 5 is DOM, so this was verified by eye in a real
+browser rather than from code: desktop, Start menu, Recycle Bin listing, the
+confirm and refusal dialogs, Minesweeper's board, flag and counter. The three
+Minesweeper faces that can't be reached without losing a game were checked with
+a temporary icon sheet rendered into the desktop, screenshotted, then removed —
+`FORCED_FOR_SCREENSHOT` greps clean.
+
+Discovered:
+1. **A dead server served the proof.** Two rounds of "the fix didn't work" were
+   a stale `next start` holding port 3000 — the rebuild was fine, `npm start`
+   had failed with `EADDRINUSE` into a log nobody read, and `pkill -f "next
+   start"` never matched it. Check what owns the port before believing a
+   screenshot that disagrees with the source.
+2. **`display: block` was load-bearing and I removed it.** The icons were block
+   so the label below got its own line. Switching to `inline-block` to fix the
+   Start menu's alignment let short labels — WORLDS, TERMINAL, TETRIS — ride up
+   *beside* the picture while longer ones stayed under it. Only visible on the
+   three shortest names, and only by looking. Centring is now an explicit
+   `center` prop, so the two contexts stop fighting over one default.
+3. **An emoji sweep by eye misses half of them.** `⬆` and `➡` look like the
+   same kind of arrow and are not: U+2B06 is emoji-presentation by default,
+   U+27A1 is not. The grep that works matches codepoint ranges plus the three
+   stray arrows and U+FE0F, not "does it look like a picture".
+
+Next:
+Explorer, still — seven entries now.
+
+Risk:
+Low. No routing or data touched. The widest surface is World 5's three icon
+render sites, all walked by hand at desktop and phone width.

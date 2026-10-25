@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic'
 import HomeButton from './HomeButton'
 import { useWorldStore } from '@/lib/world-store'
 import { useEnvironment } from '@/lib/environment'
-import { LiveRadio, nearestStation, type RadioStatus } from './garage/live-radio'
+import { LiveRadio, nearestStation, countryTag, type RadioStatus } from './garage/live-radio'
 import type { RadioStation } from '@/app/api/radio/route'
 
 const GarageScene = dynamic(() => import('./garage/GarageScene'), { ssr: false })
@@ -12,11 +12,6 @@ const NightDrive = dynamic(() => import('./garage/NightDrive'), { ssr: false })
 
 const FREQ_LO = 87.7
 const FREQ_HI = 108.0
-
-function countryFlag(code: string) {
-  if (!/^[A-Za-z]{2}$/.test(code)) return '📻'
-  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 127397 + c.charCodeAt(0)))
-}
 
 // ── the analog slide-rule tuning dial ────────────────────────────────────────
 function TuningDial({
@@ -81,7 +76,10 @@ function TuningDial({
           position: 'absolute', left: `${pct(s.freq)}%`, bottom: 5, transform: 'translateX(-50%)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none',
         }}>
-          <div style={{ fontSize: 8, lineHeight: 1 }}>{countryFlag(s.country)}</div>
+          <div style={{
+            fontSize: 6, lineHeight: 1, letterSpacing: '0.08em',
+            color: 'rgba(255,214,150,0.75)', fontFamily: '"Space Mono", monospace',
+          }}>{countryTag(s.country)}</div>
           <div style={{ width: 2, height: 9, background: 'rgba(255,179,71,0.7)', marginTop: 1 }} />
         </div>
       ))}
@@ -334,7 +332,7 @@ export default function World6Garage() {
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>
                   {loadingStations ? 'acquiring stations…'
                     : stationName
-                      ? `${countryFlag(stationCountry ?? '')} ${stationName}${stationCity ? ` · ${stationCity}` : ''}${stationGenre ? ` · ${stationGenre}` : ''}`
+                      ? [countryTag(stationCountry), stationName, stationCity, stationGenre].filter(Boolean).join(' · ')
                       : '— between stations —'}
                 </div>
               </div>
@@ -365,7 +363,7 @@ export default function World6Garage() {
                 disabled={!stations.length}
                 style={{ ...radioBtn, opacity: stations.length ? 1 : 0.35 }}
                 title="tune by place instead of frequency"
-              >🌐 WORLD</button>
+              >◉ WORLD</button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                 <span style={{ fontSize: 7, color: 'rgba(255,255,255,0.3)' }}>VOL</span>
                 <input type="range" min={0} max={1} step={0.01} value={volume}

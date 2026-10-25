@@ -7,6 +7,7 @@ import { useSiteCommits } from '@/hooks/use-site-commits'
 import HomeButton from '../HomeButton'
 import Tetris from './Tetris'
 import { PROGRAMS } from './programs'
+import { Icon, type IconName } from './icons'
 import {
   EXPERIMENTS, README_TXT, RECOVERED_SECTORS, RECYCLED, WEBSITE_V1_LINKS, WORLD_FILES,
   garbleLine, getBootCount, recordBoot, type RecycledItem,
@@ -392,7 +393,7 @@ function Terminal({ bootCount, onRun, onSecret, onWorld, onSrv }: {
 
 // ── folder listings ───────────────────────────────────────────────────────────
 // Click selects (like a real machine); double-click opens.
-function FolderGrid({ items }: { items: { icon: string; label: string; sub?: string; onOpen: () => void; dim?: boolean }[] }) {
+function FolderGrid({ items }: { items: { icon: IconName; label: string; sub?: string; onOpen: () => void; dim?: boolean }[] }) {
   const [sel, setSel] = useState<string | null>(null)
   return (
     <div onClick={() => setSel(null)} style={{ background: '#fff', height: '100%', overflowY: 'auto', padding: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, 92px)', gap: 8, alignContent: 'start' }}>
@@ -401,7 +402,7 @@ function FolderGrid({ items }: { items: { icon: string; label: string; sub?: str
           onClick={e => { e.stopPropagation(); setSel(it.label) }}
           onDoubleClick={e => { e.stopPropagation(); it.onOpen() }}
           style={{ textAlign: 'center', cursor: 'pointer', opacity: it.dim ? 0.45 : 1, userSelect: 'none' }}>
-          <div style={{ fontSize: 26 }}>{it.icon}</div>
+          <Icon name={it.icon} center />
           <div style={{
             fontFamily: 'Arial, sans-serif', fontSize: 9, wordBreak: 'break-all', lineHeight: 1.3, marginTop: 2,
             display: 'inline-block', padding: '1px 3px',
@@ -442,8 +443,8 @@ function RecycleBin({ onOpen, onRefused }: { onOpen: (item: RecycledItem) => voi
         <span style={{ fontFamily: 'Arial, sans-serif', fontSize: 10, color: '#000' }}>{RECYCLED.length} item(s)</span>
         <button
           onClick={() => setDlg('confirm')}
-          style={{ padding: '2px 8px', background: GRAY, border: '2px outset #fff', fontFamily: 'Arial, sans-serif', fontSize: 10, cursor: 'pointer', color: '#000' }}
-        >🗑 Empty Recycle Bin</button>
+          style={{ padding: '2px 8px', background: GRAY, border: '2px outset #fff', fontFamily: 'Arial, sans-serif', fontSize: 10, cursor: 'pointer', color: '#000', display: 'flex', alignItems: 'center', gap: 4 }}
+        ><Icon name="bin" size={11} /><span>Empty Recycle Bin</span></button>
       </div>
       {/* file grid */}
       <div onClick={() => setSel(null)} style={{ flex: 1, overflowY: 'auto', padding: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, 100px)', gap: 8, alignContent: 'start' }}>
@@ -452,7 +453,7 @@ function RecycleBin({ onOpen, onRefused }: { onOpen: (item: RecycledItem) => voi
             onClick={e => { e.stopPropagation(); setSel(it.file) }}
             onDoubleClick={e => { e.stopPropagation(); onOpen(it) }}
             style={{ textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}>
-            <div style={{ fontSize: 26 }}>{it.icon}</div>
+            <Icon name={it.icon} center />
             <div style={{
               fontFamily: 'Arial, sans-serif', fontSize: 9, wordBreak: 'break-word', lineHeight: 1.3, marginTop: 2,
               display: 'inline-block', padding: '1px 3px',
@@ -475,7 +476,7 @@ function RecycleBin({ onOpen, onRefused }: { onOpen: (item: RecycledItem) => voi
             {dlg === 'confirm' && (
               <>
                 <div style={{ padding: '16px 16px 6px', display: 'flex', gap: 12, fontSize: 12, color: '#000', lineHeight: 1.5 }}>
-                  <div style={{ fontSize: 26 }}>🗑</div>
+                  <Icon name="bin" size={28} />
                   <div>Are you sure you want to delete these {RECYCLED.length} items?</div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '10px 14px 14px' }}>
@@ -495,7 +496,7 @@ function RecycleBin({ onOpen, onRefused }: { onOpen: (item: RecycledItem) => voi
             {dlg === 'blocked' && (
               <>
                 <div style={{ padding: '16px 16px 6px', display: 'flex', gap: 12, fontSize: 12, color: '#000', lineHeight: 1.55 }}>
-                  <div style={{ fontSize: 26 }}>⚠️</div>
+                  <Icon name="warning" size={28} />
                   <div>
                     The disk is still holding these files.<br /><br />
                     They were deleted a long time ago. They are still here.<br />
@@ -745,7 +746,7 @@ function Minesweeper({ onWin }: { onWin: () => void }) {
     setFlags(f => f + (grid[i].flagged ? -1 : 1))
   }
 
-  const face = state === 'lost' ? '😵' : state === 'won' ? '😎' : pressed ? '😮' : '🙂'
+  const face: IconName = state === 'lost' ? 'face-dead' : state === 'won' ? 'face-win' : pressed ? 'face-oh' : 'face-ok'
   const lcd = (v: number) => String(Math.max(0, Math.min(999, v))).padStart(3, '0')
 
   return (
@@ -756,7 +757,7 @@ function Minesweeper({ onWin }: { onWin: () => void }) {
           <div style={{ background: '#000', color: '#ff0000', fontSize: 20, padding: '1px 4px', letterSpacing: 1, fontWeight: 700 }}>{lcd(MS_MINES - flags)}</div>
           <button onClick={reset}
             onMouseDown={() => setPressed(true)} onMouseUp={() => setPressed(false)} onMouseLeave={() => setPressed(false)}
-            style={{ width: 30, height: 30, border: '2px outset #fff', background: GRAY, fontSize: 16, cursor: 'pointer', lineHeight: 1 }}>{face}</button>
+            style={{ width: 30, height: 30, border: '2px outset #fff', background: GRAY, cursor: 'pointer', lineHeight: 1, padding: 0 }}><Icon name={face} size={22} /></button>
           <div style={{ background: '#000', color: '#ff0000', fontSize: 20, padding: '1px 4px', letterSpacing: 1, fontWeight: 700 }}>{lcd(time)}</div>
         </div>
         {/* grid */}
@@ -774,7 +775,9 @@ function Minesweeper({ onWin }: { onWin: () => void }) {
                 background: c.revealed && c.mine ? '#ff0000' : GRAY,
                 color: NUM_COLORS[c.n] || '#000',
               }}>
-              {c.revealed ? (c.mine ? '💣' : c.n > 0 ? c.n : '') : c.flagged ? '🚩' : ''}
+              {c.revealed
+                ? (c.mine ? <Icon name="mine" size={16} /> : c.n > 0 ? c.n : '')
+                : c.flagged ? <Icon name="flag" size={16} /> : ''}
             </div>
           ))}
         </div>
@@ -959,7 +962,7 @@ export default function World5Machine() {
   const openWorlds = useCallback(() => {
     open('dir:worlds', 'C:\\WORLDS — the whole site lives here', (
       <FolderGrid items={WORLD_FILES.map(wf => ({
-        icon: wf.world === 5 ? '💾' : '🌐',
+        icon: wf.world === 5 ? 'disk' : 'globe',
         label: wf.file,
         sub: `${wf.size} · ${wf.note}`,
         onOpen: () => loadWorld(wf.world),
@@ -975,7 +978,7 @@ export default function World5Machine() {
   const openRecovered = useCallback(() => {
     open('dir:recovered', 'C:\\RECOVERED', (
       <FolderGrid items={RECOVERED_SECTORS.map((s, i) => ({
-        icon: bootCount > i + 1 ? '📄' : '🗒',
+        icon: bootCount > i + 1 ? 'doc' : 'torn',
         label: s.file + (bootCount > i + 1 ? '' : ' (damaged)'),
         dim: bootCount <= i + 1,
         onOpen: () => open(`sector:${i}`, s.file, <SectorFile idx={i} healed={bootCount > i + 1} />, 460, 260),
@@ -996,28 +999,28 @@ export default function World5Machine() {
     if (healedCount >= RECOVERED_SECTORS.length && phase === 'desktop') findSecret('machine-all-sectors')
   }, [healedCount, phase, findSecret])
 
-  const DESKTOP_ICONS = [
-    { icon: '💻', label: 'My Computer', act: () => open('dir:root', 'C:\\', (
+  const DESKTOP_ICONS: { icon: IconName; label: string; act: () => void }[] = [
+    { icon: 'computer', label: 'My Computer', act: () => open('dir:root', 'C:\\', (
       <FolderGrid items={[
-        { icon: '🌐', label: 'WORLDS', onOpen: openWorlds },
-        { icon: '📁', label: 'EXPERIMENTS', onOpen: () => openIcon('experiments') },
-        { icon: '📁', label: 'GAMES', onOpen: () => openIcon('games') },
-        { icon: '📁', label: 'RECOVERED', onOpen: openRecovered },
-        { icon: '📡', label: 'SRVHOST.EXE', onOpen: openSrvhost },
-        { icon: '🗑', label: 'Recycle Bin', onOpen: openRecycleBin },
-        { icon: '📄', label: 'README.TXT', onOpen: () => openIcon('readme') },
-        { icon: '🌐', label: 'WEBSITE.V1', onOpen: () => openIcon('v1') },
+        { icon: 'globe', label: 'WORLDS', onOpen: openWorlds },
+        { icon: 'folder', label: 'EXPERIMENTS', onOpen: () => openIcon('experiments') },
+        { icon: 'folder', label: 'GAMES', onOpen: () => openIcon('games') },
+        { icon: 'folder', label: 'RECOVERED', onOpen: openRecovered },
+        { icon: 'antenna', label: 'SRVHOST.EXE', onOpen: openSrvhost },
+        { icon: 'bin', label: 'Recycle Bin', onOpen: openRecycleBin },
+        { icon: 'doc', label: 'README.TXT', onOpen: () => openIcon('readme') },
+        { icon: 'globe', label: 'WEBSITE.V1', onOpen: () => openIcon('v1') },
       ]} />
     ), 440, 260) },
-    { icon: '📡', label: 'SRVHOST.EXE', act: openSrvhost },
-    { icon: '🌐', label: 'WORLDS', act: openWorlds },
-    { icon: '⌨', label: 'TERMINAL', act: () => openIcon('terminal') },
-    { icon: '📄', label: 'README.TXT', act: () => openIcon('readme') },
-    { icon: '💣', label: 'MINESWEEPER', act: openMinesweeper },
-    { icon: '🧱', label: 'TETRIS', act: openTetris },
-    { icon: '📁', label: 'PROGRAMS', act: () => openIcon('games') },
-    { icon: '🗒', label: 'RECOVERED', act: openRecovered },
-    { icon: '🗑', label: 'Recycle Bin', act: openRecycleBin },
+    { icon: 'antenna', label: 'SRVHOST.EXE', act: openSrvhost },
+    { icon: 'globe', label: 'WORLDS', act: openWorlds },
+    { icon: 'console', label: 'TERMINAL', act: () => openIcon('terminal') },
+    { icon: 'doc', label: 'README.TXT', act: () => openIcon('readme') },
+    { icon: 'mine', label: 'MINESWEEPER', act: openMinesweeper },
+    { icon: 'blocks', label: 'TETRIS', act: openTetris },
+    { icon: 'folder', label: 'PROGRAMS', act: () => openIcon('games') },
+    { icon: 'torn', label: 'RECOVERED', act: openRecovered },
+    { icon: 'bin', label: 'Recycle Bin', act: openRecycleBin },
   ]
 
   function openIcon(kind: string) {
@@ -1038,7 +1041,7 @@ export default function World5Machine() {
       case 'experiments':
         open('dir:experiments', 'C:\\EXPERIMENTS — deleted, not gone', (
           <FolderGrid items={EXPERIMENTS.map(e => ({
-            icon: '🧪', label: e.title,
+            icon: 'flask' as IconName, label: e.title,
             onOpen: () => open(`exp:${e.id}`, e.title, <Notepad lines={[`${e.title}`, `status: ${e.status}`, '', e.note]} />, 420, 240),
           }))} />
         ), 460, 300)
@@ -1046,10 +1049,10 @@ export default function World5Machine() {
       case 'games':
         open('dir:games', 'C:\\GAMES', (
           <FolderGrid items={[
-            { icon: '💣', label: 'MINESWEEPER', onOpen: openMinesweeper },
-            { icon: '🧱', label: 'TETRIS.EXE', onOpen: openTetris },
+            { icon: 'mine' as IconName, label: 'MINESWEEPER', onOpen: openMinesweeper },
+            { icon: 'blocks' as IconName, label: 'TETRIS.EXE', onOpen: openTetris },
             ...PROGRAMS.map(p => ({
-              icon: '🕹', label: p.title,
+              icon: 'joystick' as IconName, label: p.title,
               onOpen: () => openProgram(p.id),
             })),
           ]} />
@@ -1108,7 +1111,7 @@ export default function World5Machine() {
                     onClick={e => { e.stopPropagation(); setSelIcon(ic.label) }}
                     onDoubleClick={e => { e.stopPropagation(); setSelIcon(null); ic.act() }}
                     style={{ width: 78, textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}>
-                    <div style={{ fontSize: 26, filter: 'drop-shadow(1px 1px 1px rgba(0,0,0,0.5))' }}>{ic.icon}</div>
+                    <Icon name={ic.icon} center shadow />
                     <div style={{
                       fontFamily: 'Arial, sans-serif', fontSize: 9, color: '#fff', textShadow: '1px 1px 1px #000',
                       padding: '1px 3px', marginTop: 2, display: 'inline-block',
@@ -1137,27 +1140,29 @@ export default function World5Machine() {
                   background: GRAY, border: '2px outset #fff', boxShadow: '2px 2px 0 rgba(0,0,0,0.5)',
                   fontFamily: 'Arial, sans-serif', fontSize: 11,
                 }}>
-                  {[
-                    { label: '📡  Server Monitor', act: () => { openSrvhost(); setStartOpen(false) } },
-                    { label: '🌐  Worlds', act: () => { openWorlds(); setStartOpen(false) } },
-                    { label: '⌨  MS-DOS Prompt', act: () => { openIcon('terminal'); setStartOpen(false) } },
-                    { label: '💣  Minesweeper', act: () => { openMinesweeper(); setStartOpen(false) } },
-                    { label: '🕹  Games', act: () => { openIcon('games'); setStartOpen(false) } },
-                    { label: '🧪  Experiments', act: () => { openIcon('experiments'); setStartOpen(false) } },
-                    { label: '🗑  Recycle Bin', act: () => { openRecycleBin(); setStartOpen(false) } },
-                    { label: '📄  Read Me', act: () => { openIcon('readme'); setStartOpen(false) } },
-                  ].map(item => (
+                  {([
+                    { icon: 'antenna', label: 'Server Monitor', act: () => { openSrvhost(); setStartOpen(false) } },
+                    { icon: 'globe', label: 'Worlds', act: () => { openWorlds(); setStartOpen(false) } },
+                    { icon: 'console', label: 'MS-DOS Prompt', act: () => { openIcon('terminal'); setStartOpen(false) } },
+                    { icon: 'mine', label: 'Minesweeper', act: () => { openMinesweeper(); setStartOpen(false) } },
+                    { icon: 'joystick', label: 'Games', act: () => { openIcon('games'); setStartOpen(false) } },
+                    { icon: 'flask', label: 'Experiments', act: () => { openIcon('experiments'); setStartOpen(false) } },
+                    { icon: 'bin', label: 'Recycle Bin', act: () => { openRecycleBin(); setStartOpen(false) } },
+                    { icon: 'doc', label: 'Read Me', act: () => { openIcon('readme'); setStartOpen(false) } },
+                  ] as { icon: IconName; label: string; act: () => void }[]).map(item => (
                     <div key={item.label} onClick={item.act}
-                      style={{ padding: '7px 10px', cursor: 'pointer', color: '#000', borderBottom: '1px solid #aaa' }}
+                      style={{ padding: '6px 10px', cursor: 'pointer', color: '#000', borderBottom: '1px solid #aaa',
+                        display: 'flex', alignItems: 'center', gap: 8 }}
                       onMouseEnter={e => { e.currentTarget.style.background = '#000080'; e.currentTarget.style.color = '#fff' }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#000' }}
-                    >{item.label}</div>
+                    ><Icon name={item.icon} size={18} /><span>{item.label}</span></div>
                   ))}
                   <div onClick={() => { setStartOpen(false); setConfirmOff(true) }}
-                    style={{ padding: '7px 10px', cursor: 'pointer', color: '#000', fontWeight: 700 }}
+                    style={{ padding: '6px 10px', cursor: 'pointer', color: '#000', fontWeight: 700,
+                      display: 'flex', alignItems: 'center', gap: 8 }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#000080'; e.currentTarget.style.color = '#fff' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#000' }}
-                  >⏻  Shut Down...</div>
+                  ><Icon name="power" size={18} /><span>Shut Down...</span></div>
                 </div>
               )}
 
@@ -1207,10 +1212,10 @@ export default function World5Machine() {
                       Shut Down EMDUR/OS
                     </div>
                     <div style={{ padding: '16px 16px 6px', display: 'flex', gap: 12, fontFamily: 'Arial, sans-serif', fontSize: 12, color: '#000', lineHeight: 1.6 }}>
-                      <div style={{ fontSize: 28 }}>⚠️</div>
+                      <Icon name="warning" size={30} />
                       <div>
-                        SRVHOST.EXE is still serving <b>3 visitors</b>.<br />
-                        One of them appears to be you.<br /><br />
+                        SRVHOST.EXE is still serving <b>1 browser</b>.<br />
+                        It appears to be yours.<br /><br />
                         If this machine shuts down, the site you are standing in goes with it.
                       </div>
                     </div>

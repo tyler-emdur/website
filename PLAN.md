@@ -70,14 +70,13 @@ z-order, a taskbar, a start menu, minimize, right-click context menus,
 Minesweeper, Tetris, a working `C:\` shell with `DIR`/`CD`, and ten program
 EXEs. Don't rebuild it. Close the specific gaps:
 
-- [ ] **Emoji break the era.** `📁` is the PROGRAMS desktop icon, `📄` marks
-      RECYCLED files, `💾 🌐 😵 💣 🗑` sit on the desktop and in Minesweeper,
-      `📻` and `🔇` sit in the Garage and Broadcast. World 0 already ships a
-      real icon pipeline at `/retro/*.svg` — use it. Era dingbats
-      (`★ ✦ ♦ ✉`) are fine; color emoji are not.
-      **Blocked on a ruling** (2026-10-24): this is the most era-breaking thing
-      left in World 5, and World 5 is on CLAUDE.md's "done, do not restyle"
-      list. Swapping icons is restyling. Needs Tyler's yes.
+- [x] **Emoji break the era.** Ruled on by Tyler 2026-10-25 and done. Twenty-one
+      icons now live in `machine/icons.tsx`, drawn on a 16×16 grid in the VGA
+      sixteen-colour palette and stored as the pixel grid itself. The Garage's
+      three copies of a flag-emoji builder collapsed into one `countryTag()`
+      that prints the country code instead — more legible at 8px than a flag,
+      and it shows the dial is mostly US. Era dingbats (`★ ✦ ♦ ✉ ◀ ▶`) stay;
+      colour emoji are gone sitewide, verified by codepoint-range grep.
 - [ ] **Machine:** window conventions of the era — a menu bar with File/Edit/
       Help that actually opens, modal dialogs with OK/Cancel, a title-bar system
       box, keyboard focus. Convincing beats decorative.
@@ -304,5 +303,5 @@ Clear. The untracked `tylerAndrew.com` scaffolding prompt is gone; the only
 `.md` files at the root are `CLAUDE.md`, `PLAN.md` and `PROGRESS.md`.
 
 **Merged.** Everything that was stacked up on `hub-plain-language` →
-`motion-grammar` → `shared-sky` → `authentic-sweep` is on `main` at `c05cccf`,
-and `main` auto-deploys, so the live site now has all of it.
+`motion-grammar` → `shared-sky` → `authentic-sweep` → `no-emoji` → `dial-repair`
+is on `main`, and `main` auto-deploys, so the live site now has all of it.
